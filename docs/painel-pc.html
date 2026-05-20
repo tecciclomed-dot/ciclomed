@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CicloMed - Painel de Aprovação PC</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --primary:   #1a5276;
+            --primary-d: #0d1f2d;
+            --success:   #27ae60;
+            --danger:    #c0392b;
+            --warning:   #e67e22;
+            --pending:   #2980b9;
+            --bg:        #f0f4f8;
+            --card:      #ffffff;
+            --text:      #2c3e50;
+            --muted:     #7f8c8d;
+            --border:    #dde3ea;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(160deg, #1a3a4a 0%, #0d1f2d 100%);
+            min-height: 100vh;
+            padding: 0 0 40px;
+            color: var(--text);
+        }
+
+        /* ── Header ─────────────────────────────────────────── */
+        .top-bar {
+            background: rgba(0,0,0,0.35);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(6px);
+        }
+
+        .logo-svg { width: 130px; height: auto; flex-shrink: 0; }
+
+        .top-title {
+            color: #fff;
+            font-size: 17px;
+            font-weight: 600;
+            letter-spacing: .3px;
+        }
+
+        .top-subtitle { color: rgba(255,255,255,.55); font-size: 13px; margin-top: 2px; }
+
+        /* ── Container ───────────────────────────────────────── */
+        .container {
+            max-width: 860px;
+            margin: 28px auto 0;
+            padding: 0 16px;
+        }
+
+        /* ── States: loading / error ─────────────────────────── */
+        .state-box {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 50px 30px;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,.25);
+        }
+
+        .spinner {
+            width: 46px; height: 46px;
+            border: 4px solid #e0e0e0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin .9s linear infinite;
+            margin: 0 auto 18px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .state-box p { color: var(--muted); font-size: 15px; }
+
+        /* ── SC Info Card ────────────────────────────────────── */
+        .sc-card {
+            background: var(--card);
+            border-radius: 14px;
+            padding: 22px 26px;
+            box-shadow: 0 4px 20px rgba(0,0,0,.2);
+            margin-bottom: 18px;
+        }
+
+        .sc-card-title {
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .8px;
+            color: var(--primary);
+            margin-bottom: 14px;
+        }
+
+        .sc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 10px 20px;
+        }
+
+        .sc-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .5px;
+            color: var(--muted);
+            margin-bottom: 3px;
+        }
+
+        .sc-field span {
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .sc-field.wide { grid-column: 1 / -1; }
+
+        /* ── Stats row ───────────────────────────────────────── */
+        .stats-row {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+        }
+
+        .stat-chip {
+            flex: 1;
+            min-width: 100px;
+            background: var(--card);
+            border-radius: 10px;
+            padding: 14px 16px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,.15);
+        }
+
+        .stat-chip .num { font-size: 26px; font-weight: 700; line-height: 1; }
+        .stat-chip .lbl { font-size: 12px; color: var(--muted); margin-top: 5px; }
+
+        .stat-chip.pend  .num { color: var(--warning); }
+        .stat-chip.aprov .num { color: var(--success);  }
+        .stat-chip.rej   .num { color: var(--danger);   }
+
+        /* ── Tabs ────────────────────────────────────────────── */
+        .tabs {
+            display: flex;
+            gap: 4px;
+            background: rgba(255,255,255,.1);
+            border-radius: 12px;
+            padding: 5px;
+            margin-bottom: 16px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 10px 8px;
+            border: none;
+            border-radius: 9px;
+            background: transparent;
+            color: rgba(255,255,255,.65);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background .2s, color .2s;
+            white-space: nowrap;
+        }
+
+        .tab-btn.active {
+            background: var(--card);
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,.15);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: currentColor;
+            color: #fff;
+            border-radius: 20px;
+            min-width: 20px;
+            height: 20px;
+            font-size: 11px;
+            padding: 0 6px;
+            margin-left: 6px;
+            vertical-align: middle;
+        }
+
+        .tab-btn .badge { opacity: .85; }
+        .tab-btn.active .badge { opacity: 1; }
+
+        .badge-pend  { background: var(--warning) !important; }
+        .badge-aprov { background: var(--success)  !important; }
+        .badge-rej   { background: var(--danger)   !important; }
+
+        /* ── Approve-all bar ─────────────────────────────────── */
+        .bulk-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: var(--card);
+            border-radius: 10px;
+            padding: 12px 18px;
+            margin-bottom: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,.12);
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .bulk-bar span { font-size: 14px; color: var(--muted); }
+
+        /* ── Buttons ─────────────────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .1s;
+        }
+
+        .btn:active { transform: scale(.97); }
+        .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+        .btn-success  { background: var(--success); color: #fff; }
+        .btn-danger   { background: var(--danger);  color: #fff; }
+        .btn-outline  { background: transparent; border: 2px solid var(--border); color: var(--text); }
+
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+        /* ── Item cards ──────────────────────────────────────── */
+        .items-list { display: flex; flex-direction: column; gap: 12px; }
+
+        .item-card {
+            background: var(--card);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,.13);
+            transition: box-shadow .2s;
+        }
+
+        .item-card:hover { box-shadow: 0 4px 18px rgba(0,0,0,.2); }
+
+        .item-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 13px 18px;
+            background: #f8fafc;
+            border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .item-num {
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .5px;
+        }
+
+        .item-prod { font-size: 15px; font-weight: 700; color: var(--primary); }
+        .item-desc { font-size: 13px; color: var(--muted); margin-top: 1px; }
+
+        .status-pill {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            letter-spacing: .3px;
+        }
+
+        .status-B { background: #fff3e0; color: var(--warning); }
+        .status-L { background: #e8f8f0; color: var(--success); }
+        .status-R { background: #fdecea; color: var(--danger);  }
+
+        .item-card-body { padding: 16px 18px; }
+
+        .item-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px 16px;
+            margin-bottom: 14px;
+        }
+
+        .detail-field label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .4px;
+            color: var(--muted);
+            margin-bottom: 2px;
+        }
+
+        .detail-field span { font-size: 14px; font-weight: 600; color: var(--text); }
+
+        .item-actions {
+            display: flex;
+            gap: 10px;
+            padding-top: 12px;
+            border-top: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+
+        /* ── Empty state ─────────────────────────────────────── */
+        .empty-state {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,.1);
+        }
+
+        .empty-icon { font-size: 42px; margin-bottom: 12px; }
+        .empty-state p { color: var(--muted); font-size: 15px; }
+
+        /* ── Toast notification ──────────────────────────────── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 20px;
+            max-width: 360px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-weight: 500;
+            box-shadow: 0 6px 20px rgba(0,0,0,.25);
+            z-index: 9999;
+            transform: translateY(80px);
+            opacity: 0;
+            transition: transform .3s, opacity .3s;
+            pointer-events: none;
+        }
+
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast.toast-ok  { background: var(--success); }
+        .toast.toast-err { background: var(--danger);  }
+        .toast.toast-inf { background: var(--primary); }
+
+        /* ── Tab panels ──────────────────────────────────────── */
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* ── Responsive ──────────────────────────────────────── */
+        @media (max-width: 480px) {
+            .sc-grid { grid-template-columns: 1fr 1fr; }
+            .tab-btn  { font-size: 12px; padding: 9px 6px; }
+            .top-title { font-size: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="top-bar">
+    <svg class="logo-svg" viewBox="0 0 220 80" xmlns="http://www.w3.org/2000/svg" aria-label="CicloMed">
+        <path d="M55 40 A25 25 0 1 1 55 39.99" fill="none" stroke="#fff" stroke-width="2.5" stroke-dasharray="145 12"/>
+        <circle cx="78" cy="23" r="3" fill="#fff"/>
+        <text x="110" y="48" text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif"
+              font-size="28" font-weight="300" fill="#fff" letter-spacing="1">CicloMed</text>
+    </svg>
+    <div>
+        <div class="top-title">Painel de Aprovação</div>
+        <div class="top-subtitle" id="topSubtitle">Pedido de Compra</div>
+    </div>
+</div>
+
+<div class="container" id="app">
+    <!-- Estado inicial: carregando -->
+    <div class="state-box" id="stateLoading">
+        <div class="spinner"></div>
+        <p>Carregando dados da solicitação&hellip;</p>
+    </div>
+
+    <!-- Estado: erro -->
+    <div class="state-box" id="stateError" style="display:none;">
+        <div style="font-size:48px;margin-bottom:16px;">⚠️</div>
+        <p id="errorMsg" style="font-size:16px;color:#c0392b;font-weight:600;"></p>
+        <p style="margin-top:8px;color:#7f8c8d;font-size:13px;" id="errorDetail"></p>
+    </div>
+
+    <!-- Painel principal (oculto até dados carregarem) -->
+    <div id="panelMain" style="display:none;">
+
+        <!-- SC Info -->
+        <div class="sc-card">
+            <div class="sc-card-title">Solicitação de Compras</div>
+            <div class="sc-grid" id="scInfoGrid"></div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-row" id="statsRow"></div>
+
+        <!-- Tabs -->
+        <div class="tabs" id="tabsNav"></div>
+
+        <!-- Tab panels -->
+        <div id="tabPendentes" class="tab-panel active"></div>
+        <div id="tabAprovados" class="tab-panel"></div>
+        <div id="tabRejeitados" class="tab-panel"></div>
+
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+    'use strict';
+
+    /* ── Config ───────────────────────────────────────────────── */
+    var API_BASE  = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03';
+    var API_PANEL = API_BASE + '/WSPCPAINEL';
+    var API_APROV = API_BASE + '/WSAPROVPC';
+    var BASIC_AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
+
+    /* ── URL params ──────────────────────────────────────────── */
+    var params = new URLSearchParams(window.location.search);
+    var pSC    = (params.get('pc')    || '').trim();
+    var pFil   = (params.get('fil')   || '').trim();
+    var pToken = (params.get('token') || '').trim();
+
+    /* ── State ───────────────────────────────────────────────── */
+    var gData        = null;   // last JSON from WSSCPAINEL
+    var gActiveTab   = 'pend'; // 'pend' | 'aprov' | 'rej'
+    var gBusy        = false;  // true while a request is in-flight
+
+    /* ── Boot ────────────────────────────────────────────────── */
+    if (!pSC || !pFil || !pToken) {
+        showError('Parâmetros inválidos', 'A URL deve conter sc, fil e token. Verifique o link no email.');
+        return;
+    }
+
+    document.getElementById('topSubtitle').textContent = 'PC ' + pSC + '  •  Filial ' + pFil;
+    loadData();
+
+    /* ── Load data ───────────────────────────────────────────── */
+    function loadData() {
+        var url = API_PANEL +
+            '?pc='    + encodeURIComponent(pSC)    +
+            '&fil='   + encodeURIComponent(pFil)   +
+            '&token=' + encodeURIComponent(pToken);
+
+        fetch(url, { headers: { 'Authorization': BASIC_AUTH } })
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                if (json.erro) {
+                    showError('Erro ao carregar SC', json.erro);
+                } else {
+                    gData = json;
+                    renderPanel();
+                }
+            })
+            .catch(function (err) {
+                showError('Falha de conexão', err.message);
+            });
+    }
+
+    /* ── Render full panel ───────────────────────────────────── */
+    function renderPanel() {
+        var d = gData;
+
+        show('panelMain');
+        hide('stateLoading');
+
+        // ── SC Info
+        var forn = d.fornecedor
+            ? ('<strong>' + esc(d.fornecedor) + (d.loja ? '/' + esc(d.loja) : '') + '</strong>' +
+               (d.nome_fornecedor ? ' &ndash; ' + esc(d.nome_fornecedor) : ''))
+            : '&ndash;';
+
+        var vlrTotal = d.total_pc ? 'R$ ' + fmtNum(d.total_pc, 2) : '';
+
+        el('scInfoGrid').innerHTML =
+            field('PC Nº', '<strong>' + esc(d.pc) + '</strong>') +
+            field('Emissão', esc(d.emissao)) +
+            field('Comprador', esc(d.comprador) || '&ndash;') +
+            (vlrTotal ? field('Valor Total', vlrTotal) : '') +
+            '<div class="sc-field wide">' +
+                '<label>Fornecedor</label>' +
+                '<span>' + forn + '</span>' +
+            '</div>';
+
+        // ── Stats chips
+        var r = d.resumo || {};
+        el('statsRow').innerHTML =
+            chip('pend',  r.pendentes  || 0, 'Pendentes')  +
+            chip('aprov', r.aprovados  || 0, 'Aprovados')  +
+            chip('rej',   r.rejeitados || 0, 'Rejeitados');
+
+        // ── Tabs nav
+        el('tabsNav').innerHTML =
+            tabBtn('pend',  'Pendentes',  r.pendentes  || 0, 'pend')  +
+            tabBtn('aprov', 'Aprovados',  r.aprovados  || 0, 'aprov') +
+            tabBtn('rej',   'Rejeitados', r.rejeitados || 0, 'rej');
+
+        // Bind tab clicks
+        ['pend','aprov','rej'].forEach(function(t) {
+            var btn = document.getElementById('tab-' + t);
+            if (btn) btn.onclick = function() { switchTab(t); };
+        });
+
+        // ── Split items by status
+        var iPend = [], iAprov = [], iRej = [];
+        (d.itens || []).forEach(function(it) {
+            if      (it.status === 'L') iAprov.push(it);
+            else if (it.status === 'R') iRej.push(it);
+            else                        iPend.push(it);
+        });
+
+        // ── Tab: Pendentes
+        var htmlPend = '';
+        if (iPend.length === 0) {
+            htmlPend = emptyState('✅', 'Nenhum item pendente');
+        } else {
+            // Bulk bar
+            htmlPend += '<div class="bulk-bar">' +
+                '<span>' + iPend.length + ' item(s) aguardando decisão</span>' +
+                '<div style="display:flex;gap:8px;">' +
+                    '<button class="btn btn-success btn-sm" id="btnAprovAll">&#10003; Aprovar Todos</button>' +
+                    '<button class="btn btn-danger  btn-sm" id="btnRejAll"  >&#10007; Rejeitar Todos</button>' +
+                '</div>' +
+            '</div>';
+            // Item cards
+            htmlPend += '<div class="items-list">';
+            iPend.forEach(function(it) { htmlPend += itemCard(it, true); });
+            htmlPend += '</div>';
+        }
+        el('tabPendentes').innerHTML = htmlPend;
+
+        // ── Tab: Aprovados
+        var htmlAprov = '';
+        if (iAprov.length === 0) {
+            htmlAprov = emptyState('📋', 'Nenhum item aprovado ainda');
+        } else {
+            htmlAprov = '<div class="items-list">';
+            iAprov.forEach(function(it) { htmlAprov += itemCard(it, false); });
+            htmlAprov += '</div>';
+        }
+        el('tabAprovados').innerHTML = htmlAprov;
+
+        // ── Tab: Rejeitados
+        var htmlRej = '';
+        if (iRej.length === 0) {
+            htmlRej = emptyState('📋', 'Nenhum item rejeitado');
+        } else {
+            htmlRej = '<div class="items-list">';
+            iRej.forEach(function(it) { htmlRej += itemCard(it, false); });
+            htmlRej += '</div>';
+        }
+        el('tabRejeitados').innerHTML = htmlRej;
+
+        // ── Re-apply active tab
+        switchTab(gActiveTab);
+
+        // ── Bind action buttons (after DOM insert)
+        bindActions(iPend);
+    }
+
+    /* ── Bind all action buttons ─────────────────────────────── */
+    function bindActions(pendItems) {
+        var d = gData;
+
+        // Bulk approve all
+        var btnAA = document.getElementById('btnAprovAll');
+        if (btnAA) {
+            btnAA.onclick = function() {
+                if (gBusy) return;
+                if (!confirm('Aprovar TODOS os itens pendentes da SC ' + d.sc + '?')) return;
+                doAction('ALL', 'A', d.token_all_a);
+            };
+        }
+
+        // Bulk reject all
+        var btnRA = document.getElementById('btnRejAll');
+        if (btnRA) {
+            btnRA.onclick = function() {
+                if (gBusy) return;
+                if (!confirm('Rejeitar TODOS os itens pendentes da SC ' + d.sc + '?')) return;
+                doAction('ALL', 'R', d.token_all_r);
+            };
+        }
+
+        // Per-item buttons
+        pendItems.forEach(function(it) {
+            var btnA = document.getElementById('aprov-' + it.item);
+            var btnR = document.getElementById('rejeit-' + it.item);
+            if (btnA) {
+                btnA.onclick = function() {
+                    if (gBusy) return;
+                    doAction(it.item, 'A', it.token_a);
+                };
+            }
+            if (btnR) {
+                btnR.onclick = function() {
+                    if (gBusy) return;
+                    if (!confirm('Rejeitar item ' + it.item + ' - ' + it.produto + '?')) return;
+                    doAction(it.item, 'R', it.token_r);
+                };
+            }
+        });
+    }
+
+    /* ── Execute approve / reject ────────────────────────────── */
+    function doAction(item, acao, token) {
+        if (gBusy) return;
+        gBusy = true;
+
+        // Disable all buttons during request
+        setAllBtnsDisabled(true);
+        toast('Processando...', 'inf');
+
+        var url = API_APROV +
+            '?pc='    + encodeURIComponent(gData.pc)     +
+            '&item='  + encodeURIComponent(item)         +
+            '&acao='  + encodeURIComponent(acao)         +
+            '&fil='   + encodeURIComponent(gData.filial) +
+            '&token=' + encodeURIComponent(token);
+
+        fetch(url, { headers: { 'Authorization': BASIC_AUTH } })
+            .then(function(r) { return r.text(); })
+            .then(function(body) {
+                gBusy = false;
+                var ok = body.indexOf('#27ae60') !== -1 || body.indexOf('Processado') !== -1 || body.indexOf('Aprovado') !== -1 || body.indexOf('Rejeitado') !== -1;
+                var jaProc = body.indexOf('Processado') !== -1 && body.indexOf('#e67e22') !== -1;
+                if (jaProc) {
+                    toast('Item já havia sido processado anteriormente.', 'inf');
+                } else if (ok) {
+                    var msg = acao === 'A'
+                        ? (item === 'ALL' ? 'Todos os itens do PC aprovados!' : 'Item ' + item + ' aprovado!')
+                        : (item === 'ALL' ? 'Todos os itens do PC rejeitados.' : 'Item ' + item + ' rejeitado.');
+                    toast(msg, acao === 'A' ? 'ok' : 'err');
+                } else {
+                    toast('Não foi possível processar. Tente novamente.', 'err');
+                }
+                // Recarrega dados do painel
+                loadData();
+            })
+            .catch(function(err) {
+                gBusy = false;
+                setAllBtnsDisabled(false);
+                toast('Erro de conexão: ' + err.message, 'err');
+            });
+    }
+
+    /* ── Tab switching ───────────────────────────────────────── */
+    function switchTab(t) {
+        gActiveTab = t;
+        ['pend','aprov','rej'].forEach(function(name) {
+            var btn = document.getElementById('tab-' + name);
+            var panel = document.getElementById('tab' + cap(name));
+            if (btn)   btn.classList.toggle('active', name === t);
+            if (panel) panel.classList.toggle('active', name === t);
+        });
+    }
+
+    /* ── HTML helpers ────────────────────────────────────────── */
+    function itemCard(it, showActions) {
+        var statusLabel = it.status === 'L' ? 'Aprovado' : it.status === 'R' ? 'Rejeitado' : 'Pendente';
+        var qtdFmt  = fmtNum(it.quantidade, 0);
+        var precoFmt = 'R$ ' + fmtNum(it.preco_unitario, 2);
+        var totFmt   = 'R$ ' + fmtNum(it.total, 2);
+
+        var html = '<div class="item-card">';
+
+        // Header
+        html += '<div class="item-card-header">';
+        html += '<div>';
+        html +=   '<div class="item-num">Item ' + esc(it.item) + '</div>';
+        html +=   '<div class="item-prod">' + esc(it.produto) + '</div>';
+        if (it.descricao) {
+            html += '<div class="item-desc">' + esc(it.descricao) + '</div>';
+        }
+        if (it.justificativa) {
+            html += '<div class="item-desc" style="color:#e67e22;font-size:11px;">&#128196; ' + esc(it.justificativa) + '</div>';
+        }
+        html += '</div>';
+        html += '<span class="status-pill status-' + it.status + '">' + statusLabel + '</span>';
+        html += '</div>';
+
+        // Body
+        html += '<div class="item-card-body">';
+        html += '<div class="item-details">';
+        html += detailField('Qtd.',      qtdFmt  + ' ' + esc(it.unidade));
+        html += detailField('Preço Unit.', precoFmt);
+        html += detailField('Total',     totFmt);
+        if (it.necessidade) {
+            html += detailField('Necessidade', esc(it.necessidade));
+        }
+        html += '</div>';
+
+        // Actions
+        if (showActions) {
+            html += '<div class="item-actions">';
+            html += '<button class="btn btn-success btn-sm" id="aprov-' + esc(it.item) + '">&#10003; Aprovar</button>';
+            html += '<button class="btn btn-danger  btn-sm" id="rejeit-' + esc(it.item) + '">&#10007; Rejeitar</button>';
+            html += '</div>';
+        }
+
+        html += '</div>'; // card-body
+        html += '</div>'; // item-card
+        return html;
+    }
+
+    function field(lbl, val) {
+        return '<div class="sc-field"><label>' + lbl + '</label><span>' + val + '</span></div>';
+    }
+
+    function detailField(lbl, val) {
+        return '<div class="detail-field"><label>' + lbl + '</label><span>' + val + '</span></div>';
+    }
+
+    function chip(cls, num, lbl) {
+        return '<div class="stat-chip ' + cls + '">' +
+            '<div class="num">' + num + '</div>' +
+            '<div class="lbl">' + lbl + '</div>' +
+        '</div>';
+    }
+
+    function tabBtn(id, label, count, cls) {
+        return '<button class="tab-btn" id="tab-' + id + '">' +
+            label +
+            '<span class="badge badge-' + cls + '">' + count + '</span>' +
+        '</button>';
+    }
+
+    function emptyState(icon, msg) {
+        return '<div class="empty-state">' +
+            '<div class="empty-icon">' + icon + '</div>' +
+            '<p>' + msg + '</p>' +
+        '</div>';
+    }
+
+    /* ── Toast ───────────────────────────────────────────────── */
+    function toast(msg, type) {
+        var t = document.getElementById('toast');
+        t.className = 'toast toast-' + (type || 'inf');
+        t.textContent = msg;
+        t.classList.add('show');
+        clearTimeout(t._timer);
+        t._timer = setTimeout(function() { t.classList.remove('show'); }, 3500);
+    }
+
+    /* ── Utils ───────────────────────────────────────────────── */
+    function el(id) { return document.getElementById(id); }
+
+    function show(id) { el(id).style.display = ''; }
+    function hide(id) { el(id).style.display = 'none'; }
+
+    function esc(s) {
+        return String(s || '')
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+            .replace(/"/g,'&quot;');
+    }
+
+    function fmtNum(n, dec) {
+        var num = parseFloat(n) || 0;
+        return num.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    }
+
+    function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+    function setAllBtnsDisabled(state) {
+        var btns = document.querySelectorAll('.btn');
+        btns.forEach(function(b) { b.disabled = state; });
+    }
+
+    function showError(title, detail) {
+        hide('stateLoading');
+        show('stateError');
+        el('errorMsg').textContent    = title;
+        el('errorDetail').textContent = detail || '';
+    }
+
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CicloMed - Aprovações</title>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --primary: #1a5276;
+            --bg: #f0f4f8;
+            --card: #fff;
+            --text: #2c3e50;
+            --muted: #7f8c8d;
+            --pending: #2980b9;
+            --success: #27ae60;
+            --danger: #c0392b;
+            --border: #dde3ea;
+        }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(160deg, #1a3a4a 0%, #0d1f2d 100%);
+            min-height: 100vh;
+            color: var(--text);
+        }
+        .top-bar {
+            background: rgba(0,0,0,.35);
+            padding: 14px 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            backdrop-filter: blur(6px);
+        }
+        .top-bar h1 { color: #fff; font-size: 18px; font-weight: 600; }
+        .top-bar p { color: rgba(255,255,255,.6); font-size: 13px; }
+        .btn {
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            padding: 8px 16px;
+            border-radius: 6px;
+        }
+        .btn-primary { background: var(--pending); color: #fff; }
+        .btn-ghost { background: rgba(255,255,255,.15); color: #fff; }
+        .container { max-width: 900px; margin: 24px auto; padding: 0 16px 40px; }
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .tab {
+            padding: 8px 16px;
+            border-radius: 20px;
+            background: rgba(255,255,255,.12);
+            color: rgba(255,255,255,.85);
+            cursor: pointer;
+            font-size: 13px;
+            border: 1px solid transparent;
+        }
+        .tab.active { background: #fff; color: var(--primary); font-weight: 600; }
+        .filters {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            flex-wrap: wrap;
+        }
+        .chip {
+            padding: 6px 12px;
+            border-radius: 16px;
+            font-size: 12px;
+            cursor: pointer;
+            background: rgba(255,255,255,.1);
+            color: rgba(255,255,255,.8);
+            border: 1px solid rgba(255,255,255,.2);
+        }
+        .chip.active { background: var(--pending); color: #fff; border-color: var(--pending); }
+        .card-list { display: flex; flex-direction: column; gap: 12px; }
+        .doc-card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 16px 18px;
+            box-shadow: 0 4px 16px rgba(0,0,0,.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .doc-card h3 { font-size: 16px; color: var(--primary); }
+        .doc-meta { font-size: 13px; color: var(--muted); margin-top: 4px; }
+        .badge {
+            display: inline-block;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 3px 8px;
+            border-radius: 4px;
+            margin-right: 6px;
+        }
+        .badge-sc { background: #ebf5fb; color: var(--primary); }
+        .badge-pc { background: #eafaf1; color: #1e8449; }
+        .badge-pend { background: #fef9e7; color: #b7950b; }
+        .link-open {
+            text-decoration: none;
+            color: #fff;
+            background: var(--pending);
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .state-box {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            color: var(--muted);
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #e0e0e0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin .9s linear infinite;
+            margin: 0 auto 16px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .err { color: var(--danger); }
+    </style>
+</head>
+<body>
+    <header class="top-bar">
+        <div>
+            <h1>CicloMed &mdash; Aprovações</h1>
+            <p id="subTitle">Carregando...</p>
+        </div>
+        <div style="display:flex;gap:8px;">
+            <button class="btn btn-ghost" id="btnTipoSC">Só SC</button>
+            <button class="btn btn-ghost" id="btnTipoPC">Só PC</button>
+            <button class="btn btn-primary" id="btnRefresh">Atualizar</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="tabs" id="tabsStatus">
+            <span class="tab active" data-status="P">Pendentes</span>
+            <span class="tab" data-status="A">Aprovados</span>
+            <span class="tab" data-status="R">Rejeitados</span>
+        </div>
+        <div class="filters" id="filtersTipo">
+            <span class="chip active" data-tipo="ALL">SC + PC</span>
+        </div>
+        <div id="content">
+            <div class="state-box"><div class="spinner"></div>Carregando documentos...</div>
+        </div>
+    </div>
+
+<script>
+(function () {
+    'use strict';
+
+    var API_BASE  = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03';
+    var API_INBOX = API_BASE + '/WSAPROVINBOX';
+    var BASIC_AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
+    var PAGES_BASE = window.location.href.replace(/\/[^/]*$/, '');
+
+    var params = new URLSearchParams(window.location.search);
+    var pApr   = (params.get('apr')   || '').trim();
+    var pToken = (params.get('t')     || '').trim();
+    var pStatus = (params.get('status') || 'P').trim().toUpperCase();
+
+    var gTipo   = 'ALL';
+    var gStatus = pStatus || 'P';
+    var gBusy   = false;
+
+    if (!pApr || !pToken) {
+        document.getElementById('content').innerHTML =
+            '<div class="state-box err">Link inválido. Use o link recebido no e-mail (apr e t).</div>';
+        return;
+    }
+
+    document.querySelectorAll('.tab').forEach(function (el) {
+        el.classList.toggle('active', el.getAttribute('data-status') === gStatus);
+        el.addEventListener('click', function () {
+            gStatus = el.getAttribute('data-status');
+            document.querySelectorAll('.tab').forEach(function (t) {
+                t.classList.toggle('active', t.getAttribute('data-status') === gStatus);
+            });
+            loadInbox();
+        });
+    });
+
+    document.getElementById('btnRefresh').addEventListener('click', loadInbox);
+    document.getElementById('btnTipoSC').addEventListener('click', function () { gTipo = 'SC'; loadInbox(); });
+    document.getElementById('btnTipoPC').addEventListener('click', function () { gTipo = 'PC'; loadInbox(); });
+    document.querySelector('[data-tipo="ALL"]').addEventListener('click', function () { gTipo = 'ALL'; loadInbox(); });
+
+    loadInbox();
+
+    function loadInbox() {
+        if (gBusy) return;
+        gBusy = true;
+
+        var url = API_INBOX +
+            '?apr=' + encodeURIComponent(pApr) +
+            '&t=' + encodeURIComponent(pToken) +
+            '&tipo=' + encodeURIComponent(gTipo) +
+            '&status=' + encodeURIComponent(gStatus);
+
+        document.getElementById('content').innerHTML =
+            '<div class="state-box"><div class="spinner"></div>Carregando...</div>';
+
+        fetch(url, { headers: { 'Authorization': BASIC_AUTH } })
+            .then(function (r) { return r.json(); })
+            .then(function (json) {
+                gBusy = false;
+                if (json.erro) {
+                    showErr(json.erro);
+                    return;
+                }
+                document.getElementById('subTitle').textContent =
+                    (json.nome || 'Aprovador') + '  •  ' + labelStatus(gStatus);
+                renderList(json.documentos || []);
+            })
+            .catch(function (e) {
+                gBusy = false;
+                showErr('Falha na comunicação: ' + e.message);
+            });
+    }
+
+    function labelStatus(s) {
+        if (s === 'A') return 'Aprovados';
+        if (s === 'R') return 'Rejeitados';
+        return 'Pendentes';
+    }
+
+    function showErr(msg) {
+        document.getElementById('content').innerHTML =
+            '<div class="state-box err">' + esc(msg) + '</div>';
+    }
+
+    function renderList(docs) {
+        if (!docs.length) {
+            document.getElementById('content').innerHTML =
+                '<div class="state-box">Nenhum documento neste filtro.</div>';
+            return;
+        }
+
+        var html = '<div class="card-list">';
+        docs.forEach(function (d) {
+            var res = d.resumo || {};
+            var href = PAGES_BASE + '/' + (d.painel || '');
+            html += '<div class="doc-card">';
+            html += '<div>';
+            html += '<h3><span class="badge badge-' + (d.tipo === 'PC' ? 'pc' : 'sc') + '">' + d.tipo + '</span>';
+            html += esc(d.num) + ' <small style="color:#999">fil ' + esc(d.fil) + '</small></h3>';
+            html += '<div class="doc-meta">' + esc(d.emissao) + ' &bull; ' + esc(d.responsavel) + '</div>';
+            if (res.pendentes > 0) {
+                html += '<div class="doc-meta"><span class="badge badge-pend">' + res.pendentes + ' pend.</span></div>';
+            }
+            html += '</div>';
+            html += '<a class="link-open" href="' + esc(href) + '">Abrir painel</a>';
+            html += '</div>';
+        });
+        html += '</div>';
+        document.getElementById('content').innerHTML = html;
+    }
+
+    function esc(s) {
+        if (s == null) return '';
+        return String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/"/g, '&quot;');
+    }
+})();
+</script>
+</body>
+</html>
