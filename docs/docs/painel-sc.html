@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="refresh" content="0;url=../painel-sc.html">
+    <script>
+        (function () {
+            var q = window.location.search || '';
+            window.location.replace('../painel-sc.html' + q);
+        })();
+    </script>
+    <title>Redirecionando…</title>
+</head>
+<body>
+    <p>Redirecionando para o <a id="l" href="../painel-sc.html">painel SC</a>…</p>
+    <script>document.getElementById('l').href += location.search;</script>
+</body>
+</html>
