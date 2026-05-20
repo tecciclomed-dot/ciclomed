@@ -457,10 +457,24 @@
             '&token=' + encodeURIComponent(pToken);
 
         fetch(url, { headers: { 'Authorization': BASIC_AUTH } })
-            .then(function (r) { return r.json(); })
-            .then(function (json) {
+            .then(function (r) {
+                return r.text().then(function (txt) {
+                    return { ok: r.ok, status: r.status, txt: txt };
+                });
+            })
+            .then(function (res) {
+                var json;
+                try {
+                    json = JSON.parse(res.txt);
+                } catch (e) {
+                    showError('Erro no servidor REST (' + res.status + ')',
+                        'Recompile CMAPROVUTIL + WSSCPAINEL no AppServer e reinicie o REST. Detalhe: ' + res.txt.substring(0, 200));
+                    return;
+                }
                 if (json.erro) {
                     showError('Erro ao carregar SC', json.erro);
+                } else if (!json.itens) {
+                    showError('Resposta inválida', 'O REST não retornou itens da SC.');
                 } else {
                     gData = json;
                     renderPanel();

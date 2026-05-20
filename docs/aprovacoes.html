@@ -218,9 +218,20 @@
             '<div class="state-box"><div class="spinner"></div>Carregando...</div>';
 
         fetch(url, { headers: { 'Authorization': BASIC_AUTH } })
-            .then(function (r) { return r.json(); })
-            .then(function (json) {
+            .then(function (r) {
+                return r.text().then(function (txt) {
+                    return { status: r.status, txt: txt };
+                });
+            })
+            .then(function (res) {
                 gBusy = false;
+                var json;
+                try {
+                    json = JSON.parse(res.txt);
+                } catch (e) {
+                    showErr('Erro REST (' + res.status + '). Recompile WSAPROVINBOX + CMAPROVUTIL.');
+                    return;
+                }
                 if (json.erro) {
                     showErr(json.erro);
                     return;
