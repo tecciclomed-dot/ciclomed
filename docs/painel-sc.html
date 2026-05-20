@@ -272,7 +272,30 @@
         }
 
         .item-prod { font-size: 15px; font-weight: 700; color: var(--primary); }
-        .item-desc { font-size: 13px; color: var(--muted); margin-top: 1px; }
+        .item-text-block { margin-top: 6px; }
+        .item-text-line {
+            font-size: 12px;
+            color: var(--text);
+            line-height: 1.45;
+            margin-top: 4px;
+            word-break: break-word;
+        }
+        .item-text-line .lbl {
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: .4px;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .item-text-line.motivo {
+            background: #f8f9fb;
+            border-left: 3px solid var(--pending);
+            padding: 8px 10px;
+            border-radius: 0 6px 6px 0;
+            white-space: pre-wrap;
+        }
 
         .status-pill {
             padding: 4px 12px;
@@ -471,10 +494,17 @@
                         'Recompile CMAPROVUTIL + WSSCPAINEL no AppServer e reinicie o REST. Detalhe: ' + res.txt.substring(0, 200));
                     return;
                 }
+                if (!res.ok || (json.code && json.code >= 400)) {
+                    showError('Erro REST (' + res.status + ')',
+                        (json.erro || json.message || json.detailedMessage || '') +
+                        ' — Recompile WSSCPAINEL.prw (versao SQL) e reinicie o AppServer REST.');
+                    return;
+                }
                 if (json.erro) {
                     showError('Erro ao carregar SC', json.erro);
-                } else if (!json.itens) {
-                    showError('Resposta inválida', 'O REST não retornou itens da SC.');
+                } else if (!Array.isArray(json.itens)) {
+                    showError('Resposta inválida',
+                        'HTTP ' + res.status + ': ' + res.txt.substring(0, 250));
                 } else {
                     gData = json;
                     renderPanel();
@@ -694,9 +724,20 @@
         html += '<div>';
         html +=   '<div class="item-num">Item ' + esc(it.item) + '</div>';
         html +=   '<div class="item-prod">' + esc(it.produto) + '</div>';
-        if (it.descricao) {
-            html += '<div class="item-desc">' + esc(it.descricao) + '</div>';
+        html += '<div class="item-text-block">';
+        var descProd = it.descricao_produto || it.descricao || '';
+        var descItem = it.descricao_item || '';
+        var motivo   = it.motivo || '';
+        if (descProd) {
+            html += '<div class="item-text-line"><span class="lbl">Produto (cadastro)</span>' + esc(descProd) + '</div>';
         }
+        if (descItem) {
+            html += '<div class="item-text-line"><span class="lbl">Descrição do item (até 100)</span>' + esc(descItem) + '</div>';
+        }
+        if (motivo) {
+            html += '<div class="item-text-line motivo"><span class="lbl">Motivo da solicitação (até 500)</span>' + esc(motivo) + '</div>';
+        }
+        html += '</div>';
         html += '</div>';
         html += '<span class="status-pill status-' + it.status + '">' + statusLabel + '</span>';
         html += '</div>';
