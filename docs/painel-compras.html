@@ -463,14 +463,14 @@
 // ============================================================
 // CONFIG
 // ============================================================
-const STORAGE_KEY_URL = 'cm_rest_url';
+const REST_URL   = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03';
+const REST_AUTH  = 'Basic ' + btoa('admin:v1v2v3v4');
 
 // Lê apr e token da URL (parâmetros obrigatórios)
 const _params = new URLSearchParams(location.search);
 const APR_ID  = _params.get('apr')   || '';
 const TOKEN   = _params.get('token') || '';
 
-let restUrl = localStorage.getItem(STORAGE_KEY_URL) || '';
 let pendingUrl  = null;
 let pendingAcao = null;
 let pendingNum  = null;
@@ -480,28 +480,22 @@ let pendingTipo = null;
 // INIT
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('config-banner').style.display = 'none';
+
   if (!APR_ID || !TOKEN) {
     mostrarErro(
-      'Link incompleto. Acesse o painel pelo link personalizado enviado ao seu e-mail ' +
+      'Link incompleto. Acesse o painel pelo link personalizado ' +
       '(deve conter <code>?apr=SEU_USUARIO&amp;token=HASH</code>).'
     );
-    document.getElementById('config-banner').style.display = 'none';
     return;
   }
 
-  if (restUrl) {
-    document.getElementById('config-banner').style.display = 'none';
-    document.getElementById('input-rest-url').value = restUrl;
-    carregarDados();
-    setInterval(carregarDados, 90000);
-  }
+  carregarDados();
+  setInterval(carregarDados, 90000);
 });
 
 function salvarConfig() {
-  const v = document.getElementById('input-rest-url').value.trim();
-  if (!v) return alert('Informe a URL do servidor REST');
-  restUrl = v.replace(/\/$/, '');
-  localStorage.setItem(STORAGE_KEY_URL, restUrl);
+  // URL já configurada — função mantida por compatibilidade
   document.getElementById('config-banner').style.display = 'none';
   if (APR_ID && TOKEN) carregarDados();
 }
@@ -510,10 +504,6 @@ function salvarConfig() {
 // CARREGAR DADOS
 // ============================================================
 async function carregarDados() {
-  if (!restUrl) {
-    document.getElementById('config-banner').style.display = 'flex';
-    return;
-  }
   if (!APR_ID || !TOKEN) {
     mostrarErro('Link incompleto. Use o link personalizado enviado ao seu e-mail.');
     return;
@@ -523,10 +513,10 @@ async function carregarDados() {
   document.getElementById('error-msg').style.display = 'none';
 
   try {
-    const url = `${restUrl}/WSPAINELCP?apr=${encodeURIComponent(APR_ID)}&token=${encodeURIComponent(TOKEN)}`;
+    const url = `${REST_URL}/WSPAINELCP?apr=${encodeURIComponent(APR_ID)}&token=${encodeURIComponent(TOKEN)}`;
     const res = await fetch(url, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' }
+      headers: { 'Accept': 'application/json', 'Authorization': REST_AUTH }
     });
 
     if (!res.ok) {
@@ -709,7 +699,7 @@ async function confirmarAcao() {
 
   document.getElementById('spinner').style.display = 'block';
   try {
-    const res = await fetch(url, { method: 'GET' });
+    const res = await fetch(url, { method: 'GET', headers: { 'Authorization': REST_AUTH } });
     const txt = await res.text();
 
     let ok = false;
