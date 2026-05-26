@@ -8,7 +8,7 @@
     @since 19/05/2026
 /*/
 User Function CMAPUrlBase()
-    Local cUrl := AllTrim(GetNewPar("MV_URLAPROV", "https://marcossrdg.github.io/rdmake_Ciclo/docs"))
+    Local cUrl := AllTrim(GetNewPar("MV_URLAPROV", "https://tecciclomed-dot.github.io/ciclomed"))
     If Right(cUrl, 1) == "/"
         cUrl := Left(cUrl, Len(cUrl) - 1)
     EndIf
