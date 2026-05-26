@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Compras — CicloMed</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      background: linear-gradient(135deg, #1a3a5c 0%, #0d6efd 100%);
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-logo {
+      width: 42px; height: 42px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 900; letter-spacing: -1px;
+    }
+    .header h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+    .header h1 span { font-size: 12px; font-weight: 400; opacity: 0.8; display: block; }
+    .header-right { display: flex; align-items: center; gap: 10px; }
+    .btn-refresh {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      padding: 7px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      display: flex; align-items: center; gap: 6px;
+      transition: background 0.2s;
+    }
+    .btn-refresh:hover { background: rgba(255,255,255,0.25); }
+    .btn-refresh svg { width: 14px; height: 14px; }
+    .last-update { font-size: 11px; opacity: 0.7; }
+    .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ===== CONFIG BANNER ===== */
+    #config-banner {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 13px;
+      color: #856404;
+    }
+    #config-banner strong { font-size: 14px; }
+    #config-banner input {
+      flex: 1;
+      border: 1px solid #ffc107;
+      border-radius: 5px;
+      padding: 6px 10px;
+      font-size: 13px;
+      max-width: 480px;
+    }
+    #config-banner button {
+      background: #0d6efd;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 7px 16px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    /* ===== BOARD ===== */
+    .board {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      padding: 18px 20px 30px;
+      min-height: calc(100vh - 120px);
+    }
+    @media (max-width: 1100px) {
+      .board { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 640px) {
+      .board { grid-template-columns: 1fr; }
+    }
+
+    /* ===== COLUNA ===== */
+    .column {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      min-width: 0;
+    }
+    .col-header {
+      border-radius: 10px 10px 0 0;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+    }
+    .col-header .col-title {
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #fff;
+    }
+    .col-badge {
+      background: rgba(255,255,255,0.25);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 20px;
+      min-width: 24px;
+      text-align: center;
+    }
+    .col-body {
+      background: #e9ecef;
+      border-radius: 0 0 10px 10px;
+      padding: 10px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 200px;
+    }
+
+    /* Cores das colunas */
+    .col-pc-ab   .col-header { background: #1a5276; }
+    .col-sc-ab   .col-header { background: #145a32; }
+    .col-pc-ap   .col-header { background: #1e8449; }
+    .col-sc-ap   .col-header { background: #117a65; }
+
+    /* ===== CARD ===== */
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      padding: 13px 14px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      border-left: 4px solid transparent;
+      transition: box-shadow 0.15s, transform 0.15s;
+      cursor: default;
+    }
+    .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.13); transform: translateY(-1px); }
+    .card-pc { border-left-color: #1a5276; }
+    .card-sc { border-left-color: #145a32; }
+    .card-ap  { border-left-color: #27ae60; }
+    .card-rej { border-left-color: #c0392b; }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .card-num {
+      font-size: 14px;
+      font-weight: 700;
+      color: #1a3a5c;
+    }
+    .card-tipo {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+    .tipo-pc { background: #d6eaf8; color: #1a5276; }
+    .tipo-sc { background: #d5f5e3; color: #145a32; }
+
+    .card-date {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 8px;
+    }
+
+    .card-row {
+      display: flex;
+      gap: 6px;
+      align-items: flex-start;
+      margin-bottom: 5px;
+      font-size: 12px;
+      color: #444;
+    }
+    .card-row-icon {
+      font-size: 13px;
+      flex-shrink: 0;
+      width: 16px;
+      line-height: 1.4;
+    }
+    .card-row-text { line-height: 1.4; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    .card-row-label { font-weight: 600; color: #333; }
+
+    .card-value {
+      background: #f8f9fa;
+      border-radius: 5px;
+      padding: 5px 9px;
+      margin: 8px 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: #1a5276;
+      text-align: right;
+    }
+    .card-value.est { color: #888; font-size: 13px; }
+
+    .card-justif {
+      background: #fffde7;
+      border-left: 3px solid #ffc107;
+      padding: 6px 9px;
+      font-size: 11px;
+      color: #555;
+      border-radius: 0 4px 4px 0;
+      margin: 6px 0;
+      font-style: italic;
+      max-height: 52px;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+    }
+    .card-justif.empty { color: #bbb; font-style: italic; }
+
+    .card-status {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 0 8px;
+    }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .status-pend  .status-dot { background: #f39c12; }
+    .status-pend  { color: #f39c12; }
+    .status-aprov .status-dot { background: #27ae60; }
+    .status-aprov { color: #27ae60; }
+    .status-rej   .status-dot { background: #c0392b; }
+    .status-rej   { color: #c0392b; }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+    .btn-action {
+      flex: 1;
+      padding: 6px 0;
+      border: none;
+      border-radius: 5px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      text-decoration: none;
+    }
+    .btn-action:hover { opacity: 0.85; transform: scale(1.02); }
+    .btn-aprov  { background: #27ae60; color: #fff; }
+    .btn-rejeit { background: #c0392b; color: #fff; }
+    .btn-detail { background: #e9ecef; color: #444; font-size: 11px; flex: 0.7; }
+
+    .card-actions.done { justify-content: center; }
+    .badge-done {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .badge-aprov { background: #d5f5e3; color: #1e8449; }
+    .badge-rej   { background: #fadbd8; color: #c0392b; }
+
+    /* ===== EMPTY STATE ===== */
+    .empty-state {
+      text-align: center;
+      padding: 30px 16px;
+      color: #bbb;
+      font-size: 13px;
+    }
+    .empty-state svg { width: 40px; height: 40px; opacity: 0.3; margin-bottom: 8px; }
+
+    /* ===== ERROR ===== */
+    #error-msg {
+      display: none;
+      background: #fdedec;
+      border: 1px solid #e74c3c;
+      color: #c0392b;
+      padding: 12px 20px;
+      font-size: 13px;
+      border-radius: 6px;
+      margin: 12px 20px 0;
+    }
+
+    /* ===== TOAST ===== */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #2c3e50;
+      color: #fff;
+      padding: 11px 20px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.25);
+      transform: translateY(80px);
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 9999;
+      max-width: 340px;
+    }
+    #toast.show { transform: translateY(0); opacity: 1; }
+    #toast.ok   { background: #27ae60; }
+    #toast.err  { background: #c0392b; }
+
+    /* ===== MODAL ===== */
+    .modal-overlay {
+      display: none;
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 10px;
+      padding: 24px;
+      max-width: 420px;
+      width: 90%;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+    }
+    .modal h3 { font-size: 16px; margin-bottom: 10px; }
+    .modal p { font-size: 13px; color: #555; margin-bottom: 18px; }
+    .modal-btns { display: flex; gap: 10px; justify-content: flex-end; }
+    .modal-btns button {
+      padding: 8px 20px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-modal-cancel { background: #e9ecef; color: #444; }
+    .btn-modal-ok     { background: #0d6efd; color: #fff; }
+    .btn-modal-ok.danger { background: #c0392b; }
+  </style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+    <div class="header-left">
+    <div class="header-logo">CM</div>
+    <h1>
+      Painel de Compras
+      <span>Pedidos e Solicitações — CicloMed</span>
+    </h1>
+  </div>
+  <div style="color:rgba(255,255,255,0.75);font-size:12px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:2px;">
+    <span style="font-size:18px;">👤</span>
+    <span id="apr-nome" style="font-weight:600;color:#fff;font-size:13px;">—</span>
+    <span style="opacity:0.6">aprovador</span>
+  </div>
+  <div class="header-right">
+    <div class="spinner" id="spinner"></div>
+    <span class="last-update" id="last-update"></span>
+    <button class="btn-refresh" onclick="carregarDados()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M1 4v6h6M23 20v-6h-6"/>
+        <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+      </svg>
+      Atualizar
+    </button>
+  </div>
+</div>
+
+<!-- CONFIG BANNER (só aparece se URL do REST não estiver configurada) -->
+<div id="config-banner">
+  <strong>⚙️ Configure a URL do servidor Protheus REST:</strong>
+  <input type="text" id="input-rest-url" placeholder="http://IP:PORTA/rest03" value="">
+  <button onclick="salvarConfig()">Salvar</button>
+</div>
+
+<!-- ERROR -->
+<div id="error-msg"></div>
+
+<!-- BOARD -->
+<div class="board">
+  <!-- Col 1: Pedidos em Aberto -->
+  <div class="column col-pc-ab">
+    <div class="col-header">
+      <span class="col-title">📋 Pedidos em Aberto</span>
+      <span class="col-badge" id="badge-pc-ab">0</span>
+    </div>
+    <div class="col-body" id="col-pc-ab"></div>
+  </div>
+
+  <!-- Col 2: Solicitações em Aberto -->
+  <div class="column col-sc-ab">
+    <div class="col-header">
+      <span class="col-title">📝 Solicitações em Aberto</span>
+      <span class="col-badge" id="badge-sc-ab">0</span>
+    </div>
+    <div class="col-body" id="col-sc-ab"></div>
+  </div>
+
+  <!-- Col 3: Pedidos Aprovados -->
+  <div class="column col-pc-ap">
+    <div class="col-header">
+      <span class="col-title">✅ Pedidos Aprovados</span>
+      <span class="col-badge" id="badge-pc-ap">0</span>
+    </div>
+    <div class="col-body" id="col-pc-ap"></div>
+  </div>
+
+  <!-- Col 4: Solicitações Aprovadas -->
+  <div class="column col-sc-ap">
+    <div class="col-header">
+      <span class="col-title">✅ Solicitações Aprovadas</span>
+      <span class="col-badge" id="badge-sc-ap">0</span>
+    </div>
+    <div class="col-body" id="col-sc-ap"></div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMAÇÃO -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">Confirmar ação</h3>
+    <p id="modal-body">Deseja confirmar?</p>
+    <div class="modal-btns">
+      <button class="btn-modal-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-modal-ok" id="modal-btn-ok" onclick="confirmarAcao()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const STORAGE_KEY_URL = 'cm_rest_url';
+
+// Lê apr e token da URL (parâmetros obrigatórios)
+const _params = new URLSearchParams(location.search);
+const APR_ID  = _params.get('apr')   || '';
+const TOKEN   = _params.get('token') || '';
+
+let restUrl = localStorage.getItem(STORAGE_KEY_URL) || '';
+let pendingUrl  = null;
+let pendingAcao = null;
+let pendingNum  = null;
+let pendingTipo = null;
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  if (!APR_ID || !TOKEN) {
+    mostrarErro(
+      'Link incompleto. Acesse o painel pelo link personalizado enviado ao seu e-mail ' +
+      '(deve conter <code>?apr=SEU_USUARIO&amp;token=HASH</code>).'
+    );
+    document.getElementById('config-banner').style.display = 'none';
+    return;
+  }
+
+  if (restUrl) {
+    document.getElementById('config-banner').style.display = 'none';
+    document.getElementById('input-rest-url').value = restUrl;
+    carregarDados();
+    setInterval(carregarDados, 90000);
+  }
+});
+
+function salvarConfig() {
+  const v = document.getElementById('input-rest-url').value.trim();
+  if (!v) return alert('Informe a URL do servidor REST');
+  restUrl = v.replace(/\/$/, '');
+  localStorage.setItem(STORAGE_KEY_URL, restUrl);
+  document.getElementById('config-banner').style.display = 'none';
+  if (APR_ID && TOKEN) carregarDados();
+}
+
+// ============================================================
+// CARREGAR DADOS
+// ============================================================
+async function carregarDados() {
+  if (!restUrl) {
+    document.getElementById('config-banner').style.display = 'flex';
+    return;
+  }
+  if (!APR_ID || !TOKEN) {
+    mostrarErro('Link incompleto. Use o link personalizado enviado ao seu e-mail.');
+    return;
+  }
+
+  document.getElementById('spinner').style.display = 'block';
+  document.getElementById('error-msg').style.display = 'none';
+
+  try {
+    const url = `${restUrl}/WSPAINELCP?apr=${encodeURIComponent(APR_ID)}&token=${encodeURIComponent(TOKEN)}`;
+    const res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    if (data.erro) {
+      mostrarErro('Erro do servidor: ' + data.erro);
+      return;
+    }
+
+    // Exibe nome do aprovador no header
+    if (data.nome_apr) {
+      document.getElementById('apr-nome').textContent = data.nome_apr;
+    }
+
+    renderizarPainel(data);
+    document.getElementById('last-update').textContent =
+      'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+
+  } catch (e) {
+    mostrarErro(`Não foi possível conectar ao servidor Protheus. Verifique a URL configurada.<br><small>${e.message}</small>`);
+  } finally {
+    document.getElementById('spinner').style.display = 'none';
+  }
+}
+
+// ============================================================
+// RENDERIZAR
+// ============================================================
+function renderizarPainel(data) {
+  renderizarColuna('col-pc-ab', 'badge-pc-ab', data.pc_aberto   || [], true);
+  renderizarColuna('col-sc-ab', 'badge-sc-ab', data.sc_aberto   || [], true);
+  renderizarColuna('col-pc-ap', 'badge-pc-ap', data.pc_aprovado || [], false);
+  renderizarColuna('col-sc-ap', 'badge-sc-ap', data.sc_aprovado || [], false);
+}
+
+function renderizarColuna(colId, badgeId, docs, mostrarBotoes) {
+  const col = document.getElementById(colId);
+  const badge = document.getElementById(badgeId);
+  badge.textContent = docs.length;
+
+  if (docs.length === 0) {
+    col.innerHTML = `
+      <div class="empty-state">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+          <rect x="9" y="3" width="6" height="4" rx="1"/>
+        </svg>
+        <div>Nenhum documento</div>
+      </div>`;
+    return;
+  }
+
+  col.innerHTML = docs.map(d => montarCard(d, mostrarBotoes)).join('');
+}
+
+function montarCard(d, mostrarBotoes) {
+  const isPC    = d.tipo === 'PC';
+  const isAprov = d.status === 'L';
+  const isRej   = d.status === 'R';
+
+  let statusHtml = '';
+  if (d.status === 'A') {
+    const txt = d.n_pend > 0
+      ? `${d.n_pend} item(s) aguardando`
+      : 'Pendente';
+    statusHtml = `<div class="card-status status-pend"><span class="status-dot"></span>${txt}</div>`;
+  } else if (isAprov) {
+    statusHtml = `<div class="card-status status-aprov"><span class="status-dot"></span>Aprovado (${d.n_aprov} itens)</div>`;
+  } else if (isRej) {
+    statusHtml = `<div class="card-status status-rej"><span class="status-dot"></span>Rejeitado</div>`;
+  }
+
+  const valorFmt = isPC
+    ? `<div class="card-value">R$ ${formatValor(d.valor)}</div>`
+    : (d.valor > 0 ? `<div class="card-value est">≈ R$ ${formatValor(d.valor)} (est.)</div>` : '');
+
+  const justifHtml = d.justificativa
+    ? `<div class="card-justif">${esc(d.justificativa)}</div>`
+    : `<div class="card-justif empty">Sem justificativa informada</div>`;
+
+  const respLabel = isPC ? 'Comprador' : 'Solicitante';
+  const responsavel = d.responsavel || '—';
+  const fornecedor  = d.fornecedor  || '—';
+
+  let botoesHtml = '';
+  if (mostrarBotoes && !isAprov && !isRej) {
+    botoesHtml = `
+      <div class="card-actions">
+        <button class="btn-action btn-aprov"
+          onclick="confirmar('${esc(d.url_aprov)}', '${esc(d.num)}', '${d.tipo}', 'A')">
+          ✔ Aprovar
+        </button>
+        <button class="btn-action btn-rejeit"
+          onclick="confirmar('${esc(d.url_rejeit)}', '${esc(d.num)}', '${d.tipo}', 'R')">
+          ✘ Rejeitar
+        </button>
+        <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
+      </div>`;
+  } else if (isAprov) {
+    botoesHtml = `<div class="card-actions done">
+      <span class="badge-done badge-aprov">✔ Aprovado</span>
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
+    </div>`;
+  } else if (isRej) {
+    botoesHtml = `<div class="card-actions done">
+      <span class="badge-done badge-rej">✘ Rejeitado</span>
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
+    </div>`;
+  } else {
+    botoesHtml = `<div class="card-actions done">
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Ver Detalhe</a>
+    </div>`;
+  }
+
+  const cardBorder = mostrarBotoes
+    ? (isPC ? 'card-pc' : 'card-sc')
+    : (isAprov ? 'card-ap' : 'card-rej');
+
+  return `
+    <div class="card ${cardBorder}">
+      <div class="card-header">
+        <span class="card-num">#${esc(d.num)}</span>
+        <span class="card-tipo ${isPC ? 'tipo-pc' : 'tipo-sc'}">${d.tipo}</span>
+      </div>
+      <div class="card-date">📅 ${esc(d.emissao)}  |  Filial ${esc(d.fil)}</div>
+      <div class="card-row">
+        <span class="card-row-icon">👤</span>
+        <span class="card-row-text"><span class="card-row-label">${respLabel}:</span> ${esc(responsavel)}</span>
+      </div>
+      <div class="card-row">
+        <span class="card-row-icon">🏢</span>
+        <span class="card-row-text"><span class="card-row-label">Fornecedor:</span> ${esc(fornecedor || '—')}</span>
+      </div>
+      ${valorFmt}
+      ${justifHtml}
+      ${statusHtml}
+      ${botoesHtml}
+    </div>`;
+}
+
+// ============================================================
+// AÇÕES APROVAR / REJEITAR
+// ============================================================
+function confirmar(url, num, tipo, acao) {
+  pendingUrl   = url;
+  pendingNum   = num;
+  pendingTipo  = tipo;
+  pendingAcao  = acao;
+
+  const nomeTipo  = tipo === 'PC' ? 'Pedido de Compra' : 'Solicitação de Compra';
+  const nomeAcao  = acao === 'A' ? 'APROVAR' : 'REJEITAR';
+  const corBotao  = acao === 'A' ? '' : 'danger';
+
+  document.getElementById('modal-title').textContent =
+    `Confirmar ${nomeAcao}`;
+  document.getElementById('modal-body').textContent =
+    `Deseja ${nomeAcao.toLowerCase()} todos os itens do ${nomeTipo} #${num}?`;
+  document.getElementById('modal-btn-ok').textContent = nomeAcao;
+  document.getElementById('modal-btn-ok').className   = `btn-modal-ok ${corBotao}`;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function fecharModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  pendingUrl = pendingNum = pendingTipo = pendingAcao = null;
+}
+
+async function confirmarAcao() {
+  fecharModal();
+  if (!pendingUrl) return;
+
+  const url = pendingUrl;
+  const num = pendingNum;
+  const tipo = pendingTipo;
+  const acao = pendingAcao;
+
+  document.getElementById('spinner').style.display = 'block';
+  try {
+    const res = await fetch(url, { method: 'GET' });
+    const txt = await res.text();
+
+    let ok = false;
+    let msg = '';
+    try {
+      const j = JSON.parse(txt);
+      ok  = j.ok === true || j.msg?.toLowerCase().includes('aprovad') || j.msg?.toLowerCase().includes('rejeitad');
+      msg = j.msg || (ok ? 'Processado com sucesso!' : 'Erro ao processar.');
+    } catch {
+      ok = res.ok;
+      msg = ok ? 'Processado com sucesso!' : 'Erro ao processar.';
+    }
+
+    mostrarToast(ok ? '✔ ' + msg : '✘ ' + msg, ok ? 'ok' : 'err');
+    if (ok) {
+      setTimeout(carregarDados, 800);
+    }
+  } catch (e) {
+    mostrarToast('✘ Erro de comunicação: ' + e.message, 'err');
+  } finally {
+    document.getElementById('spinner').style.display = 'none';
+  }
+}
+
+// ============================================================
+// UTILITÁRIOS
+// ============================================================
+function formatValor(v) {
+  if (typeof v !== 'number') v = parseFloat(v) || 0;
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+function esc(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function mostrarErro(html) {
+  const el = document.getElementById('error-msg');
+  el.innerHTML = '⚠️ ' + html;
+  el.style.display = 'block';
+}
+
+function mostrarToast(msg, tipo) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + (tipo || '');
+  setTimeout(() => { t.className = ''; }, 3500);
+}
+</script>
+</body>
+</html>

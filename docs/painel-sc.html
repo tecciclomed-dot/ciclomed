@@ -442,6 +442,7 @@
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
 <script>
 (function () {
     'use strict';
@@ -452,11 +453,24 @@
     var API_APROV = API_BASE + '/WSAPROVSC';
     var BASIC_AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
 
+    /* ── Token VIEW (mesma regra do WSSCPAINEL / U_CMAGTkSC) ─── */
+    function normFil(f) {
+        var n = String(f || '').trim();
+        if (/^\d+$/.test(n)) {
+            return ('0' + n).slice(-2);
+        }
+        return n;
+    }
+
+    function viewTokenSC(fil, sc) {
+        return md5('CICLO2026SC#' + normFil(fil) + '#' + String(sc || '').trim() + '#VIEW#V');
+    }
+
     /* ── URL params ──────────────────────────────────────────── */
     var params = new URLSearchParams(window.location.search);
     var pSC    = (params.get('sc')    || '').trim();
-    var pFil   = (params.get('fil')   || '').trim();
-    var pToken = (params.get('token') || '').trim();
+    var pFil   = normFil(params.get('fil') || '');
+    var pToken = viewTokenSC(pFil, pSC);
 
     /* ── State ───────────────────────────────────────────────── */
     var gData        = null;   // last JSON from WSSCPAINEL
@@ -464,8 +478,8 @@
     var gBusy        = false;  // true while a request is in-flight
 
     /* ── Boot ────────────────────────────────────────────────── */
-    if (!pSC || !pFil || !pToken) {
-        showError('Parâmetros inválidos', 'A URL deve conter sc, fil e token. Verifique o link no email.');
+    if (!pSC || !pFil) {
+        showError('Parâmetros inválidos', 'A URL deve conter sc e fil (ex.: ?sc=000295&fil=02). Abra o link pelo e-mail ou pela caixa de aprovações.');
         return;
     }
 
