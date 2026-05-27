@@ -238,27 +238,6 @@
     }
     .card-justif.empty { color: #bbb; font-style: italic; }
 
-    .card-itens-box {
-      background: #f8fafc;
-      border-left: 3px solid #1a5276;
-      padding: 6px 9px;
-      font-size: 11px;
-      color: #2c3e50;
-      border-radius: 0 4px 4px 0;
-      margin: 6px 0;
-      max-height: 80px;
-      overflow-y: auto;
-    }
-    .card-item {
-      padding: 2px 0;
-      line-height: 1.35;
-    }
-    .card-item + .card-item { border-top: 1px dashed #e0e6ed; }
-    .card-item-prod {
-      font-weight: 700;
-      color: #1a5276;
-    }
-
     .card-status {
       display: flex;
       align-items: center;
@@ -428,16 +407,7 @@
 
 <!-- BOARD -->
 <div class="board">
-  <!-- Col 1: Pedidos em Aberto -->
-  <div class="column col-pc-ab">
-    <div class="col-header">
-      <span class="col-title">📋 Pedidos em Aberto</span>
-      <span class="col-badge" id="badge-pc-ab">0</span>
-    </div>
-    <div class="col-body" id="col-pc-ab"></div>
-  </div>
-
-  <!-- Col 2: Solicitações em Aberto -->
+  <!-- Col 1: Solicitações em Aberto -->
   <div class="column col-sc-ab">
     <div class="col-header">
       <span class="col-title">📝 Solicitações em Aberto</span>
@@ -446,22 +416,31 @@
     <div class="col-body" id="col-sc-ab"></div>
   </div>
 
-  <!-- Col 3: Pedidos Aprovados -->
-  <div class="column col-pc-ap">
-    <div class="col-header">
-      <span class="col-title">✅ Pedidos Aprovados</span>
-      <span class="col-badge" id="badge-pc-ap">0</span>
-    </div>
-    <div class="col-body" id="col-pc-ap"></div>
-  </div>
-
-  <!-- Col 4: Solicitações Aprovadas -->
+  <!-- Col 2: Solicitações Aprovadas -->
   <div class="column col-sc-ap">
     <div class="col-header">
       <span class="col-title">✅ Solicitações Aprovadas</span>
       <span class="col-badge" id="badge-sc-ap">0</span>
     </div>
     <div class="col-body" id="col-sc-ap"></div>
+  </div>
+
+  <!-- Col 3: Pedidos em Aberto -->
+  <div class="column col-pc-ab">
+    <div class="col-header">
+      <span class="col-title">📋 Pedidos em Aberto</span>
+      <span class="col-badge" id="badge-pc-ab">0</span>
+    </div>
+    <div class="col-body" id="col-pc-ab"></div>
+  </div>
+
+  <!-- Col 4: Pedidos Aprovados -->
+  <div class="column col-pc-ap">
+    <div class="col-header">
+      <span class="col-title">✅ Pedidos Aprovados</span>
+      <span class="col-badge" id="badge-pc-ap">0</span>
+    </div>
+    <div class="col-body" id="col-pc-ap"></div>
   </div>
 </div>
 
@@ -622,16 +601,6 @@ function montarCard(d, mostrarBotoes) {
     ? `<div class="card-justif">${esc(d.justificativa)}</div>`
     : `<div class="card-justif empty">Sem justificativa informada</div>`;
 
-  let itensHtml = '';
-  if (d.itens) {
-    const partes = d.itens.split(';;').filter(x => x);
-    const itensLista = partes.map(p => {
-      const [prod, desc] = p.split('||');
-      return `<div class="card-item"><span class="card-item-prod">${esc(prod || '')}</span> ${desc ? '— ' + esc(desc) : ''}</div>`;
-    }).join('');
-    itensHtml = `<div class="card-itens-box">${itensLista}</div>`;
-  }
-
   const respLabel = isPC ? 'Comprador' : 'Solicitante';
   const responsavel = d.responsavel || '—';
   const fornecedor  = d.fornecedor  || '—';
@@ -648,21 +617,21 @@ function montarCard(d, mostrarBotoes) {
           onclick="confirmar('${esc(d.url_rejeit)}', '${esc(d.num)}', '${d.tipo}', 'R')">
           ✘ Rejeitar
         </button>
-        <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}">Detalhe</a>
+        <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
       </div>`;
   } else if (isAprov) {
     botoesHtml = `<div class="card-actions done">
       <span class="badge-done badge-aprov">✔ Aprovado</span>
-      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}">Detalhe</a>
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
     </div>`;
   } else if (isRej) {
     botoesHtml = `<div class="card-actions done">
       <span class="badge-done badge-rej">✘ Rejeitado</span>
-      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}">Detalhe</a>
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
     </div>`;
   } else {
     botoesHtml = `<div class="card-actions done">
-      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}">Ver Detalhe</a>
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Ver Detalhe</a>
     </div>`;
   }
 
@@ -685,7 +654,6 @@ function montarCard(d, mostrarBotoes) {
         <span class="card-row-icon">🏢</span>
         <span class="card-row-text"><span class="card-row-label">Fornecedor:</span> ${esc(fornecedor || '—')}</span>
       </div>
-      ${itensHtml}
       ${valorFmt}
       ${justifHtml}
       ${statusHtml}
