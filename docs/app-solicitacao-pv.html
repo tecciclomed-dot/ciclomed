@@ -173,6 +173,95 @@
 
   /* ===== AUTOCOMPLETE ===== */
   .autocomplete { position: relative; }
+  .autocomplete .input-wrap { position: relative; }
+  .autocomplete .input-wrap input { padding-right: 46px; }
+
+  .mic-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px; height: 36px;
+    border: none;
+    background: var(--verde-fundo);
+    color: var(--verde-principal);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mic-btn:hover { background: #d4ecdc; }
+  .mic-btn:active { transform: translateY(-50%) scale(0.94); }
+  .mic-btn svg { width: 18px; height: 18px; }
+
+  .mic-btn.listening {
+    background: var(--vermelho);
+    color: #fff;
+    animation: micPulse 1.2s infinite;
+  }
+  @keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.5); }
+    50%      { box-shadow: 0 0 0 8px rgba(192,57,43,0); }
+  }
+  .mic-btn.unsupported { opacity: 0.35; cursor: not-allowed; }
+
+  .voice-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(14,58,36,0.55);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .voice-overlay.show { display: flex; }
+  .voice-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 24px 22px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+  .voice-card .pulse {
+    width: 80px; height: 80px;
+    margin: 0 auto 14px;
+    background: var(--vermelho);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    animation: micPulse 1.2s infinite;
+  }
+  .voice-card .pulse svg { width: 36px; height: 36px; }
+  .voice-card h3 { color: var(--verde-escuro); font-size: 17px; margin-bottom: 6px; }
+  .voice-card p { color: var(--cinza-texto); font-size: 13px; margin-bottom: 14px; }
+  .voice-card .heard {
+    background: var(--cinza-fundo);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--verde-escuro);
+    min-height: 40px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    font-style: italic;
+  }
+  .voice-card button {
+    background: var(--cinza-fundo);
+    border: none;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--verde-escuro);
+    cursor: pointer;
+  }
+
   .suggestions {
     position: absolute;
     top: calc(100% + 2px); left: 0; right: 0;
@@ -478,7 +567,11 @@
     <!-- ============ ETAPA 1: CLIENTE / PROCEDIMENTO ============ -->
     <div class="panel active" id="panel1">
       <div class="panel-title">Dados do procedimento</div>
-      <div class="panel-subtitle">Informe o cliente e os dados do paciente / cirurgia</div>
+      <div class="panel-subtitle">
+        Informe o cliente e os dados do paciente / cirurgia.<br>
+        <span style="color: var(--verde-principal); font-weight: 600;">🎤 Toque no microfone</span>
+        em qualquer campo para falar em vez de digitar.
+      </div>
 
       <div class="field autocomplete">
         <label>Hospital / Cliente <span class="req">*</span></label>
@@ -968,6 +1061,123 @@
   function restart() {
     location.reload();
   }
+
+  // ============================================================
+  // VOZ — Web Speech API (pt-BR)
+  // ============================================================
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const VOICE_SUPPORTED = !!SR;
+
+  const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
+
+  function buildVoiceOverlay() {
+    if (document.getElementById('voiceOverlay')) return;
+    const ov = document.createElement('div');
+    ov.id = 'voiceOverlay';
+    ov.className = 'voice-overlay';
+    ov.innerHTML = `
+      <div class="voice-card">
+        <div class="pulse">${MIC_SVG}</div>
+        <h3>Estou ouvindo...</h3>
+        <p>Diga o nome (ex: <em>"Sírio Libanês"</em>)</p>
+        <div class="heard" id="voiceHeard">—</div>
+        <button onclick="stopVoice(true)">Cancelar</button>
+      </div>
+    `;
+    document.body.appendChild(ov);
+  }
+
+  let voiceRec = null;
+  let voiceTarget = null;
+
+  function startVoice(input) {
+    if (!VOICE_SUPPORTED) {
+      alert('Seu navegador não suporta reconhecimento de voz.\nUse o Chrome, Edge ou Safari.');
+      return;
+    }
+    voiceTarget = input;
+    voiceRec = new SR();
+    voiceRec.lang = 'pt-BR';
+    voiceRec.continuous = false;
+    voiceRec.interimResults = true;
+    voiceRec.maxAlternatives = 1;
+
+    buildVoiceOverlay();
+    document.getElementById('voiceHeard').textContent = '—';
+    document.getElementById('voiceOverlay').classList.add('show');
+    input.closest('.input-wrap').querySelector('.mic-btn').classList.add('listening');
+
+    voiceRec.onresult = (e) => {
+      let txt = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        txt += e.results[i][0].transcript;
+      }
+      document.getElementById('voiceHeard').textContent = txt;
+
+      if (e.results[e.results.length - 1].isFinal) {
+        applyVoiceResult(txt);
+      }
+    };
+    voiceRec.onerror = (e) => {
+      console.error('Voice error:', e.error);
+      let msg = 'Erro ao reconhecer voz.';
+      if (e.error === 'not-allowed') msg = 'Permita o uso do microfone nas configurações do navegador.';
+      if (e.error === 'no-speech')   msg = 'Não ouvi nada. Tente novamente.';
+      document.getElementById('voiceHeard').textContent = msg;
+      setTimeout(() => stopVoice(true), 1500);
+    };
+    voiceRec.onend = () => {
+      if (document.getElementById('voiceOverlay').classList.contains('show')) {
+        setTimeout(() => stopVoice(false), 400);
+      }
+    };
+
+    try { voiceRec.start(); }
+    catch (err) { console.error(err); stopVoice(true); }
+  }
+
+  function applyVoiceResult(txt) {
+    txt = txt.trim();
+    if (!txt) return;
+    voiceTarget.value = txt;
+    voiceTarget.dispatchEvent(new Event('input', { bubbles: true }));
+    setTimeout(() => stopVoice(false), 600);
+  }
+
+  function stopVoice(cancel) {
+    if (voiceRec) {
+      try { voiceRec.stop(); } catch(e) {}
+      voiceRec = null;
+    }
+    document.querySelectorAll('.mic-btn.listening').forEach(el => el.classList.remove('listening'));
+    const ov = document.getElementById('voiceOverlay');
+    if (ov) ov.classList.remove('show');
+    if (!cancel && voiceTarget) voiceTarget.focus();
+  }
+
+  function attachMicButtons() {
+    document.querySelectorAll('input[data-ac], #inpProd').forEach(input => {
+      if (input.parentElement.classList.contains('input-wrap')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'input-wrap';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mic-btn' + (VOICE_SUPPORTED ? '' : ' unsupported');
+      btn.title = VOICE_SUPPORTED ? 'Falar para preencher' : 'Voz não suportada neste navegador';
+      btn.innerHTML = MIC_SVG;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        startVoice(input);
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  attachMicButtons();
 </script>
 
 </body>
