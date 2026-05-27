@@ -638,7 +638,12 @@ function voltarPainel() {
         }
         el('tabRejeitados').innerHTML = htmlRej;
 
-        // ── Re-apply active tab
+        // ── Auto-selecionar aba com conteudo (se pendentes vazia)
+        if (iPend.length === 0 && iAprov.length > 0) {
+            gActiveTab = 'aprov';
+        } else if (iPend.length === 0 && iRej.length > 0) {
+            gActiveTab = 'rej';
+        }
         switchTab(gActiveTab);
 
         // ── Bind action buttons (after DOM insert)
