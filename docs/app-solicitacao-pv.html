@@ -173,8 +173,12 @@
 
   /* ===== AUTOCOMPLETE ===== */
   .autocomplete { position: relative; }
-  .autocomplete .input-wrap { position: relative; }
-  .autocomplete .input-wrap input { padding-right: 46px; }
+  .autocomplete .input-wrap {
+    position: relative;
+    width: 100%;
+    display: block;
+  }
+  .autocomplete .input-wrap input { padding-right: 46px; width: 100%; }
 
   .mic-btn {
     position: absolute;
@@ -867,9 +871,58 @@
   function normalize(s) {
     return (s || '').toString().toLowerCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // remove acentos
-      .replace(/[.,;:!?]/g, ' ')                            // remove pontuação
-      .replace(/\s+/g, ' ')                                 // colapsa espaços
+      .replace(/[^a-z0-9\s]/g, ' ')                         // tudo que nao for letra/numero vira espaco
+      .replace(/\s+/g, ' ')                                 // colapsa espacos
       .trim();
+  }
+
+  // Palavras genericas que o reconhecimento de voz costuma adicionar
+  // mas que NAO ajudam a achar o resultado (sao filtradas da busca)
+  const STOPWORDS = new Set([
+    'hospital','hosp','clinica',
+    'doutor','doutora','dr','dra',
+    'sr','sra','senhor','senhora',
+    'plano','saude','convenio',
+    'medico','medica',
+    'paciente','cliente',
+    'produto','item','codigo',
+    'da','de','do','das','dos','e','o','a','os','as'
+  ]);
+
+  // Busca por palavras: cada token util da query precisa aparecer no nome/info.
+  // Retorna score (>0 = match). Score maior = melhor.
+  function scoreItem(itemName, itemInfo, queryNorm) {
+    const haystack = normalize(itemName) + ' ' + normalize(itemInfo || '');
+    if (!queryNorm) return 0;
+
+    // Match de substring inteira -> score maximo
+    if (haystack.includes(queryNorm)) return 100;
+
+    const tokens = queryNorm.split(' ').filter(t => t && !STOPWORDS.has(t));
+    if (tokens.length === 0) {
+      // Query so com stopwords (ex: "hospital") -> tenta substring sem filtrar
+      return haystack.includes(queryNorm) ? 60 : 0;
+    }
+
+    let hits = 0;
+    for (const tok of tokens) {
+      if (haystack.includes(tok)) hits++;
+    }
+
+    if (hits === tokens.length)               return 80;          // todas
+    if (hits >= Math.ceil(tokens.length / 2)) return 40 + hits;   // pelo menos metade
+    return 0;
+  }
+
+  function searchBase(base, query) {
+    const nq = normalize(query);
+    if (nq.length < 2) return [];
+    return base
+      .map(it => ({ it, sc: scoreItem(it.nome, it.info, nq) }))
+      .filter(x => x.sc > 0)
+      .sort((a, b) => b.sc - a.sc)
+      .slice(0, 8)
+      .map(x => x.it);
   }
 
   function bindAutocomplete(input) {
@@ -908,9 +961,42 @@
       if (!q) return text;
       const nq = normalize(q);
       const nt = normalize(text);
+
+      // 1. tenta substring exata
       const idx = nt.indexOf(nq);
-      if (idx < 0) return text;
-      return text.substr(0, idx) + '<mark style="background:#FFF3CD;color:inherit;padding:0;">' + text.substr(idx, q.length) + '</mark>' + text.substr(idx + q.length);
+      if (idx >= 0) {
+        return text.substr(0, idx) + '<mark style="background:#FFF3CD;color:inherit;padding:0;">' + text.substr(idx, q.length) + '</mark>' + text.substr(idx + q.length);
+      }
+
+      // 2. destaca tokens individuais (>=3 letras, sem stopwords)
+      const tokens = nq.split(' ').filter(t => t.length >= 3 && !STOPWORDS.has(t));
+      if (tokens.length === 0) return text;
+      const escaped = tokens.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      // tenta achar cada token no texto normalizado e marcar no texto original
+      let out = text;
+      try {
+        const re = new RegExp('(' + escaped.join('|') + ')', 'gi');
+        // match no texto normalizado e mapeia indices
+        let parts = [];
+        let lastIdx = 0;
+        let m;
+        const reN = new RegExp('(' + escaped.join('|') + ')', 'gi');
+        while ((m = reN.exec(nt)) !== null) {
+          if (m.index < lastIdx) continue;
+          parts.push({ start: m.index, end: m.index + m[0].length });
+          lastIdx = m.index + m[0].length;
+        }
+        if (parts.length === 0) return text;
+        let res = '';
+        let pos = 0;
+        for (const p of parts) {
+          res += text.substr(pos, p.start - pos);
+          res += '<mark style="background:#FFF3CD;color:inherit;padding:0;">' + text.substr(p.start, p.end - p.start) + '</mark>';
+          pos = p.end;
+        }
+        res += text.substr(pos);
+        return res;
+      } catch (e) { return text; }
     }
 
     function pickItem(it) {
@@ -944,9 +1030,7 @@
         sug.classList.remove('open');
         return;
       }
-      const nq = normalize(q);
-      const matches = base.filter(it => normalize(it.nome).includes(nq)).slice(0, 8);
-      renderItems(matches, q);
+      renderItems(searchBase(base, q), q);
     });
 
     input.addEventListener('blur', () => {
@@ -954,13 +1038,8 @@
     });
 
     input.addEventListener('focus', () => {
-      // só reabre se já tem texto suficiente
       const q = input.value.trim();
-      if (q.length >= 2) {
-        const nq = normalize(q);
-        const matches = base.filter(it => normalize(it.nome).includes(nq)).slice(0, 8);
-        renderItems(matches, q);
-      }
+      if (q.length >= 2) renderItems(searchBase(base, q), q);
     });
 
     // teclas: setas + enter
@@ -1002,10 +1081,7 @@
         sug.classList.remove('open');
         return;
       }
-      const nq = normalize(q);
-      const matches = BASES.produtos.filter(p =>
-        normalize(p.id).includes(nq) || normalize(p.nome).includes(nq)
-      ).slice(0, 6);
+      const matches = searchBase(BASES.produtos, q).slice(0, 6);
 
       if (matches.length === 0) {
         sug.innerHTML = '<div class="suggestion-item" style="cursor:default;opacity:0.6;font-style:italic;">Nenhum produto para "' + q + '"</div>';
