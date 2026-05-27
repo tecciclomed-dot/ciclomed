@@ -482,27 +482,19 @@
 
       <div class="field autocomplete">
         <label>Hospital / Cliente <span class="req">*</span></label>
-        <input type="text" id="inpCliente" placeholder="Digite o nome do hospital..." autocomplete="off">
-        <div class="suggestions" id="sugCliente">
-          <div class="suggestion-item" onclick="selCliente('001234','HOSPITAL SIRIO LIBANES')">
-            <div class="si-name">HOSPITAL SIRIO LIBANES</div>
-            <div class="si-info">Cód 001234 · CNPJ 60.097.000/0001-00 · São Paulo/SP</div>
-          </div>
-          <div class="suggestion-item" onclick="selCliente('001235','HOSPITAL ALBERT EINSTEIN')">
-            <div class="si-name">HOSPITAL ALBERT EINSTEIN</div>
-            <div class="si-info">Cód 001235 · CNPJ 60.765.823/0001-30 · São Paulo/SP</div>
-          </div>
-          <div class="suggestion-item" onclick="selCliente('001236','HOSPITAL SAMARITANO')">
-            <div class="si-name">HOSPITAL SAMARITANO</div>
-            <div class="si-info">Cód 001236 · CNPJ 61.500.829/0001-01 · São Paulo/SP</div>
-          </div>
-        </div>
-        <div class="field-hint">Busca pela carteira do vendedor</div>
+        <input type="text" id="inpCliente" placeholder="Digite o nome do hospital..." autocomplete="off"
+               data-ac="hospitais" data-target-id="hidHospId" data-target-info="hospInfo">
+        <input type="hidden" id="hidHospId">
+        <div class="suggestions" id="sugCliente"></div>
+        <div class="field-hint" id="hospInfo">Comece a digitar (mínimo 2 letras) — busca pela carteira do vendedor</div>
       </div>
 
-      <div class="field">
+      <div class="field autocomplete">
         <label>Paciente <span class="req">*</span></label>
-        <input type="text" placeholder="Nome do paciente">
+        <input type="text" id="inpPaciente" placeholder="Nome do paciente..." autocomplete="off"
+               data-ac="pacientes" data-allow-new="true">
+        <div class="suggestions" id="sugPaciente"></div>
+        <div class="field-hint">Se o paciente não estiver na lista, basta digitar o nome completo</div>
       </div>
 
       <div class="row">
@@ -528,21 +520,26 @@
         </div>
       </div>
 
-      <div class="field">
+      <div class="field autocomplete">
         <label>Convênio</label>
-        <input type="text" placeholder="Nome do convênio">
+        <input type="text" id="inpConvenio" placeholder="Digite o nome do convênio..." autocomplete="off"
+               data-ac="convenios" data-allow-new="true">
+        <div class="suggestions" id="sugConvenio"></div>
       </div>
 
       <div class="row">
-        <div class="field">
+        <div class="field autocomplete" style="flex: 1;">
           <label>Médico <span class="req">*</span></label>
-          <input type="text" placeholder="Nome do médico">
+          <input type="text" id="inpMedico" placeholder="Digite o nome do médico..." autocomplete="off"
+                 data-ac="medicos" data-target-info="medInfo">
+          <div class="suggestions" id="sugMedico"></div>
         </div>
         <div class="field" style="flex: 0.6;">
           <label>CRM</label>
-          <input type="text" placeholder="00000">
+          <input type="text" id="inpCRM" placeholder="00000">
         </div>
       </div>
+      <div class="field-hint" id="medInfo" style="margin-top: -10px;"></div>
     </div>
 
     <!-- ============ ETAPA 2: ITENS / CARRINHO ============ -->
@@ -689,6 +686,9 @@
 </div>
 
 <script>
+  // ============================================================
+  // STEPPER
+  // ============================================================
   let curStep = 1;
   const TOTAL = 3;
 
@@ -712,17 +712,246 @@
     showStep(next);
   }
 
-  function selCliente(cod, nome) {
-    document.getElementById('inpCliente').value = nome + ' (' + cod + ')';
-    document.getElementById('sugCliente').classList.remove('open');
+  // ============================================================
+  // BASES MOCK (no backend real -> REST do Protheus)
+  // ============================================================
+  const BASES = {
+    hospitais: [
+      { id: '001234', nome: 'HOSPITAL SIRIO LIBANES',          info: 'CNPJ 60.097.000/0001-00 · São Paulo/SP' },
+      { id: '001235', nome: 'HOSPITAL ALBERT EINSTEIN',        info: 'CNPJ 60.765.823/0001-30 · São Paulo/SP' },
+      { id: '001236', nome: 'HOSPITAL SAMARITANO',             info: 'CNPJ 61.500.829/0001-01 · São Paulo/SP' },
+      { id: '001237', nome: 'HOSPITAL SANTA PAULA',            info: 'CNPJ 60.992.226/0001-72 · São Paulo/SP' },
+      { id: '001238', nome: 'HOSPITAL SAO LUIZ MORUMBI',       info: 'CNPJ 06.047.087/0007-44 · São Paulo/SP' },
+      { id: '001239', nome: 'HOSPITAL SAO LUIZ ITAIM',         info: 'CNPJ 06.047.087/0006-63 · São Paulo/SP' },
+      { id: '001240', nome: 'BENEFICENCIA PORTUGUESA SP',      info: 'CNPJ 61.599.908/0001-58 · São Paulo/SP' },
+      { id: '001241', nome: 'HCOR - HOSPITAL DO CORACAO',      info: 'CNPJ 60.992.418/0001-30 · São Paulo/SP' },
+      { id: '001242', nome: 'PACIFICO OPERACOES HOSPITALARES', info: 'CNPJ 09.182.234/0001-30 · São Paulo/SP' },
+      { id: '001243', nome: 'HOSPITAL OSWALDO CRUZ',           info: 'CNPJ 60.726.502/0001-08 · São Paulo/SP' },
+      { id: '001244', nome: 'HOSPITAL 9 DE JULHO',             info: 'CNPJ 60.742.616/0001-60 · São Paulo/SP' },
+    ],
+    pacientes: [
+      { id: 'P0001', nome: 'Maria de Souza',     info: 'CPF 123.456.789-00 · 58 anos' },
+      { id: 'P0002', nome: 'Carlos Oliveira',    info: 'CPF 234.567.890-11 · 47 anos' },
+      { id: 'P0003', nome: 'José Ferreira',      info: 'CPF 345.678.901-22 · 62 anos' },
+      { id: 'P0004', nome: 'Paula Reis',         info: 'CPF 456.789.012-33 · 51 anos' },
+      { id: 'P0005', nome: 'Ana Carolina Lima',  info: 'CPF 567.890.123-44 · 39 anos' },
+      { id: 'P0006', nome: 'Roberto Lima Santos',info: 'CPF 678.901.234-55 · 71 anos' },
+    ],
+    convenios: [
+      { id: 'C001', nome: 'Unimed',              info: 'Plano Saúde' },
+      { id: 'C002', nome: 'Bradesco Saúde',      info: 'Plano Saúde' },
+      { id: 'C003', nome: 'SulAmérica Saúde',    info: 'Plano Saúde' },
+      { id: 'C004', nome: 'Amil',                info: 'Plano Saúde' },
+      { id: 'C005', nome: 'Porto Seguro Saúde',  info: 'Plano Saúde' },
+      { id: 'C006', nome: 'Hapvida NotreDame Intermédica', info: 'Plano Saúde' },
+      { id: 'C007', nome: 'Particular',          info: 'Sem convênio (faturamento direto)' },
+      { id: 'C008', nome: 'SUS',                 info: 'Sistema Único de Saúde' },
+    ],
+    medicos: [
+      { id: 'M0001', nome: 'Dr. João Almeida',        info: 'CRM 12345 · Cirurgia Vascular' },
+      { id: 'M0002', nome: 'Dra. Ana Lima Pereira',   info: 'CRM 23456 · Ginecologia' },
+      { id: 'M0003', nome: 'Dr. Pedro Costa',         info: 'CRM 34567 · Ortopedia' },
+      { id: 'M0004', nome: 'Dr. Carlos Mendes',       info: 'CRM 45678 · Cardiologia' },
+      { id: 'M0005', nome: 'Dra. Beatriz Rocha',      info: 'CRM 56789 · Neurocirurgia' },
+      { id: 'M0006', nome: 'Dr. Roberto Santos',      info: 'CRM 67890 · Urologia' },
+      { id: 'M0007', nome: 'Dr. Renato Oliveira',     info: 'CRM 78901 · Endoscopia' },
+    ],
+    produtos: [
+      { id: 'RED68KIT',  nome: 'CATETER DE REPERFUSAO RED 68 132CM',          saldo50: 12, info: 'Lote: H00007902 · Val 28/04/2028' },
+      { id: 'G-NB-2_0',  nome: 'COLA CIRURGICA GLUBRAN 2 1ML',                saldo50: 3,  info: 'Lote: G2024A · Val 12/2027' },
+      { id: 'G-NB2-50_0',nome: 'COLA CIRURGICA GLUBRAN 2 0.50ML',             saldo50: 8,  info: 'Lote: G2024B · Val 11/2027' },
+      { id: 'GB-DS-30',  nome: 'APLICADOR GLUTACK 30',                        saldo50: 15, info: 'Lote: AP2025X · Val 03/2028' },
+      { id: 'GB-DS-60',  nome: 'APLICADOR GLUTACK 60',                        saldo50: 25, info: 'Lote: AP2025Y · Val 03/2028' },
+      { id: 'PS012',     nome: 'MATERIAL DE CONSUMO',                         saldo50: 50, info: 'Sem controle de lote' },
+      { id: 'BR-1259-11',nome: 'BRONCOSCOPIO FLEXIVEL TI 5.8 C 2.8MM',        saldo50: 0,  info: 'Sem saldo no estoque' },
+      { id: 'AF-2055',   nome: 'VIDEO BRONCOSCOPIO SEESHEEN SERIE-AF TI 5.8', saldo50: 2,  info: 'Lote: VB2024 · Val 06/2028' },
+    ]
+  };
+
+  // ============================================================
+  // AUTOCOMPLETE DINAMICO (data-ac="hospitais|pacientes|...")
+  // ============================================================
+  function normalize(s) {
+    return (s || '').toString().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .trim();
   }
 
-  function addItem(cod, desc, saldo) {
-    document.getElementById('inpProd').value = cod + ' — ' + desc;
-    document.getElementById('sugProd').classList.remove('open');
+  function bindAutocomplete(input) {
+    const baseName = input.dataset.ac;
+    const base = BASES[baseName] || [];
+    const sug = input.parentElement.querySelector('.suggestions');
+    if (!sug) return;
+
+    let highlightIdx = -1;
+
+    function renderItems(items, q) {
+      if (items.length === 0) {
+        sug.innerHTML = '<div class="suggestion-item" style="cursor:default;opacity:0.6;font-style:italic;">Nenhum resultado para "' + q + '"</div>';
+        sug.classList.add('open');
+        return;
+      }
+      sug.innerHTML = items.map((it, idx) => `
+        <div class="suggestion-item" data-idx="${idx}">
+          <div class="si-name">${highlightMatch(it.nome, q)}</div>
+          ${it.info ? '<div class="si-info">' + it.info + '</div>' : ''}
+        </div>
+      `).join('');
+      sug.classList.add('open');
+
+      // bind click pra cada
+      Array.from(sug.querySelectorAll('.suggestion-item')).forEach((el, idx) => {
+        el.addEventListener('mousedown', e => {
+          e.preventDefault();
+          pickItem(items[idx]);
+        });
+      });
+      highlightIdx = -1;
+    }
+
+    function highlightMatch(text, q) {
+      if (!q) return text;
+      const nq = normalize(q);
+      const nt = normalize(text);
+      const idx = nt.indexOf(nq);
+      if (idx < 0) return text;
+      return text.substr(0, idx) + '<mark style="background:#FFF3CD;color:inherit;padding:0;">' + text.substr(idx, q.length) + '</mark>' + text.substr(idx + q.length);
+    }
+
+    function pickItem(it) {
+      input.value = it.nome;
+      sug.classList.remove('open');
+
+      const tgtId   = input.dataset.targetId;
+      const tgtInfo = input.dataset.targetInfo;
+      if (tgtId) {
+        const h = document.getElementById(tgtId);
+        if (h) h.value = it.id;
+      }
+      if (tgtInfo) {
+        const el = document.getElementById(tgtInfo);
+        if (el) el.textContent = it.info || '';
+      }
+
+      // Atalho: medico -> CRM autopreenche
+      if (baseName === 'medicos' && it.info) {
+        const m = it.info.match(/CRM\s+(\d+)/);
+        if (m) {
+          const crm = document.getElementById('inpCRM');
+          if (crm) crm.value = m[1];
+        }
+      }
+    }
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim();
+      if (q.length < 2) {
+        sug.classList.remove('open');
+        return;
+      }
+      const nq = normalize(q);
+      const matches = base.filter(it => normalize(it.nome).includes(nq)).slice(0, 8);
+      renderItems(matches, q);
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => sug.classList.remove('open'), 180);
+    });
+
+    input.addEventListener('focus', () => {
+      // só reabre se já tem texto suficiente
+      const q = input.value.trim();
+      if (q.length >= 2) {
+        const nq = normalize(q);
+        const matches = base.filter(it => normalize(it.nome).includes(nq)).slice(0, 8);
+        renderItems(matches, q);
+      }
+    });
+
+    // teclas: setas + enter
+    input.addEventListener('keydown', e => {
+      if (!sug.classList.contains('open')) return;
+      const items = sug.querySelectorAll('.suggestion-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlightIdx = Math.min(highlightIdx + 1, items.length - 1);
+        items.forEach((el, i) => el.style.background = i === highlightIdx ? 'var(--verde-fundo)' : '');
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlightIdx = Math.max(highlightIdx - 1, 0);
+        items.forEach((el, i) => el.style.background = i === highlightIdx ? 'var(--verde-fundo)' : '');
+      } else if (e.key === 'Enter') {
+        if (highlightIdx >= 0 && items[highlightIdx]) {
+          e.preventDefault();
+          items[highlightIdx].dispatchEvent(new MouseEvent('mousedown'));
+        }
+      } else if (e.key === 'Escape') {
+        sug.classList.remove('open');
+      }
+    });
   }
 
+  document.querySelectorAll('input[data-ac]').forEach(bindAutocomplete);
+
+  // ============================================================
+  // AUTOCOMPLETE DE PRODUTO (com saldo em cores)
+  // ============================================================
+  (function bindProdAutocomplete() {
+    const input = document.getElementById('inpProd');
+    const sug   = document.getElementById('sugProd');
+    if (!input) return;
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim();
+      if (q.length < 2) {
+        sug.classList.remove('open');
+        return;
+      }
+      const nq = normalize(q);
+      const matches = BASES.produtos.filter(p =>
+        normalize(p.id).includes(nq) || normalize(p.nome).includes(nq)
+      ).slice(0, 6);
+
+      if (matches.length === 0) {
+        sug.innerHTML = '<div class="suggestion-item" style="cursor:default;opacity:0.6;font-style:italic;">Nenhum produto para "' + q + '"</div>';
+        sug.classList.add('open');
+        return;
+      }
+
+      sug.innerHTML = matches.map(p => {
+        const pillCls = p.saldo50 >= 5 ? 'saldo-ok' : (p.saldo50 > 0 ? 'saldo-baixo' : 'saldo-zero');
+        return `
+          <div class="suggestion-item" data-cod="${p.id}" data-desc="${p.nome}" data-saldo="${p.saldo50}">
+            <div class="si-name">${p.id} — ${p.nome}
+              <span class="saldo-pill ${pillCls}">Arm.50 = ${p.saldo50} un</span>
+            </div>
+            <div class="si-info">${p.info}</div>
+          </div>
+        `;
+      }).join('');
+      sug.classList.add('open');
+
+      sug.querySelectorAll('.suggestion-item').forEach(el => {
+        el.addEventListener('mousedown', e => {
+          e.preventDefault();
+          input.value = el.dataset.cod + ' — ' + el.dataset.desc;
+          sug.classList.remove('open');
+        });
+      });
+    });
+
+    input.addEventListener('blur', () => setTimeout(() => sug.classList.remove('open'), 180));
+  })();
+
+  // ============================================================
+  // ACOES
+  // ============================================================
   function confirmAddItem() {
+    const cod = document.getElementById('inpProd').value.split(' — ')[0];
+    if (!cod) {
+      alert('Selecione um produto antes de adicionar.');
+      return;
+    }
     alert('(mockup) Item adicionado ao carrinho');
   }
 
@@ -731,7 +960,7 @@
     document.querySelector('#panel3 .panel-subtitle').style.display = 'none';
     document.querySelector('#panel3 .review-box').style.display = 'none';
     document.querySelector('#panel3 .banner').style.display = 'none';
-    document.querySelector('#panel3 .field').style.display = 'none';
+    document.querySelectorAll('#panel3 .field').forEach(el => el.style.display = 'none');
     document.getElementById('successScreen').style.display = 'block';
     document.getElementById('footer').style.display = 'none';
   }
@@ -739,17 +968,6 @@
   function restart() {
     location.reload();
   }
-
-  // Autocomplete mock
-  document.getElementById('inpCliente').addEventListener('focus', () =>
-    document.getElementById('sugCliente').classList.add('open'));
-  document.getElementById('inpCliente').addEventListener('blur', () =>
-    setTimeout(() => document.getElementById('sugCliente').classList.remove('open'), 200));
-
-  document.getElementById('inpProd').addEventListener('focus', () =>
-    document.getElementById('sugProd').classList.add('open'));
-  document.getElementById('inpProd').addEventListener('blur', () =>
-    setTimeout(() => document.getElementById('sugProd').classList.remove('open'), 200));
 </script>
 
 </body>
