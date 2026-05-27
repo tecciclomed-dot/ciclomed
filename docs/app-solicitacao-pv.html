@@ -866,7 +866,9 @@
   // ============================================================
   function normalize(s) {
     return (s || '').toString().toLowerCase()
-      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')   // remove acentos
+      .replace(/[.,;:!?]/g, ' ')                            // remove pontuação
+      .replace(/\s+/g, ' ')                                 // colapsa espaços
       .trim();
   }
 
@@ -1136,8 +1138,15 @@
     catch (err) { console.error(err); stopVoice(true); }
   }
 
+  function cleanVoiceText(txt) {
+    return (txt || '')
+      .replace(/[.,;:!?]+/g, ' ')      // pontuação no meio/fim vira espaço
+      .replace(/\s+/g, ' ')            // colapsa espaços
+      .trim();
+  }
+
   function applyVoiceResult(txt) {
-    txt = txt.trim();
+    txt = cleanVoiceText(txt);
     if (!txt) return;
     voiceTarget.value = txt;
     voiceTarget.dispatchEvent(new Event('input', { bubbles: true }));
