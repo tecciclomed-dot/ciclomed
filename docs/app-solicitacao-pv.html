@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Solicitação de Pedido — CicloMed</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --verde-principal: #1B5E3F;
+    --verde-escuro:    #0E3A24;
+    --verde-medio:     #2A7A4F;
+    --verde-claro:     #4CAF50;
+    --verde-fundo:     #E8F5EE;
+    --verde-sucesso:   #27AE60;
+    --vermelho:        #C0392B;
+    --amarelo:         #F39C12;
+    --cinza-fundo:     #F5F7F6;
+    --cinza-borda:     #E0E5E2;
+    --cinza-texto:     #5B6B61;
+    --branco:          #FFFFFF;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    background: var(--cinza-fundo);
+    color: #2C3E2D;
+    overscroll-behavior: none;
+  }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--branco);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 30px rgba(0,0,0,0.05);
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: linear-gradient(135deg, var(--verde-escuro) 0%, var(--verde-principal) 100%);
+    color: var(--branco);
+    padding: 18px 20px 14px;
+    position: relative;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-logo {
+    width: 44px; height: 44px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 18px;
+    letter-spacing: -1px;
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.3);
+  }
+  .header h1 { font-size: 17px; font-weight: 700; line-height: 1.2; }
+  .header h1 small { font-size: 11px; font-weight: 400; opacity: 0.8; display: block; margin-top: 1px; }
+
+  .header-vendedor {
+    margin-top: 12px;
+    font-size: 12px;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ===== STEPPER ===== */
+  .stepper {
+    display: flex;
+    background: var(--verde-escuro);
+    padding: 0;
+  }
+  .step {
+    flex: 1;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.5);
+    border-bottom: 3px solid transparent;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .step.active {
+    color: #fff;
+    border-bottom-color: var(--verde-claro);
+    background: rgba(255,255,255,0.07);
+  }
+  .step.done {
+    color: rgba(255,255,255,0.85);
+  }
+  .step .num {
+    display: inline-block;
+    width: 22px; height: 22px;
+    line-height: 20px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.2);
+    margin-right: 5px;
+    font-weight: 700;
+    border: 1.5px solid rgba(255,255,255,0.3);
+  }
+  .step.active .num { background: var(--verde-claro); border-color: var(--verde-claro); }
+  .step.done .num   { background: var(--verde-sucesso); border-color: var(--verde-sucesso); }
+
+  /* ===== BODY ===== */
+  .content {
+    flex: 1;
+    padding: 18px 18px 100px;
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; animation: fade .2s; }
+  @keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .panel-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin-bottom: 4px;
+  }
+  .panel-subtitle {
+    font-size: 12px;
+    color: var(--cinza-texto);
+    margin-bottom: 16px;
+  }
+
+  /* ===== FORM ===== */
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 5px;
+  }
+  .field label .req { color: var(--vermelho); }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--verde-principal);
+    box-shadow: 0 0 0 3px rgba(27,94,63,0.12);
+  }
+  .field textarea { resize: vertical; min-height: 76px; }
+
+  .field-hint { font-size: 11px; color: var(--cinza-texto); margin-top: 4px; }
+
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; }
+
+  /* ===== AUTOCOMPLETE ===== */
+  .autocomplete { position: relative; }
+  .suggestions {
+    position: absolute;
+    top: calc(100% + 2px); left: 0; right: 0;
+    background: #fff;
+    border: 1.5px solid var(--verde-principal);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    max-height: 230px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+  }
+  .suggestions.open { display: block; }
+  .suggestion-item {
+    padding: 10px 13px;
+    border-bottom: 1px solid var(--cinza-borda);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:hover { background: var(--verde-fundo); }
+  .suggestion-item .si-name { font-weight: 600; color: var(--verde-escuro); }
+  .suggestion-item .si-info { font-size: 11px; color: var(--cinza-texto); margin-top: 2px; }
+
+  /* ===== SEGMENT (radio-like) ===== */
+  .segment {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    background: var(--cinza-fundo);
+    padding: 5px;
+    border-radius: 8px;
+    border: 1.5px solid var(--cinza-borda);
+  }
+  .segment input[type="radio"] { display: none; }
+  .segment label {
+    padding: 9px 0;
+    text-align: center;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin: 0;
+    color: var(--cinza-texto);
+    transition: all .15s;
+  }
+  .segment input[type="radio"]:checked + label {
+    background: var(--verde-principal);
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(27,94,63,0.3);
+  }
+
+  /* ===== CARRINHO (itens) ===== */
+  .item-search-box {
+    background: var(--verde-fundo);
+    border: 1.5px dashed var(--verde-medio);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 14px;
+  }
+
+  .saldo-pill {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    margin-left: 6px;
+  }
+  .saldo-ok      { background: #D5F5E3; color: #1E8449; }
+  .saldo-baixo   { background: #FEF5E7; color: #B7770F; }
+  .saldo-zero    { background: #FADBD8; color: var(--vermelho); }
+
+  .cart {
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .cart-header {
+    background: var(--verde-principal);
+    color: #fff;
+    padding: 9px 13px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cart-empty {
+    padding: 22px 14px;
+    text-align: center;
+    color: var(--cinza-texto);
+    font-size: 13px;
+    font-style: italic;
+  }
+  .cart-item {
+    padding: 11px 13px;
+    border-bottom: 1px solid var(--cinza-borda);
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .cart-item:last-child { border-bottom: none; }
+  .cart-item-body { flex: 1; min-width: 0; }
+  .cart-item-prod { font-size: 12px; font-weight: 700; color: var(--verde-escuro); }
+  .cart-item-desc { font-size: 12px; color: #444; line-height: 1.3; margin-top: 2px; }
+  .cart-item-meta { font-size: 11px; color: var(--cinza-texto); margin-top: 3px; }
+  .cart-item-qty {
+    background: var(--verde-fundo);
+    color: var(--verde-escuro);
+    padding: 4px 9px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .cart-item-rm {
+    background: none;
+    border: none;
+    color: var(--vermelho);
+    cursor: pointer;
+    font-size: 18px;
+    padding: 0 4px;
+  }
+
+  /* ===== REVISÃO ===== */
+  .review-box {
+    background: var(--verde-fundo);
+    border-left: 4px solid var(--verde-principal);
+    border-radius: 0 8px 8px 0;
+    padding: 12px 14px;
+    margin-bottom: 12px;
+  }
+  .review-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 4px 0;
+    font-size: 12px;
+  }
+  .review-row .lbl {
+    color: var(--cinza-texto);
+    text-transform: uppercase;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    min-width: 90px;
+    margin-right: 8px;
+  }
+  .review-row .val {
+    flex: 1;
+    text-align: right;
+    color: var(--verde-escuro);
+    font-weight: 600;
+    font-size: 13px;
+  }
+  .review-section-title {
+    font-size: 11px;
+    color: var(--verde-escuro);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin: 10px 0 6px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(27,94,63,0.15);
+  }
+
+  /* ===== FOOTER NAV (bottom buttons fixos) ===== */
+  .footer {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    background: #fff;
+    border-top: 1.5px solid var(--cinza-borda);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    display: flex;
+    gap: 8px;
+    max-width: 480px;
+    margin: 0 auto;
+    z-index: 50;
+  }
+  .btn {
+    flex: 1;
+    padding: 13px 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .btn-primary {
+    background: var(--verde-principal);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(27,94,63,0.3);
+  }
+  .btn-primary:hover { background: var(--verde-medio); }
+  .btn-secondary {
+    background: var(--cinza-fundo);
+    color: var(--cinza-texto);
+    border: 1.5px solid var(--cinza-borda);
+    flex: 0.4;
+  }
+  .btn-success {
+    background: var(--verde-sucesso);
+    color: #fff;
+    box-shadow: 0 3px 10px rgba(39,174,96,0.4);
+  }
+
+  /* ===== SUCESSO ===== */
+  .success-screen {
+    text-align: center;
+    padding: 60px 24px;
+  }
+  .success-icon {
+    width: 90px; height: 90px;
+    margin: 0 auto 18px;
+    background: var(--verde-sucesso);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 48px;
+    box-shadow: 0 6px 24px rgba(39,174,96,0.4);
+    animation: pop 0.4s cubic-bezier(0.5, 1.5, 0.5, 1);
+  }
+  @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+  .success-title {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin-bottom: 8px;
+  }
+  .success-subtitle {
+    font-size: 14px;
+    color: var(--cinza-texto);
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+  .success-pv {
+    display: inline-block;
+    background: var(--verde-fundo);
+    color: var(--verde-escuro);
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 22px;
+    border: 1.5px solid var(--verde-medio);
+  }
+
+  /* ===== BANNER AVISO ===== */
+  .banner {
+    border-left: 4px solid var(--amarelo);
+    background: #FEF9E7;
+    padding: 9px 12px;
+    margin-bottom: 12px;
+    border-radius: 0 6px 6px 0;
+    font-size: 12px;
+    color: #7D6608;
+  }
+
+</style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-logo">CM</div>
+      <div>
+        <h1>
+          Solicitação de Pedido
+          <small>CicloMed — Vendas em Campo</small>
+        </h1>
+      </div>
+    </div>
+    <div class="header-vendedor">
+      <span>👤</span>
+      <span><strong id="vendNome">Antônio Carlos</strong> — Vendedor 000119</span>
+    </div>
+  </div>
+
+  <!-- STEPPER -->
+  <div class="stepper">
+    <div class="step active" id="step1"><span class="num">1</span>Cliente</div>
+    <div class="step" id="step2"><span class="num">2</span>Itens</div>
+    <div class="step" id="step3"><span class="num">3</span>Envio</div>
+  </div>
+
+  <!-- BODY -->
+  <div class="content">
+
+    <!-- ============ ETAPA 1: CLIENTE / PROCEDIMENTO ============ -->
+    <div class="panel active" id="panel1">
+      <div class="panel-title">Dados do procedimento</div>
+      <div class="panel-subtitle">Informe o cliente e os dados do paciente / cirurgia</div>
+
+      <div class="field autocomplete">
+        <label>Hospital / Cliente <span class="req">*</span></label>
+        <input type="text" id="inpCliente" placeholder="Digite o nome do hospital..." autocomplete="off">
+        <div class="suggestions" id="sugCliente">
+          <div class="suggestion-item" onclick="selCliente('001234','HOSPITAL SIRIO LIBANES')">
+            <div class="si-name">HOSPITAL SIRIO LIBANES</div>
+            <div class="si-info">Cód 001234 · CNPJ 60.097.000/0001-00 · São Paulo/SP</div>
+          </div>
+          <div class="suggestion-item" onclick="selCliente('001235','HOSPITAL ALBERT EINSTEIN')">
+            <div class="si-name">HOSPITAL ALBERT EINSTEIN</div>
+            <div class="si-info">Cód 001235 · CNPJ 60.765.823/0001-30 · São Paulo/SP</div>
+          </div>
+          <div class="suggestion-item" onclick="selCliente('001236','HOSPITAL SAMARITANO')">
+            <div class="si-name">HOSPITAL SAMARITANO</div>
+            <div class="si-info">Cód 001236 · CNPJ 61.500.829/0001-01 · São Paulo/SP</div>
+          </div>
+        </div>
+        <div class="field-hint">Busca pela carteira do vendedor</div>
+      </div>
+
+      <div class="field">
+        <label>Paciente <span class="req">*</span></label>
+        <input type="text" placeholder="Nome do paciente">
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Data <span class="req">*</span></label>
+          <input type="date">
+        </div>
+        <div class="field">
+          <label>Hora <span class="req">*</span></label>
+          <input type="time">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Tipo de Solicitação <span class="req">*</span></label>
+        <div class="segment">
+          <input type="radio" name="tpsol" id="tpe" checked>
+          <label for="tpe">Eletivo</label>
+          <input type="radio" name="tpsol" id="tpr">
+          <label for="tpr">Reserva</label>
+          <input type="radio" name="tpsol" id="tpp">
+          <label for="tpp">Reposição</label>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Convênio</label>
+        <input type="text" placeholder="Nome do convênio">
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Médico <span class="req">*</span></label>
+          <input type="text" placeholder="Nome do médico">
+        </div>
+        <div class="field" style="flex: 0.6;">
+          <label>CRM</label>
+          <input type="text" placeholder="00000">
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ETAPA 2: ITENS / CARRINHO ============ -->
+    <div class="panel" id="panel2">
+      <div class="panel-title">Materiais</div>
+      <div class="panel-subtitle">Adicione os materiais que serão utilizados no procedimento</div>
+
+      <div class="item-search-box">
+        <div class="field autocomplete" style="margin-bottom: 8px;">
+          <label>Buscar produto</label>
+          <input type="text" id="inpProd" placeholder="Código ou descrição..." autocomplete="off">
+          <div class="suggestions" id="sugProd">
+            <div class="suggestion-item" onclick="addItem('RED68KIT','CATETER DE REPERFUSAO RED 68 132CM', 12)">
+              <div class="si-name">RED68KIT — CATETER DE REPERFUSAO RED 68 132CM
+                <span class="saldo-pill saldo-ok">Arm.50 = 12 un</span>
+              </div>
+              <div class="si-info">Lote disponível: H00007902 · Validade 28/04/2028</div>
+            </div>
+            <div class="suggestion-item" onclick="addItem('G-NB-2_0','COLA CIRURGICA GLUBRAN 2 1ML', 3)">
+              <div class="si-name">G-NB-2_0 — COLA CIRURGICA GLUBRAN 2 1ML
+                <span class="saldo-pill saldo-baixo">Arm.50 = 3 un</span>
+              </div>
+              <div class="si-info">Lote disponível: G2024A · Validade 12/2027</div>
+            </div>
+            <div class="suggestion-item" onclick="addItem('BR-1259-11','BRONCOSCOPIO FLEXIVEL TI 5.8 C 2.8MM', 0)">
+              <div class="si-name">BR-1259-11 — BRONCOSCOPIO FLEXIVEL TI 5.8 C 2.8MM
+                <span class="saldo-pill saldo-zero">Arm.50 = 0 un</span>
+              </div>
+              <div class="si-info">Sem saldo no estoque — pedido será sinalizado</div>
+            </div>
+          </div>
+        </div>
+        <div class="row" style="margin-bottom: 0;">
+          <div class="field" style="margin-bottom: 0; flex: 0.4;">
+            <label>Qtde</label>
+            <input type="number" min="1" value="1">
+          </div>
+          <div class="field" style="margin-bottom: 0; display: flex; flex-direction: column;">
+            <label style="visibility: hidden;">.</label>
+            <button class="btn btn-primary" onclick="confirmAddItem()" style="padding: 10px;">+ Adicionar</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cart">
+        <div class="cart-header">
+          <span>Carrinho</span>
+          <span id="cartCount">2 itens</span>
+        </div>
+        <div id="cartList">
+          <!-- mockup itens -->
+          <div class="cart-item">
+            <div class="cart-item-body">
+              <div class="cart-item-prod">RED68KIT</div>
+              <div class="cart-item-desc">CATETER DE REPERFUSAO RED 68 132CM</div>
+              <div class="cart-item-meta">Lote H00007902 · Val 28/04/2028 · Saldo OK</div>
+            </div>
+            <span class="cart-item-qty">2 un</span>
+            <button class="cart-item-rm" onclick="this.closest('.cart-item').remove()">×</button>
+          </div>
+          <div class="cart-item">
+            <div class="cart-item-body">
+              <div class="cart-item-prod">G-NB-2_0</div>
+              <div class="cart-item-desc">COLA CIRURGICA GLUBRAN 2 1ML</div>
+              <div class="cart-item-meta">
+                <span class="saldo-pill saldo-baixo" style="margin-left: 0;">⚠️ Saldo baixo (3 un)</span>
+              </div>
+            </div>
+            <span class="cart-item-qty">1 un</span>
+            <button class="cart-item-rm" onclick="this.closest('.cart-item').remove()">×</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ETAPA 3: REVISÃO E ENVIO ============ -->
+    <div class="panel" id="panel3">
+      <div class="panel-title">Revisão e envio</div>
+      <div class="panel-subtitle">Confira os dados antes de enviar a solicitação</div>
+
+      <div class="review-box">
+        <div class="review-row">
+          <span class="lbl">Hospital</span>
+          <span class="val">HOSPITAL SIRIO LIBANES</span>
+        </div>
+        <div class="review-row">
+          <span class="lbl">Paciente</span>
+          <span class="val">Maria de Souza</span>
+        </div>
+        <div class="review-row">
+          <span class="lbl">Procedimento</span>
+          <span class="val">29/05/2026 — 08:30</span>
+        </div>
+        <div class="review-row">
+          <span class="lbl">Médico</span>
+          <span class="val">Dr. João Almeida (CRM 12345)</span>
+        </div>
+        <div class="review-row">
+          <span class="lbl">Convênio</span>
+          <span class="val">Unimed</span>
+        </div>
+        <div class="review-row">
+          <span class="lbl">Tipo</span>
+          <span class="val">Eletivo</span>
+        </div>
+
+        <div class="review-section-title">Materiais (2)</div>
+        <div style="font-size: 12px; line-height: 1.5;">
+          <div>• <strong>RED68KIT</strong> — 2 un — CATETER DE REPERFUSAO RED 68 132CM</div>
+          <div>• <strong>G-NB-2_0</strong> — 1 un — COLA CIRURGICA GLUBRAN 2 1ML <span style="color: var(--amarelo); font-weight: 700;">⚠️ saldo baixo</span></div>
+        </div>
+      </div>
+
+      <div class="banner">
+        ⚠️ <strong>Atenção:</strong> 1 item está com saldo baixo no Armazém 50.
+        O pedido será gerado e a logística será sinalizada para análise de saldo.
+      </div>
+
+      <div class="field">
+        <label>Observação (opcional)</label>
+        <textarea placeholder="Alguma observação importante para a logística?"></textarea>
+      </div>
+
+      <div class="success-screen" id="successScreen" style="display: none;">
+        <div class="success-icon">✓</div>
+        <div class="success-title">Solicitação enviada!</div>
+        <div class="success-subtitle">
+          Sua solicitação foi convertida em um pedido de venda e a logística já foi notificada para preparar o atendimento.
+        </div>
+        <div class="success-pv">PV #<span id="pvGerado">R022898</span></div>
+        <button class="btn btn-primary" onclick="restart()" style="margin-top: 8px; max-width: 220px;">Nova Solicitação</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- FOOTER NAV -->
+  <div class="footer" id="footer">
+    <button class="btn btn-secondary" id="btnBack" onclick="go(-1)" style="display: none;">← Voltar</button>
+    <button class="btn btn-primary" id="btnNext" onclick="go(1)">Avançar →</button>
+    <button class="btn btn-success" id="btnSend" onclick="enviar()" style="display: none;">✓ Enviar Solicitação</button>
+  </div>
+
+</div>
+
+<script>
+  let curStep = 1;
+  const TOTAL = 3;
+
+  function showStep(n) {
+    curStep = n;
+    [1, 2, 3].forEach(i => {
+      document.getElementById('panel' + i).classList.toggle('active', i === n);
+      const el = document.getElementById('step' + i);
+      el.classList.toggle('active', i === n);
+      el.classList.toggle('done', i < n);
+    });
+    document.getElementById('btnBack').style.display = n > 1 ? 'inline-block' : 'none';
+    document.getElementById('btnNext').style.display = n < TOTAL ? 'inline-block' : 'none';
+    document.getElementById('btnSend').style.display = n === TOTAL ? 'inline-block' : 'none';
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  function go(delta) {
+    const next = curStep + delta;
+    if (next < 1 || next > TOTAL) return;
+    showStep(next);
+  }
+
+  function selCliente(cod, nome) {
+    document.getElementById('inpCliente').value = nome + ' (' + cod + ')';
+    document.getElementById('sugCliente').classList.remove('open');
+  }
+
+  function addItem(cod, desc, saldo) {
+    document.getElementById('inpProd').value = cod + ' — ' + desc;
+    document.getElementById('sugProd').classList.remove('open');
+  }
+
+  function confirmAddItem() {
+    alert('(mockup) Item adicionado ao carrinho');
+  }
+
+  function enviar() {
+    document.querySelector('#panel3 .panel-title').style.display = 'none';
+    document.querySelector('#panel3 .panel-subtitle').style.display = 'none';
+    document.querySelector('#panel3 .review-box').style.display = 'none';
+    document.querySelector('#panel3 .banner').style.display = 'none';
+    document.querySelector('#panel3 .field').style.display = 'none';
+    document.getElementById('successScreen').style.display = 'block';
+    document.getElementById('footer').style.display = 'none';
+  }
+
+  function restart() {
+    location.reload();
+  }
+
+  // Autocomplete mock
+  document.getElementById('inpCliente').addEventListener('focus', () =>
+    document.getElementById('sugCliente').classList.add('open'));
+  document.getElementById('inpCliente').addEventListener('blur', () =>
+    setTimeout(() => document.getElementById('sugCliente').classList.remove('open'), 200));
+
+  document.getElementById('inpProd').addEventListener('focus', () =>
+    document.getElementById('sugProd').classList.add('open'));
+  document.getElementById('inpProd').addEventListener('blur', () =>
+    setTimeout(() => document.getElementById('sugProd').classList.remove('open'), 200));
+</script>
+
+</body>
+</html>

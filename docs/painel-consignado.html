@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Consignados — CicloMed</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --verde-principal: #1B5E3F;
+    --verde-escuro:    #0E3A24;
+    --verde-medio:     #2A7A4F;
+    --verde-claro:     #4CAF50;
+    --verde-fundo:     #E8F5EE;
+    --verde-sucesso:   #27AE60;
+    --vermelho:        #C0392B;
+    --amarelo:         #F39C12;
+    --cinza-fundo:     #F5F7F6;
+    --cinza-borda:     #E0E5E2;
+    --cinza-texto:     #5B6B61;
+    --branco:          #FFFFFF;
+  }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--cinza-fundo);
+    min-height: 100vh;
+    color: #2C3E2D;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: linear-gradient(135deg, var(--verde-escuro) 0%, var(--verde-principal) 100%);
+    color: var(--branco);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-logo {
+    width: 44px; height: 44px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; letter-spacing: -1px;
+    border: 1.5px solid rgba(255,255,255,0.3);
+  }
+  .header h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .header h1 span { font-size: 12px; font-weight: 400; opacity: 0.85; display: block; margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .btn-refresh {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .btn-refresh:hover { background: rgba(255,255,255,0.25); }
+  .last-update { font-size: 11px; opacity: 0.75; }
+
+  /* ===== FILTROS ===== */
+  .filters {
+    background: #fff;
+    padding: 12px 24px;
+    border-bottom: 1.5px solid var(--cinza-borda);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-search {
+    flex: 1;
+    min-width: 280px;
+    position: relative;
+  }
+  .filter-search input {
+    width: 100%;
+    padding: 9px 12px 9px 36px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .filter-search::before {
+    content: '🔍';
+    position: absolute;
+    left: 11px;
+    top: 8px;
+    font-size: 14px;
+    opacity: 0.6;
+  }
+  .filter-chip {
+    padding: 7px 14px;
+    background: var(--cinza-fundo);
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--cinza-texto);
+  }
+  .filter-chip.on {
+    background: var(--verde-principal);
+    color: #fff;
+    border-color: var(--verde-principal);
+  }
+
+  /* ===== BOARD ===== */
+  .board {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    padding: 18px 24px 30px;
+    min-height: calc(100vh - 130px);
+  }
+  @media (max-width: 900px) {
+    .board { grid-template-columns: 1fr; }
+  }
+
+  .column {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .col-header {
+    border-radius: 10px 10px 0 0;
+    padding: 13px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+  }
+  .col-header .col-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .col-badge {
+    background: rgba(255,255,255,0.25);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    min-width: 28px;
+    text-align: center;
+  }
+  .col-body {
+    background: #EEF2EF;
+    border-radius: 0 0 10px 10px;
+    padding: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 300px;
+  }
+
+  .col-atender .col-header { background: var(--amarelo); color: #623c00; }
+  .col-atender .col-header .col-title { color: #623c00; }
+  .col-atender .col-badge { background: rgba(0,0,0,0.12); color: #623c00; }
+
+  .col-atendido .col-header { background: var(--verde-sucesso); }
+
+  /* ===== CARD ===== */
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    border-left: 4px solid var(--amarelo);
+    transition: all .15s;
+  }
+  .card.atendido { border-left-color: var(--verde-sucesso); opacity: 0.92; }
+  .card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.13); transform: translateY(-1px); }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .card-num {
+    font-size: 15px;
+    font-weight: 800;
+    color: var(--verde-escuro);
+  }
+  .card-tipo {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: var(--verde-fundo);
+    color: var(--verde-escuro);
+    text-transform: uppercase;
+  }
+  .card-tipo.tipo-C { background: #D6EAF8; color: #1A5276; }
+  .card-tipo.tipo-R { background: #FCF3CF; color: #B7770F; }
+
+  .card-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.4;
+  }
+  .card-row .icon { width: 18px; flex-shrink: 0; font-size: 14px; }
+  .card-row .lbl  { font-weight: 600; color: var(--verde-escuro); margin-right: 4px; }
+
+  .card-procedimento {
+    background: var(--verde-fundo);
+    padding: 8px 11px;
+    border-radius: 6px;
+    margin: 10px 0 8px;
+    font-size: 12px;
+    color: var(--verde-escuro);
+    border-left: 3px solid var(--verde-principal);
+  }
+  .card-procedimento .lbl { font-weight: 700; text-transform: uppercase; font-size: 10px; opacity: 0.7; }
+
+  .card-itens {
+    background: #FAFBFA;
+    border: 1px solid #ECF0ED;
+    border-radius: 6px;
+    padding: 8px 11px;
+    margin: 8px 0;
+    font-size: 12px;
+  }
+  .card-item-line {
+    padding: 3px 0;
+    line-height: 1.4;
+  }
+  .card-item-line + .card-item-line { border-top: 1px dashed #E0E5E2; }
+  .card-item-line .prod { font-weight: 700; color: var(--verde-escuro); }
+  .card-item-line .alerta { color: var(--amarelo); font-size: 11px; font-weight: 700; }
+
+  .card-footer {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cinza-borda);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-prio {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .card-prio .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vermelho); }
+  .card-prio.urgente .dot { background: var(--vermelho); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  .card-actions {
+    display: flex;
+    gap: 6px;
+  }
+  .btn-act {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all .15s;
+  }
+  .btn-conferir { background: var(--verde-fundo); color: var(--verde-escuro); border: 1.5px solid var(--verde-medio); }
+  .btn-conferir:hover { background: var(--verde-medio); color: #fff; }
+  .btn-faturar  { background: var(--verde-sucesso); color: #fff; box-shadow: 0 2px 4px rgba(39,174,96,0.3); }
+  .btn-faturar:hover { background: #1E8449; }
+
+  .badge-done {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: #D5F5E3;
+    color: #1E8449;
+  }
+
+  /* ===== EMPTY STATE ===== */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #B0B8B2;
+    font-size: 13px;
+  }
+  .empty svg { width: 48px; height: 48px; opacity: 0.4; margin-bottom: 10px; }
+
+  /* ===== ALERTAS ===== */
+  .alerta-saldo {
+    background: #FEF9E7;
+    border-left: 3px solid var(--amarelo);
+    padding: 6px 9px;
+    margin-top: 6px;
+    font-size: 11px;
+    color: #7D6608;
+    border-radius: 0 4px 4px 0;
+  }
+  .alerta-saldo strong { color: #7D6608; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">CM</div>
+    <h1>
+      Painel de Consignados
+      <span>Pedidos de Venda — Logística CicloMed</span>
+    </h1>
+  </div>
+  <div class="header-right">
+    <span class="last-update">Atualizado: 19:24:15</span>
+    <button class="btn-refresh">↻ Atualizar</button>
+  </div>
+</div>
+
+<!-- FILTROS -->
+<div class="filters">
+  <div class="filter-search">
+    <input type="text" placeholder="Buscar por PV, cliente, paciente, produto...">
+  </div>
+  <span class="filter-chip on">Todos</span>
+  <span class="filter-chip">Consignação (C)</span>
+  <span class="filter-chip">Reserva (R)</span>
+  <span class="filter-chip">⚠️ Com Alerta de Saldo</span>
+</div>
+
+<!-- BOARD -->
+<div class="board">
+
+  <!-- ===== COLUNA: A ATENDER ===== -->
+  <div class="column col-atender">
+    <div class="col-header">
+      <span class="col-title">⏳ Pedidos a Atender</span>
+      <span class="col-badge">4</span>
+    </div>
+    <div class="col-body">
+
+      <!-- Card 1: URGENTE COM ALERTA -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-num">PV C022895</span>
+          <span class="card-tipo tipo-C">Consignação</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">👤</span>
+          <span><span class="lbl">Vendedor:</span> Antônio Carlos (000119)</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">🏥</span>
+          <span><span class="lbl">Hospital:</span> HOSPITAL SIRIO LIBANES</span>
+        </div>
+        <div class="card-procedimento">
+          <div class="lbl">Procedimento</div>
+          <div>Maria de Souza · Dr. João Almeida · 29/05/2026 às 08:30 · Unimed</div>
+        </div>
+        <div class="card-itens">
+          <div class="card-item-line">
+            <span class="prod">RED68KIT</span> — 2 un — CATETER DE REPERFUSAO RED 68 132CM
+          </div>
+          <div class="card-item-line">
+            <span class="prod">G-NB-2_0</span> — 1 un — COLA CIRURGICA GLUBRAN 2 1ML
+            <div class="alerta">⚠️ Saldo baixo no Arm.50 (3 un)</div>
+          </div>
+        </div>
+        <div class="alerta-saldo">
+          <strong>⚠ Atenção:</strong> 1 item com alerta de saldo. Conferir disponibilidade antes de faturar.
+        </div>
+        <div class="card-footer">
+          <span class="card-prio urgente"><span class="dot"></span>Procedimento em 2 dias</span>
+          <div class="card-actions">
+            <button class="btn-act btn-conferir">🔍 Conferir</button>
+            <button class="btn-act btn-faturar">📄 Faturar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: RESERVA -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-num">PV R022896</span>
+          <span class="card-tipo tipo-R">Reserva</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">👤</span>
+          <span><span class="lbl">Vendedor:</span> Marcos Silva (000105)</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">🏥</span>
+          <span><span class="lbl">Hospital:</span> HOSPITAL ALBERT EINSTEIN</span>
+        </div>
+        <div class="card-procedimento">
+          <div class="lbl">Procedimento</div>
+          <div>Carlos Oliveira · Dra. Ana Lima · 30/05/2026 às 14:00 · Bradesco</div>
+        </div>
+        <div class="card-itens">
+          <div class="card-item-line">
+            <span class="prod">BR-1259-11</span> — 1 un — BRONCOSCOPIO FLEXIVEL TI 5.8 C 2.8MM
+            <div style="font-size: 11px; color: #1A5276; margin-top: 2px;">
+              📍 Item em P3 (consignado) no Arm.57 deste cliente
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="card-prio"><span class="dot" style="background: var(--amarelo)"></span>Em 3 dias</span>
+          <div class="card-actions">
+            <button class="btn-act btn-conferir">🔍 Conferir</button>
+            <button class="btn-act btn-faturar">📄 Faturar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-num">PV C022897</span>
+          <span class="card-tipo tipo-C">Consignação</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">👤</span>
+          <span><span class="lbl">Vendedor:</span> Antônio Carlos (000119)</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">🏥</span>
+          <span><span class="lbl">Hospital:</span> HOSPITAL SAMARITANO</span>
+        </div>
+        <div class="card-procedimento">
+          <div class="lbl">Procedimento</div>
+          <div>José Ferreira · Dr. Pedro Costa · 31/05/2026 às 10:15 · Amil</div>
+        </div>
+        <div class="card-itens">
+          <div class="card-item-line">
+            <span class="prod">PS012</span> — 3 un — MATERIAL DE CONSUMO
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="card-prio"><span class="dot" style="background: var(--verde-claro)"></span>Em 4 dias</span>
+          <div class="card-actions">
+            <button class="btn-act btn-conferir">🔍 Conferir</button>
+            <button class="btn-act btn-faturar">📄 Faturar</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4 -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-num">PV R022898</span>
+          <span class="card-tipo tipo-R">Reserva</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">👤</span>
+          <span><span class="lbl">Vendedor:</span> Mario Marcelo (000166)</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">🏥</span>
+          <span><span class="lbl">Hospital:</span> PACIFICO OPER. HOSPITALARES</span>
+        </div>
+        <div class="card-procedimento">
+          <div class="lbl">Procedimento</div>
+          <div>Paula Reis · Dr. Carlos Mendes · 01/06/2026 às 16:30 · SulAmérica</div>
+        </div>
+        <div class="card-itens">
+          <div class="card-item-line">
+            <span class="prod">G-NB-2_0</span> — 1 un — COLA CIRURGICA GLUBRAN 2 1ML
+            <div style="font-size: 11px; color: #1A5276; margin-top: 2px;">
+              📍 Item em P3 no Arm.57
+            </div>
+          </div>
+          <div class="card-item-line">
+            <span class="prod">GB-DS 30</span> — 1 un — APLICADOR GLUTACK 30
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="card-prio"><span class="dot" style="background: var(--verde-claro)"></span>Em 5 dias</span>
+          <div class="card-actions">
+            <button class="btn-act btn-conferir">🔍 Conferir</button>
+            <button class="btn-act btn-faturar">📄 Faturar</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== COLUNA: ATENDIDOS ===== -->
+  <div class="column col-atendido">
+    <div class="col-header">
+      <span class="col-title">✅ Pedidos Atendidos</span>
+      <span class="col-badge">3</span>
+    </div>
+    <div class="col-body">
+
+      <div class="card atendido">
+        <div class="card-header">
+          <span class="card-num">PV C022890</span>
+          <span class="card-tipo tipo-C">Consignação</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">🏥</span>
+          <span><span class="lbl">Hospital:</span> HOSPITAL SIRIO LIBANES</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">📄</span>
+          <span><span class="lbl">NF:</span> 167900 · Série 001 · 27/05/2026</span>
+        </div>
+        <div class="card-itens">
+          <div class="card-item-line">
+            <span class="prod">RED68KIT</span> — 1 un — Serial <strong>171103</strong>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="badge-done">✓ Faturado às 14:32</span>
+          <button class="btn-act btn-conferir">📋 Ver NF</button>
+        </div>
+      </div>
+
+      <div class="card atendido">
+        <div class="card-header">
+          <span class="card-num">PV R022891</span>
+          <span class="card-tipo tipo-R">Reserva</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">🏥</span>
+          <span><span class="lbl">Hospital:</span> HOSPITAL ALBERT EINSTEIN</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">📄</span>
+          <span><span class="lbl">NF:</span> 167895 · Série 001 · 27/05/2026</span>
+        </div>
+        <div class="card-itens">
+          <div class="card-item-line">
+            <span class="prod">G-NB-2_0</span> — 1 un — Serial <strong>171089</strong>
+          </div>
+          <div class="card-item-line">
+            <span class="prod">GB-DS 30</span> — 2 un — Seriais <strong>171090, 171091</strong>
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="badge-done">✓ Faturado às 11:18</span>
+          <button class="btn-act btn-conferir">📋 Ver NF</button>
+        </div>
+      </div>
+
+      <div class="card atendido">
+        <div class="card-header">
+          <span class="card-num">PV C022888</span>
+          <span class="card-tipo tipo-C">Consignação</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">🏥</span>
+          <span><span class="lbl">Hospital:</span> HOSPITAL SAMARITANO</span>
+        </div>
+        <div class="card-row">
+          <span class="icon">📄</span>
+          <span><span class="lbl">NF:</span> 167887 · Série 001 · 26/05/2026</span>
+        </div>
+        <div class="card-itens">
+          <div class="card-item-line">
+            <span class="prod">PS012</span> — 6 un — Lote H00007902
+          </div>
+        </div>
+        <div class="card-footer">
+          <span class="badge-done">✓ Faturado às 09:45</span>
+          <button class="btn-act btn-conferir">📋 Ver NF</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
