@@ -1035,12 +1035,13 @@
   const TOTAL = 3;
   let seriaisLidos = [];    // {serial, ...}
   let clienteDetectado = null;
+  let filialPedido = '01';  // definida pelo serial consultado
 
   // ============================================================
   // API PROTHEUS (WSSOLPV)
   // ============================================================
   const API_BASE = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03/WSSOLPV';
-  const API_FIL  = '02';
+  const API_FIL  = '01';   // filial padrao para gerar PV (ajustar conforme vendedor)
   const API_VEND = '000119';
   const API_SENHA = '';  // preencher quando tiver login no app
   const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
@@ -1430,6 +1431,7 @@
       item.warnMsg = 'Armazém ' + data.local + ', esperado ' + data.localEsperado;
     }
     seriaisLidos.push(item);
+    if (data.filial) filialPedido = data.filial;
     if (tipo.deduzCliente && item.cliente && !clienteDetectado) {
       clienteDetectado = { id: item.cliente.id, loja: item.cliente.loja, nome: item.cliente.nome, cidade: item.cliente.cidade };
     }
@@ -1449,7 +1451,8 @@
       showLoading(true);
       try {
         const data = await apiGet({
-          acao: 'serial', serial, tipo: tipoPedido, fil: API_FIL, vendedor: API_VEND
+          acao: 'serial', serial, tipo: tipoPedido, vendedor: API_VEND
+          // fil omitido: busca serial em todas as filiais (SBF/SB6)
         });
         if (!data.ok) {
           alert(data.msg || 'Serial não encontrado no Protheus (SBF/SB6)');
@@ -1847,7 +1850,7 @@
     const body = {
       vendedor: API_VEND,
       senha: API_SENHA,
-      fil: API_FIL,
+      fil: filialPedido || API_FIL,
       tipo: tipoPedido,
       cliente: cliId,
       loja: cliLoja,
