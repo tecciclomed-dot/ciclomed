@@ -909,7 +909,9 @@
       <div class="field autocomplete" id="fldCliente" style="display:none;">
         <label>Hospital / Cliente <span class="req">*</span></label>
         <input type="text" id="inpCliente" placeholder="Digite o nome do hospital..." autocomplete="off"
-               data-ac="hospitais" data-target-info="hospInfo">
+               data-ac="hospitais" data-target-id="hidCliId" data-target-info="hospInfo">
+        <input type="hidden" id="hidCliId">
+        <input type="hidden" id="hidCliLoja">
         <div class="suggestions" id="sugCliente"></div>
         <div class="field-hint" id="hospInfo">Comece a digitar (mínimo 2 letras)</div>
       </div>
@@ -1035,7 +1037,56 @@
   let clienteDetectado = null;
 
   // ============================================================
-  // BASE MOCK: Seriais (SBF + SB6)
+  // API PROTHEUS (WSSOLPV)
+  // ============================================================
+  const API_BASE = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03/WSSOLPV';
+  const API_FIL  = '02';
+  const API_VEND = '000119';
+  const API_SENHA = '';  // preencher quando tiver login no app
+  const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
+  const USE_API = true;
+
+  async function apiGet(params) {
+    const url = API_BASE + '?' + new URLSearchParams(params).toString();
+    const resp = await fetch(url, { headers: { 'Authorization': AUTH } });
+    const text = await resp.text();
+    try { return JSON.parse(text); }
+    catch (e) {
+      if (text.includes('<!DOCTYPE') || text.includes('<html'))
+        throw new Error('Servidor indisponível — compile WSSOLPV e reinicie o REST');
+      throw new Error('Resposta inválida do servidor');
+    }
+  }
+
+  async function apiPost(body) {
+    const resp = await fetch(API_BASE, {
+      method: 'POST',
+      headers: { 'Authorization': AUTH, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const text = await resp.text();
+    try { return JSON.parse(text); }
+    catch (e) {
+      if (text.includes('<!DOCTYPE') || text.includes('<html'))
+        throw new Error('Servidor indisponível — compile WSSOLPV e reinicie o REST');
+      throw new Error('Resposta inválida do servidor');
+    }
+  }
+
+  function showLoading(on) {
+    let el = document.getElementById('apiLoading');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'apiLoading';
+      el.style.cssText = 'position:fixed;inset:0;background:rgba(14,58,36,0.35);z-index:9998;display:none;align-items:center;justify-content:center;color:#fff;font-weight:600;';
+      el.innerHTML = 'Consultando Protheus...';
+      document.body.appendChild(el);
+    }
+    el.style.display = on ? 'flex' : 'none';
+  }
+
+  // ============================================================
+  // BASE MOCK (fallback offline / demo)
   // ============================================================
   // Cada serial tem:
   // - produto, descricao, lote, validade
@@ -1261,41 +1312,70 @@
   }
 
   // ============================================================
-  // CAMERA (mock de leitura)
+  // CAMERA + SERIAL (API WSSOLPV / SBF+SB6)
   // ============================================================
-  function abrirCamera() {
+  let camStream = null;
+  let camDetectLoop = null;
+
+  async function abrirCamera() {
     document.getElementById('camDetected').classList.remove('show');
     document.getElementById('camOverlay').classList.add('show');
 
-    // simula "leitura" após 1.6s -> 2.4s
-    const delay = 1600 + Math.random() * 800;
-    setTimeout(() => {
-      const tipo = TIPOS[tipoPedido];
-      const seriaisDisponiveis = Object.keys(SERIAIS_DB).filter(s => {
-        const d = SERIAIS_DB[s];
-        return d.local === tipo.armazem && !seriaisLidos.find(x => x.serial === s);
+    if (!('BarcodeDetector' in window)) {
+      fecharCamera();
+      alert('Leitura automática de código de barras não disponível neste navegador.\n\nUse Chrome no Android ou digite o serial manualmente abaixo.');
+      document.getElementById('inpSerialManual').focus();
+      return;
+    }
+
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, audio: false
       });
-      if (seriaisDisponiveis.length === 0) {
-        fecharCamera();
-        alert('Sem mais seriais disponíveis no estoque ' + tipo.armazem + ' para simular.');
-        return;
-      }
-      const serial = seriaisDisponiveis[scanSimulIdx % seriaisDisponiveis.length];
-      scanSimulIdx++;
-      const dados = SERIAIS_DB[serial];
+      const video = document.createElement('video');
+      video.setAttribute('playsinline', 'true');
+      video.srcObject = camStream;
+      video.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
+      const viewport = document.querySelector('.cam-viewport');
+      const oldVid = viewport.querySelector('video');
+      if (oldVid) oldVid.remove();
+      viewport.insertBefore(video, viewport.firstChild);
+      await video.play();
 
-      document.getElementById('camDetSerial').textContent = serial;
-      document.getElementById('camDetProd').textContent = dados.desc;
-      document.getElementById('camDetected').classList.add('show');
-
-      setTimeout(() => {
-        adicionarSerial(serial);
-        fecharCamera();
-      }, 1100);
-    }, delay);
+      const detector = new BarcodeDetector({ formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code'] });
+      camDetectLoop = setInterval(async () => {
+        try {
+          const codes = await detector.detect(video);
+          if (codes.length > 0 && codes[0].rawValue) {
+            const serial = codes[0].rawValue.trim().toUpperCase();
+            document.getElementById('camDetSerial').textContent = serial;
+            document.getElementById('camDetProd').textContent = 'Serial lido — consultando...';
+            document.getElementById('camDetected').classList.add('show');
+            clearInterval(camDetectLoop);
+            camDetectLoop = null;
+            setTimeout(async () => {
+              fecharCamera();
+              await adicionarSerial(serial);
+            }, 600);
+          }
+        } catch (e) { /* continua tentando */ }
+      }, 400);
+    } catch (e) {
+      fecharCamera();
+      alert('Não foi possível abrir a câmera: ' + e.message + '\n\nDigite o serial manualmente.');
+      document.getElementById('inpSerialManual').focus();
+    }
   }
 
   function fecharCamera() {
+    if (camDetectLoop) { clearInterval(camDetectLoop); camDetectLoop = null; }
+    if (camStream) {
+      camStream.getTracks().forEach(t => t.stop());
+      camStream = null;
+    }
+    const viewport = document.querySelector('.cam-viewport');
+    const vid = viewport && viewport.querySelector('video');
+    if (vid) vid.remove();
     document.getElementById('camOverlay').classList.remove('show');
   }
 
@@ -1307,69 +1387,91 @@
     inp.value = '';
   }
 
-  function adicionarSerial(serial) {
+  function aplicarSerialLocal(dados, serial) {
+    const tipo = TIPOS[tipoPedido];
+    if (dados.local !== tipo.armazem) {
+      const msg = tipo.armazem === '57'
+        ? 'Esse serial NÃO está em poder de terceiros (está no estoque). Para Reserva, escolha um serial em poder do cliente.'
+        : 'Esse serial está em poder de terceiros (Arm 57), não no estoque (Arm 50).';
+      seriaisLidos.push({ serial, produto: dados.produto, desc: dados.desc, lote: dados.lote, val: dados.val, local: dados.local, cliente: dados.cliente || null, warn: true, warnMsg: msg });
+    } else {
+      const item = { serial, produto: dados.produto, desc: dados.desc, lote: dados.lote, val: dados.val, local: dados.local, cliente: dados.cliente || null };
+      seriaisLidos.push(item);
+      if (tipo.deduzCliente && item.cliente && !clienteDetectado) clienteDetectado = item.cliente;
+    }
+    renderListaSeriais();
+    atualizarClienteDetectado();
+  }
+
+  function aplicarSerialAPI(data) {
+    const tipo = TIPOS[tipoPedido];
+    const item = {
+      serial: data.serial,
+      produto: data.produto,
+      desc: data.descricao,
+      lote: data.lote,
+      val: data.validadeFmt || data.validade,
+      local: data.local,
+      preco: data.preco || 0,
+      cliente: data.cliente ? {
+        id: data.cliente.id,
+        loja: data.cliente.loja || '01',
+        nome: data.cliente.nome,
+        cidade: data.cliente.cidade || ''
+      } : null,
+      warn: false,
+      warnMsg: ''
+    };
+    if (data.aviso) {
+      item.warn = true;
+      item.warnMsg = data.aviso;
+    } else if (data.local !== data.localEsperado) {
+      item.warn = true;
+      item.warnMsg = 'Armazém ' + data.local + ', esperado ' + data.localEsperado;
+    }
+    seriaisLidos.push(item);
+    if (tipo.deduzCliente && item.cliente && !clienteDetectado) {
+      clienteDetectado = { id: item.cliente.id, loja: item.cliente.loja, nome: item.cliente.nome, cidade: item.cliente.cidade };
+    }
+    renderListaSeriais();
+    atualizarClienteDetectado();
+  }
+
+  async function adicionarSerial(serial) {
+    serial = (serial || '').trim().toUpperCase();
+    if (!serial) return;
     if (seriaisLidos.find(x => x.serial === serial)) {
       alert('Serial ' + serial + ' já foi adicionado.');
       return;
     }
+
+    if (USE_API) {
+      showLoading(true);
+      try {
+        const data = await apiGet({
+          acao: 'serial', serial, tipo: tipoPedido, fil: API_FIL, vendedor: API_VEND
+        });
+        if (!data.ok) {
+          alert(data.msg || 'Serial não encontrado no Protheus (SBF/SB6)');
+          return;
+        }
+        aplicarSerialAPI(data);
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        showLoading(false);
+      }
+      return;
+    }
+
+    // Fallback mock local
     const dados = SERIAIS_DB[serial];
-    const tipo = TIPOS[tipoPedido];
-
     if (!dados) {
-      // Serial nao encontrado - mostra warning mas adiciona
-      seriaisLidos.push({
-        serial: serial,
-        produto: '???',
-        desc: '⚠ Serial não encontrado no SBF',
-        lote: '—',
-        val: '—',
-        local: '?',
-        cliente: null,
-        warn: true,
-        err: true
-      });
+      seriaisLidos.push({ serial, produto: '???', desc: 'Serial não encontrado (mock)', lote: '—', val: '—', local: '?', cliente: null, warn: true, err: true });
       renderListaSeriais();
       return;
     }
-
-    if (dados.local !== tipo.armazem) {
-      const msg = tipo.armazem === '57'
-        ? 'Esse serial NÃO está em poder de terceiros (está no estoque). Para Reserva, escolha um serial em poder do cliente.'
-        : 'Esse serial está em poder de terceiros (Arm 57), não no estoque (Arm 50). Para esse tipo de pedido use seriais do estoque.';
-      seriaisLidos.push({
-        serial: serial,
-        produto: dados.produto,
-        desc: dados.desc,
-        lote: dados.lote,
-        val: dados.val,
-        local: dados.local,
-        cliente: dados.cliente || null,
-        warn: true,
-        warnMsg: msg
-      });
-      renderListaSeriais();
-      return;
-    }
-
-    // OK
-    const item = {
-      serial: serial,
-      produto: dados.produto,
-      desc: dados.desc,
-      lote: dados.lote,
-      val: dados.val,
-      local: dados.local,
-      cliente: dados.cliente || null
-    };
-    seriaisLidos.push(item);
-
-    // Para Reserva: deduz cliente do primeiro serial
-    if (tipo.deduzCliente && item.cliente && !clienteDetectado) {
-      clienteDetectado = item.cliente;
-    }
-
-    renderListaSeriais();
-    atualizarClienteDetectado();
+    aplicarSerialLocal(dados, serial);
   }
 
   function removerSerial(serial) {
@@ -1485,7 +1587,16 @@
     function pickItem(it) {
       input.value = it.nome;
       sug.classList.remove('open');
+      const tgtId   = input.dataset.targetId;
       const tgtInfo = input.dataset.targetInfo;
+      if (tgtId) {
+        const h = document.getElementById(tgtId);
+        if (h) h.value = it.id || '';
+      }
+      if (baseName === 'hospitais') {
+        const hLoja = document.getElementById('hidCliLoja');
+        if (hLoja) hLoja.value = it.loja || '01';
+      }
       if (tgtInfo) {
         const el = document.getElementById(tgtInfo);
         if (el) el.textContent = it.info || '';
@@ -1716,13 +1827,68 @@
     return p[2] + '/' + p[1] + '/' + p[0];
   }
 
-  function enviar() {
+  async function enviar() {
+    const tipo = TIPOS[tipoPedido];
+    let cliId = '', cliLoja = '01';
+
+    if (tipo.deduzCliente && clienteDetectado) {
+      cliId = clienteDetectado.id;
+      cliLoja = clienteDetectado.loja || '01';
+    } else {
+      cliId = document.getElementById('hidCliId').value.trim();
+      cliLoja = document.getElementById('hidCliLoja').value.trim() || '01';
+    }
+
+    if (!cliId) {
+      alert('Cliente não informado.');
+      return;
+    }
+
+    const body = {
+      vendedor: API_VEND,
+      senha: API_SENHA,
+      fil: API_FIL,
+      tipo: tipoPedido,
+      cliente: cliId,
+      loja: cliLoja,
+      paciente: document.getElementById('inpPaciente').value.trim(),
+      nomeMedico: document.getElementById('inpMedico').value.trim(),
+      medico: document.getElementById('inpCRM').value.trim(),
+      convenio: document.getElementById('inpConvenio').value.trim(),
+      dtUso: document.getElementById('inpData').value.split('-').reverse().join('/'),
+      mennota: document.getElementById('inpCirurgia').value.trim(),
+      obs: document.getElementById('inpObs').value.trim(),
+      itens: seriaisLidos.filter(s => !s.err).map(s => ({
+        serial: s.serial,
+        produto: s.produto,
+        lote: s.lote,
+        validade: s.val,
+        preco: s.preco || 0
+      }))
+    };
+
+    if (USE_API && API_SENHA) {
+      showLoading(true);
+      try {
+        const resp = await apiPost(body);
+        if (!resp.ok) {
+          alert(resp.msg || 'Erro ao gerar pedido');
+          return;
+        }
+        document.getElementById('pvNum').textContent = resp.pedido;
+      } catch (e) {
+        alert(e.message);
+        return;
+      } finally {
+        showLoading(false);
+      }
+    } else {
+      document.getElementById('pvNum').textContent = tipoPedido + String(Math.floor(8000 + Math.random() * 1500)).padStart(6, '0');
+    }
+
     document.querySelectorAll('#panel3 > *').forEach(el => {
       if (el.id !== 'successScreen') el.style.display = 'none';
     });
-    // gera num pv aleatorio
-    const num = Math.floor(8000 + Math.random() * 1500);
-    document.getElementById('pvNum').textContent = 'PV-00' + num;
     document.getElementById('successScreen').style.display = 'block';
     document.getElementById('footer').style.display = 'none';
   }
