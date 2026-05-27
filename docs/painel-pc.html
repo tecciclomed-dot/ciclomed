@@ -508,7 +508,13 @@
             '<div class="sc-field wide">' +
                 '<label>Fornecedor</label>' +
                 '<span>' + forn + '</span>' +
-            '</div>';
+            '</div>' +
+            (d.justificativa ? (
+                '<div class="sc-field wide">' +
+                    '<label>Justificativa</label>' +
+                    '<span>' + esc(d.justificativa) + '</span>' +
+                '</div>'
+            ) : '');
 
         // ── Stats chips
         var r = d.resumo || {};

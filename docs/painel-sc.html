@@ -549,7 +549,13 @@
             '<div class="sc-field wide">' +
                 '<label>Fornecedor</label>' +
                 '<span>' + forn + '</span>' +
-            '</div>';
+            '</div>' +
+            (d.motivo ? (
+                '<div class="sc-field wide">' +
+                    '<label>Motivo da Solicitação</label>' +
+                    '<span>' + esc(d.motivo) + '</span>' +
+                '</div>'
+            ) : '');
 
         // ── Stats chips
         var r = d.resumo || {};
