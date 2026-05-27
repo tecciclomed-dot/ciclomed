@@ -373,11 +373,23 @@
         <text x="110" y="48" text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif"
               font-size="28" font-weight="300" fill="#fff" letter-spacing="1">CicloMed</text>
     </svg>
-    <div>
+    <div style="flex:1;">
         <div class="top-title">Painel de Aprovação</div>
         <div class="top-subtitle" id="topSubtitle">Pedido de Compra</div>
     </div>
+    <button onclick="voltarPainel()" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
+        &larr; Voltar ao Painel
+    </button>
 </div>
+<script>
+function voltarPainel() {
+    if (window.history.length > 1) {
+        window.history.back();
+    } else {
+        window.close();
+    }
+}
+</script>
 
 <div class="container" id="app">
     <!-- Estado inicial: carregando -->

@@ -617,21 +617,21 @@ function montarCard(d, mostrarBotoes) {
           onclick="confirmar('${esc(d.url_rejeit)}', '${esc(d.num)}', '${d.tipo}', 'R')">
           ✘ Rejeitar
         </button>
-        <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
+        <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}">Detalhe</a>
       </div>`;
   } else if (isAprov) {
     botoesHtml = `<div class="card-actions done">
       <span class="badge-done badge-aprov">✔ Aprovado</span>
-      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}">Detalhe</a>
     </div>`;
   } else if (isRej) {
     botoesHtml = `<div class="card-actions done">
       <span class="badge-done badge-rej">✘ Rejeitado</span>
-      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Detalhe</a>
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}">Detalhe</a>
     </div>`;
   } else {
     botoesHtml = `<div class="card-actions done">
-      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}" target="_blank">Ver Detalhe</a>
+      <a class="btn-action btn-detail" href="${esc(d.url_detalhe)}">Ver Detalhe</a>
     </div>`;
   }
 
