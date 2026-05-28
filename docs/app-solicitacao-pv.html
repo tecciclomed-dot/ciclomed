@@ -1072,6 +1072,117 @@
   .btn-primary:disabled { background: #B8C2BC; cursor: not-allowed; }
   .btn-secondary { background: var(--cinza-fundo); color: var(--verde-escuro); }
   .btn-secondary:hover { background: #E0E5E2; }
+
+  .btn-anexos {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 8px;
+    padding: 14px 16px;
+    background: var(--verde-fundo);
+    border: 2px dashed var(--verde-medio);
+    border-radius: 10px;
+    color: var(--verde-principal);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-anexos.tem-fotos { border-style: solid; background: #fff; }
+  .btn-anexos .anexo-badge {
+    margin-left: auto;
+    background: var(--verde-principal);
+    color: #fff;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-fotos-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14,58,36,0.45);
+    z-index: 8000;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-fotos-overlay.show { display: flex; }
+  .modal-fotos-sheet {
+    background: #fff;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+    padding: 16px 16px 24px;
+  }
+  .modal-fotos-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .modal-fotos-head h3 { font-size: 16px; color: var(--verde-escuro); }
+  .modal-fotos-head button {
+    border: none;
+    background: var(--cinza-fundo);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .fotos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .foto-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--cinza-borda);
+  }
+  .foto-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .foto-thumb .foto-remove {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 22px; height: 22px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-add-foto {
+    aspect-ratio: 1;
+    border: 2px dashed var(--cinza-borda);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--verde-principal);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .foto-counter {
+    text-align: center;
+    font-size: 12px;
+    color: var(--cinza-texto);
+    margin-top: 10px;
+  }
 </style>
 </head>
 <body>
@@ -1310,6 +1421,13 @@
         <label>Observações (opcional)</label>
         <textarea id="inpObs" placeholder="Alguma observação para a logística..."></textarea>
       </div>
+
+      <button type="button" class="btn-anexos" id="btnAnexos" onclick="abrirModalFotos()">
+        <span>📷</span>
+        <span>Documentos da sala (fotos)</span>
+        <span class="anexo-badge" id="anexoBadge" style="display:none;">0</span>
+      </button>
+      <div class="field-hint" style="margin-top:6px;">Fotografe guias, termos ou documentos do procedimento. Ficam no Protheus em <strong>Outras Ações → Conhec.</strong></div>
     </div>
 
     <!-- ============ TELA 3: CONFIRMAR ============ -->
@@ -1338,6 +1456,24 @@
     <button class="btn btn-primary" id="btnSend" onclick="enviar()" style="display:none;">Enviar pedido</button>
   </div>
 
+</div>
+
+<!-- Modal fotos documentos -->
+<div class="modal-fotos-overlay" id="modalFotos" onclick="if(event.target===this)fecharModalFotos()">
+  <div class="modal-fotos-sheet">
+    <div class="modal-fotos-head">
+      <h3>Documentos / Fotos</h3>
+      <button type="button" onclick="fecharModalFotos()">&times;</button>
+    </div>
+    <div class="fotos-grid" id="fotosGrid">
+      <label class="btn-add-foto" id="btnAddFoto">
+        <span style="font-size:24px;">+</span>
+        <span>Adicionar</span>
+        <input type="file" accept="image/*" capture="environment" multiple onchange="adicionarFotos(this.files)" style="display:none;">
+      </label>
+    </div>
+    <div class="foto-counter" id="fotoCounter"></div>
+  </div>
 </div>
 
 <!-- ============ LOGIN MODAL ============ -->
@@ -1399,6 +1535,7 @@
   let filialPedido = '01';
   let produtoSelecionado = null;
   let prodSearchTimer = null;
+  let fotosDocumentos = [];
 
   // ============================================================
   // API PROTHEUS (WSSOLPV)
@@ -2304,6 +2441,7 @@
         <div class="review-line"><span class="lbl">Convênio</span><span class="val">${escHtml(convenio)}</span></div>
         <div class="review-line"><span class="lbl">Cirurgia</span><span class="val">${escHtml(cirurgia)}</span></div>
         ${obs ? `<div class="review-line"><span class="lbl">Obs.</span><span class="val">${escHtml(obs)}</span></div>` : ''}
+        ${fotosDocumentos.length ? `<div class="review-line"><span class="lbl">Documentos</span><span class="val">${fotosDocumentos.length} foto(s)</span></div>` : ''}
       </div>
       <div class="review-box">
         <h4>Itens (${seriaisLidos.length})</h4>
@@ -2368,7 +2506,8 @@
           origem: s.origem || 'SBF',
           preco: s.preco || 0
         };
-      })
+      }),
+      fotos: fotosDocumentos.map(f => ({ base64: f.base64, desc: f.nome }))
     };
 
     if (USE_API && !API_SENHA && SESS_TIPO !== 'U') {
@@ -2417,6 +2556,76 @@
 
   function restart() {
     location.reload();
+  }
+
+  // ============================================================
+  // FOTOS DOCUMENTOS (Banco de Conhecimento Protheus)
+  // ============================================================
+  function abrirModalFotos() {
+    document.getElementById('modalFotos').classList.add('show');
+  }
+  function fecharModalFotos() {
+    document.getElementById('modalFotos').classList.remove('show');
+  }
+  function adicionarFotos(files) {
+    Array.from(files || []).forEach(file => {
+      if (fotosDocumentos.length >= 10) {
+        alert('Máximo 10 fotos por pedido.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX = 1200;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = h * MAX / w; w = MAX; }
+            else { w = w * MAX / h; h = MAX; }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          fotosDocumentos.push({
+            base64: canvas.toDataURL('image/jpeg', 0.7),
+            nome: 'DOC_' + String(fotosDocumentos.length + 1).padStart(2, '0')
+          });
+          renderizarFotos();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    const inp = document.querySelector('#btnAddFoto input');
+    if (inp) inp.value = '';
+  }
+  function removerFoto(idx) {
+    fotosDocumentos.splice(idx, 1);
+    renderizarFotos();
+  }
+  function renderizarFotos() {
+    const grid = document.getElementById('fotosGrid');
+    const counter = document.getElementById('fotoCounter');
+    const badge = document.getElementById('anexoBadge');
+    const btnAnexos = document.getElementById('btnAnexos');
+    grid.querySelectorAll('.foto-thumb').forEach(el => el.remove());
+    fotosDocumentos.forEach((foto, i) => {
+      const div = document.createElement('div');
+      div.className = 'foto-thumb';
+      div.innerHTML = `<img src="${foto.base64}" alt="${foto.nome}"><button type="button" class="foto-remove" onclick="removerFoto(${i})">&times;</button>`;
+      grid.insertBefore(div, document.getElementById('btnAddFoto'));
+    });
+    counter.textContent = fotosDocumentos.length ? fotosDocumentos.length + ' foto(s) anexada(s)' : 'Opcional — guias e termos da sala';
+    if (fotosDocumentos.length) {
+      badge.style.display = 'flex';
+      badge.textContent = fotosDocumentos.length;
+      btnAnexos.classList.add('tem-fotos');
+    } else {
+      badge.style.display = 'none';
+      btnAnexos.classList.remove('tem-fotos');
+    }
+    document.getElementById('btnAddFoto').style.display = fotosDocumentos.length >= 10 ? 'none' : '';
   }
 
   // ============================================================
