@@ -1554,11 +1554,17 @@
     const url = API_BASE + '?' + new URLSearchParams(params).toString();
     const resp = await fetch(url, { headers: { 'Authorization': AUTH } });
     const text = await resp.text();
+    if (!resp.ok) {
+      if (resp.status === 503 || resp.status === 502 || resp.status === 504)
+        throw new Error('REST Protheus indisponível (HTTP ' + resp.status + '). Ligue o AppServer rest03 e o túnel.');
+      if (!text.trim())
+        throw new Error('Servidor sem resposta (HTTP ' + resp.status + '). Verifique rest03.');
+    }
     try { return JSON.parse(text); }
     catch (e) {
       if (text.includes('<!DOCTYPE') || text.includes('<html'))
         throw new Error('Servidor indisponível — compile WSSOLPV e reinicie o REST');
-      throw new Error('Resposta inválida do servidor');
+      throw new Error('Resposta inválida do servidor' + (text.trim() ? ': ' + text.trim().substring(0, 120) : ''));
     }
   }
 
@@ -1569,11 +1575,17 @@
       body: JSON.stringify(body)
     });
     const text = await resp.text();
+    if (!resp.ok) {
+      if (resp.status === 503 || resp.status === 502 || resp.status === 504)
+        throw new Error('REST Protheus indisponível (HTTP ' + resp.status + '). Ligue o AppServer rest03 e o túnel.');
+      if (!text.trim())
+        throw new Error('Servidor sem resposta (HTTP ' + resp.status + '). Verifique rest03.');
+    }
     try { return JSON.parse(text); }
     catch (e) {
       if (text.includes('<!DOCTYPE') || text.includes('<html'))
         throw new Error('Servidor indisponível — compile WSSOLPV e reinicie o REST');
-      throw new Error('Resposta inválida do servidor');
+      throw new Error('Resposta inválida do servidor' + (text.trim() ? ': ' + text.trim().substring(0, 120) : ''));
     }
   }
 
