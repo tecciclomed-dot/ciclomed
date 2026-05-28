@@ -173,6 +173,7 @@
   }
   .card-tipo.tipo-C { background: #D6EAF8; color: #1A5276; }
   .card-tipo.tipo-R { background: #FCF3CF; color: #B7770F; }
+  .card-tipo.tipo-M { background: #E8DAEF; color: #6C3483; }
   .card-row {
     display: flex;
     gap: 8px;
@@ -287,6 +288,7 @@
   <span class="filter-chip on">Todos</span>
   <span class="filter-chip">Consignação (C)</span>
   <span class="filter-chip">Reserva (R)</span>
+  <span class="filter-chip">Solic. Material (M)</span>
   <span class="filter-chip">Com alerta de saldo</span>
 </div>
 
@@ -320,7 +322,8 @@ const TIPO_NOME = {
   C: 'Consignação',
   R: 'Reserva',
   P: 'Consig. Perm.',
-  N: 'Venda'
+  N: 'Venda',
+  M: 'Solic. Material'
 };
 
 function esc(s) {

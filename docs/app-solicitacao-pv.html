@@ -210,6 +210,80 @@
     color: var(--cinza-texto);
     line-height: 1.35;
   }
+  .tipo-card.tipo-wide { grid-column: 1 / -1; }
+
+  /* ===== BUSCA PRODUTO (SOLICITACAO MATERIAL) ===== */
+  .product-card {
+    background: #fff;
+    border: 2px solid var(--cinza-borda);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .product-card label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin-bottom: 8px;
+  }
+  .product-search-wrap { position: relative; }
+  .product-search-wrap input {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .prod-suggestions {
+    position: absolute;
+    left: 0; right: 0;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+  .prod-suggestions.show { display: block; }
+  .prod-suggestions div {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--cinza-borda);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .prod-suggestions div:hover { background: var(--verde-fundo); }
+  .prod-suggestions .cod { font-weight: 700; color: var(--verde-escuro); }
+  .prod-suggestions .desc { font-size: 11px; color: var(--cinza-texto); margin-top: 2px; }
+  .product-qty-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    align-items: center;
+  }
+  .product-qty-row input {
+    width: 70px;
+    padding: 10px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 16px;
+  }
+  .product-qty-row button {
+    flex: 1;
+    padding: 11px;
+    background: var(--verde-principal);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .card-tipo.tipo-M { background: #E8DAEF; color: #6C3483; }
 
   .tipo-hint {
     background: var(--verde-fundo);
@@ -843,6 +917,12 @@
           <div class="tipo-nome">VENDA / ELETIVO</div>
           <div class="tipo-desc">Venda direta<br>do estoque (Arm 50)</div>
         </div>
+
+        <div class="tipo-card tipo-wide" onclick="escolherTipo('M')">
+          <div class="tipo-icon" style="background:#F4ECF7;color:#6C3483;">📋</div>
+          <div class="tipo-nome">SOLICITAÇÃO DE MATERIAL</div>
+          <div class="tipo-desc">Reserva estoque sem serial — procedimento ainda não confirmado.<br>Logística converte depois em consignação com serial.</div>
+        </div>
       </div>
 
       <div class="tipo-hint">
@@ -857,8 +937,8 @@
         Escaneie os seriais que serão utilizados na cirurgia.
       </div>
 
-      <!-- SCANNER -->
-      <div class="scanner-card">
+      <!-- SCANNER (R/C/P/N) -->
+      <div class="scanner-card" id="scannerCard">
         <button class="btn-scan" onclick="abrirCamera()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
@@ -877,7 +957,21 @@
         </div>
       </div>
 
-      <!-- LISTA DE SERIAIS -->
+      <!-- BUSCA PRODUTO (SOLICITACAO MATERIAL) -->
+      <div class="product-card" id="productCard" style="display:none;">
+        <label>Buscar produto (código ou descrição)</label>
+        <div class="product-search-wrap">
+          <input type="text" id="inpProduto" placeholder="Ex: RED68 ou cateter..." autocomplete="off">
+          <div class="prod-suggestions" id="sugProduto"></div>
+        </div>
+        <div class="product-qty-row">
+          <label style="margin:0;font-size:12px;">Qtd</label>
+          <input type="number" id="inpProdQtd" value="1" min="1" max="99">
+          <button type="button" onclick="adicionarProdutoSelecionado()">Adicionar produto</button>
+        </div>
+      </div>
+
+      <!-- LISTA DE ITENS -->
       <div id="listaSeriais">
         <div class="empty-state" id="emptySeriais">
           <div class="es-icon">📋</div>
@@ -900,10 +994,13 @@
     <!-- ============ TELA 2: PROCEDIMENTO ============ -->
     <div class="panel" id="panel2">
       <div class="panel-title">Dados do procedimento</div>
-      <div class="panel-subtitle">
+      <div class="panel-subtitle" id="panel2Sub">
         Informe os dados do paciente e da cirurgia.<br>
         <span style="color: var(--verde-principal); font-weight: 600;">🎤 Toque no microfone</span>
         em qualquer campo para falar em vez de digitar.
+      </div>
+      <div class="tipo-hint" id="procOpcional" style="display:none;margin-bottom:14px;">
+        <strong>Solicitação de material:</strong> hospital é obrigatório. Paciente, data e médico são opcionais (procedimento ainda não confirmado).
       </div>
 
       <!-- Cliente (só aparece para C/P/N) -->
@@ -1025,18 +1122,21 @@
   // ESTADO
   // ============================================================
   const TIPOS = {
-    'R': { label: '⚡ RESERVA',             nome: 'RESERVA',            cor: 'var(--vermelho)',         armazem: '57', deduzCliente: true,  sub: 'Item já em poder do cliente. Escaneie o serial — o cliente é detectado automaticamente.' },
-    'C': { label: '📦 CONSIGNAÇÃO',         nome: 'CONSIGNAÇÃO',        cor: 'var(--verde-principal)',  armazem: '50', deduzCliente: false, sub: 'Remessa em consignação. Escaneie os seriais do estoque (Arm 50).' },
-    'P': { label: '🏥 CONSIG. PERMANENTE',  nome: 'CONSIG. PERMANENTE', cor: 'var(--amarelo)',          armazem: '50', deduzCliente: false, sub: 'Material em consignação permanente. Escaneie os seriais do estoque (Arm 50).' },
-    'N': { label: '🩺 VENDA / ELETIVO',     nome: 'VENDA',              cor: 'var(--azul)',             armazem: '50', deduzCliente: false, sub: 'Venda direta do estoque. Escaneie os seriais (Arm 50).' }
+    'R': { label: '⚡ RESERVA',             nome: 'RESERVA',            cor: 'var(--vermelho)',         armazem: '57', deduzCliente: true,  modo: 'serial', sub: 'Item já em poder do cliente. Escaneie o serial — o cliente é detectado automaticamente.' },
+    'C': { label: '📦 CONSIGNAÇÃO',         nome: 'CONSIGNAÇÃO',        cor: 'var(--verde-principal)',  armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Remessa em consignação. Escaneie os seriais do estoque (Arm 50).' },
+    'P': { label: '🏥 CONSIG. PERMANENTE',  nome: 'CONSIG. PERMANENTE', cor: 'var(--amarelo)',          armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Material em consignação permanente. Escaneie os seriais do estoque (Arm 50).' },
+    'N': { label: '🩺 VENDA / ELETIVO',     nome: 'VENDA',              cor: 'var(--azul)',             armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Venda direta do estoque. Escaneie os seriais (Arm 50).' },
+    'M': { label: '📋 SOLIC. MATERIAL',     nome: 'SOLIC. MATERIAL',    cor: '#6C3483',                 armazem: '50', deduzCliente: false, modo: 'material', sub: 'Reserva estoque sem serial. Informe hospital e produtos — logística converte depois em consignação.' }
   };
 
   let tipoPedido = null;
-  let curStep = 0;          // 0 = escolha do tipo; 1..3 = fluxo
+  let curStep = 0;
   const TOTAL = 3;
-  let seriaisLidos = [];    // {serial, ...}
+  let seriaisLidos = [];
   let clienteDetectado = null;
-  let filialPedido = '01';  // definida pelo serial consultado
+  let filialPedido = '01';
+  let produtoSelecionado = null;
+  let prodSearchTimer = null;
 
   // ============================================================
   // API PROTHEUS (WSSOLPV)
@@ -1246,30 +1346,32 @@
   function go(delta) {
     const next = curStep + delta;
     if (next < 0 || next > TOTAL) return;
-    // valida avanço
+    const tipo = TIPOS[tipoPedido];
     if (delta > 0) {
       if (curStep === 1 && seriaisLidos.length === 0) {
-        alert('Adicione pelo menos um serial antes de avançar.');
+        alert(tipo.modo === 'material'
+          ? 'Adicione pelo menos um produto antes de avançar.'
+          : 'Adicione pelo menos um serial antes de avançar.');
         return;
       }
       if (curStep === 2) {
-        // valida campos minimos
-        const tipo = TIPOS[tipoPedido];
         if (!tipo.deduzCliente && !document.getElementById('inpCliente').value.trim()) {
           alert('Informe o Hospital / Cliente.');
           return;
         }
-        if (!document.getElementById('inpPaciente').value.trim()) {
-          alert('Informe o paciente.');
-          return;
-        }
-        if (!document.getElementById('inpData').value || !document.getElementById('inpHora').value) {
-          alert('Informe a data e hora do procedimento.');
-          return;
-        }
-        if (!document.getElementById('inpMedico').value.trim()) {
-          alert('Informe o médico responsável.');
-          return;
+        if (tipo.modo !== 'material') {
+          if (!document.getElementById('inpPaciente').value.trim()) {
+            alert('Informe o paciente.');
+            return;
+          }
+          if (!document.getElementById('inpData').value || !document.getElementById('inpHora').value) {
+            alert('Informe a data e hora do procedimento.');
+            return;
+          }
+          if (!document.getElementById('inpMedico').value.trim()) {
+            alert('Informe o médico responsável.');
+            return;
+          }
         }
       }
     }
@@ -1294,11 +1396,17 @@
     // reset estado
     seriaisLidos = [];
     clienteDetectado = null;
+    produtoSelecionado = null;
     renderListaSeriais();
     atualizarClienteDetectado();
 
-    // mostra/esconde campo de cliente na tela 2
+    document.getElementById('scannerCard').style.display = t.modo === 'material' ? 'none' : 'block';
+    document.getElementById('productCard').style.display = t.modo === 'material' ? 'block' : 'none';
+    document.getElementById('procOpcional').style.display = t.modo === 'material' ? 'block' : 'none';
     document.getElementById('fldCliente').style.display = t.deduzCliente ? 'none' : 'block';
+    document.getElementById('emptySeriais').innerHTML = t.modo === 'material'
+      ? '<div class="es-icon">📋</div>Nenhum produto adicionado ainda.<br>Busque e adicione os materiais acima.'
+      : '<div class="es-icon">📋</div>Nenhum serial escaneado ainda.<br>Use o botão acima para começar.';
 
     showStep(1);
   }
@@ -1478,9 +1586,8 @@
     aplicarSerialLocal(dados, serial);
   }
 
-  function removerSerial(serial) {
-    seriaisLidos = seriaisLidos.filter(x => x.serial !== serial);
-    // se removeu o ultimo serial com cliente, limpa cliente detectado
+  function removerItem(chave) {
+    seriaisLidos = seriaisLidos.filter(x => (x.modo === 'material' ? x.produto : x.serial) !== chave);
     const tipo = TIPOS[tipoPedido];
     if (tipo && tipo.deduzCliente) {
       const algumCliente = seriaisLidos.find(x => x.cliente);
@@ -1490,25 +1597,47 @@
     atualizarClienteDetectado();
   }
 
+  function removerSerial(serial) { removerItem(serial); }
+
   function renderListaSeriais() {
     const lista = document.getElementById('listaSeriais');
+    const tipo = tipoPedido ? TIPOS[tipoPedido] : null;
     if (seriaisLidos.length === 0) {
       lista.innerHTML = `
-        <div class="empty-state">
+        <div class="empty-state" id="emptySeriais">
           <div class="es-icon">📋</div>
-          Nenhum serial escaneado ainda.<br>
-          Use o botão acima para começar.
+          ${tipo && tipo.modo === 'material'
+            ? 'Nenhum produto adicionado ainda.<br>Busque e adicione os materiais acima.'
+            : 'Nenhum serial escaneado ainda.<br>Use o botão acima para começar.'}
         </div>`;
       return;
     }
-    lista.innerHTML = seriaisLidos.map(s => `
+    lista.innerHTML = seriaisLidos.map(s => {
+      if (s.modo === 'material') {
+        return `
+      <div class="serial-card">
+        <div class="sc-top">
+          <div style="flex:1;min-width:0;">
+            <div class="sc-prod-cod">${escHtml(s.produto)}</div>
+            <div class="sc-prod-desc">${escHtml(s.desc)}</div>
+          </div>
+          <button class="sc-remove" onclick="removerItem('${escHtml(s.produto)}')" title="Remover">✕</button>
+        </div>
+        <div class="sc-meta">
+          <div><strong>Quantidade:</strong> ${escHtml(s.qtd || 1)} un</div>
+          <div><strong>Preço ref.:</strong> R$ ${Number(s.preco || 0).toFixed(2)}</div>
+          <div><strong>Reserva:</strong> sem serial (conversão posterior)</div>
+        </div>
+      </div>`;
+      }
+      return `
       <div class="serial-card ${s.err ? 'err' : (s.warn ? 'warn' : '')}">
         <div class="sc-top">
           <div style="flex:1;min-width:0;">
             <div class="sc-prod-cod">${escHtml(s.produto)}</div>
             <div class="sc-prod-desc">${escHtml(s.desc)}</div>
           </div>
-          <button class="sc-remove" onclick="removerSerial('${s.serial}')" title="Remover">✕</button>
+          <button class="sc-remove" onclick="removerItem('${escHtml(s.serial)}')" title="Remover">✕</button>
         </div>
         <div class="sc-meta">
           <div><strong>Serial:</strong> ${escHtml(s.serial)}</div>
@@ -1522,8 +1651,8 @@
             <strong>📍 Em poder de: ${escHtml(s.cliente.nome)}</strong>
             ${escHtml(s.cliente.cidade || '')}
           </div>` : ''}
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
   function atualizarClienteDetectado() {
@@ -1542,6 +1671,85 @@
     return (s == null ? '' : String(s))
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // ============================================================
+  // BUSCA PRODUTO (SOLICITACAO MATERIAL)
+  // ============================================================
+  function initProdutoSearch() {
+    const inp = document.getElementById('inpProduto');
+    const sug = document.getElementById('sugProduto');
+    if (!inp || !sug) return;
+
+    inp.addEventListener('input', () => {
+      clearTimeout(prodSearchTimer);
+      const q = inp.value.trim();
+      if (q.length < 2) {
+        sug.classList.remove('show');
+        sug.innerHTML = '';
+        produtoSelecionado = null;
+        return;
+      }
+      prodSearchTimer = setTimeout(() => buscarProdutos(q), 300);
+    });
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.product-search-wrap')) {
+        sug.classList.remove('show');
+      }
+    });
+  }
+
+  async function buscarProdutos(q) {
+    const sug = document.getElementById('sugProduto');
+    try {
+      const data = await apiGet({ acao: 'produtos', q });
+      if (!data.ok || !data.itens || !data.itens.length) {
+        sug.innerHTML = '<div style="padding:10px;color:#888;">Nenhum produto encontrado</div>';
+        sug.classList.add('show');
+        return;
+      }
+      sug.innerHTML = data.itens.map((it, idx) =>
+        `<div data-idx="${idx}"><div class="cod">${escHtml(it.codigo)}</div><div class="desc">${escHtml(it.descricao)}</div></div>`
+      ).join('');
+      sug.classList.add('show');
+      sug.querySelectorAll('div[data-idx]').forEach(el => {
+        el.addEventListener('click', () => {
+          const it = data.itens[Number(el.dataset.idx)];
+          produtoSelecionado = it;
+          document.getElementById('inpProduto').value = it.codigo + ' — ' + it.descricao;
+          sug.classList.remove('show');
+        });
+      });
+    } catch (e) {
+      sug.innerHTML = '<div style="padding:10px;color:#c0392b;">Erro ao buscar produtos</div>';
+      sug.classList.add('show');
+    }
+  }
+
+  function adicionarProdutoSelecionado() {
+    if (!produtoSelecionado) {
+      alert('Selecione um produto na lista de sugestões.');
+      return;
+    }
+    const qtd = Math.max(1, parseInt(document.getElementById('inpProdQtd').value, 10) || 1);
+    const cod = produtoSelecionado.codigo;
+    const existente = seriaisLidos.find(x => x.modo === 'material' && x.produto === cod);
+    if (existente) {
+      existente.qtd = (existente.qtd || 1) + qtd;
+    } else {
+      seriaisLidos.push({
+        modo: 'material',
+        produto: cod,
+        desc: produtoSelecionado.descricao,
+        qtd,
+        preco: produtoSelecionado.preco || 0
+      });
+    }
+    produtoSelecionado = null;
+    document.getElementById('inpProduto').value = '';
+    document.getElementById('inpProdQtd').value = '1';
+    renderListaSeriais();
   }
 
   // ============================================================
@@ -1788,11 +1996,20 @@
     const cirurgia  = document.getElementById('inpCirurgia').value || '—';
     const obs       = document.getElementById('inpObs').value;
 
-    const itensHtml = seriaisLidos.map((s, i) => `
+    const itensHtml = seriaisLidos.map((s, i) => {
+      if (s.modo === 'material') {
+        return `
+      <div class="review-line">
+        <span class="lbl">${i+1}. ${escHtml(s.produto)}</span>
+        <span class="val" style="font-size:11px;text-align:right;">${escHtml(s.qtd || 1)} un · sem serial</span>
+      </div>`;
+      }
+      return `
       <div class="review-line">
         <span class="lbl">${i+1}. ${escHtml(s.produto)}</span>
         <span class="val" style="font-size:11px;text-align:right;">SN ${escHtml(s.serial)}<br>Lote ${escHtml(s.lote)} · Val ${escHtml(s.val)}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
 
     const html = `
       <div class="review-box">
@@ -1862,13 +2079,22 @@
       dtUso: document.getElementById('inpData').value.split('-').reverse().join('/'),
       mennota: document.getElementById('inpCirurgia').value.trim(),
       obs: document.getElementById('inpObs').value.trim(),
-      itens: seriaisLidos.filter(s => !s.err).map(s => ({
-        serial: s.serial,
-        produto: s.produto,
-        lote: s.lote,
-        validade: s.val,
-        preco: s.preco || 0
-      }))
+      itens: seriaisLidos.filter(s => !s.err).map(s => {
+        if (s.modo === 'material') {
+          return {
+            produto: s.produto,
+            qtd: s.qtd || 1,
+            preco: s.preco || 0
+          };
+        }
+        return {
+          serial: s.serial,
+          produto: s.produto,
+          lote: s.lote,
+          validade: s.val,
+          preco: s.preco || 0
+        };
+      })
     };
 
     if (USE_API && !API_SENHA) {
@@ -1922,6 +2148,7 @@
       document.getElementById('loginStatus').textContent = '✓ Logado';
     } catch (e) {}
   })();
+  initProdutoSearch();
 
   function abrirLogin() {
     const cod = prompt('Código do vendedor:', API_VEND);

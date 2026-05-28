@@ -7,12 +7,15 @@
     Fluxo scan-first: consulta serial (SBF/SB6) e gera PV.
 
     GET  ?acao=login&vendedor=&senha=
-    GET  ?acao=serial&serial=&tipo=R|C|P|N&fil=&vendedor=
+    GET  ?acao=serial&serial=&tipo=R|C|P|N|M&fil=&vendedor=
+    GET  ?acao=produtos&q=              -> busca produto SB1 (tipo M)
     GET  ?acao=hospitais&q=&vendedor=
     GET  ?acao=pacientes&q=
     GET  ?acao=medicos&q=
     GET  ?acao=convenios&q=
     GET  ?acao=cirurgias&q=
+    GET  ?acao=painel&fil=          -> painel logistica (SC5/SC6)
+    GET  ?acao=versao
     POST { JSON } -> gera pedido via MATA410
 
     Tipo x Armazem esperado:
@@ -20,6 +23,7 @@
       C = Consignacao      -> local 50
       P = Consig. Permanente -> local 50
       N = Venda / Eletivo  -> local 50
+      M = Solicitacao material -> local 50 (PV sem serial, reserva estoque)
 
     @type  WSRESTFUL
     @author Antonio
@@ -73,14 +77,17 @@ WSMETHOD GET WSRECEIVE acao, serial, tipo, fil, vendedor, senha, q WSSERVICE WSS
         Case cAcao == "CIRURGIAS"
             cJson := fSolAutoComplete("CIR", AllTrim(::q), "")
 
+        Case cAcao == "PRODUTOS"
+            cJson := fSolBuscaProd(AllTrim(::q))
+
         Case cAcao == "VERSAO"
-            cJson := '{"ok":true,"servico":"WSSOLPV","versao":"1.0.0-27mai2026"}'
+            cJson := '{"ok":true,"servico":"WSSOLPV","versao":"1.0.3-material"}'
 
         Case cAcao == "PAINEL"
             cJson := fSolPainel(AllTrim(::fil))
 
         Otherwise
-            cJson := '{"ok":false,"msg":"Acao invalida. Use: login, serial, painel, hospitais, pacientes, medicos, convenios, cirurgias"}'
+            cJson := '{"ok":false,"msg":"Acao invalida. Use: login, serial, produtos, painel, hospitais, pacientes, medicos, convenios, cirurgias"}'
     EndCase
 
     ::SetResponse(cJson)
@@ -147,6 +154,70 @@ Static Function fSolLogin(cVend, cSenha)
 Return cJson
 
 //=====================================================================
+// Busca produtos SB1 (Solicitacao de material - sem serial)
+//=====================================================================
+Static Function fSolBuscaProd(cQ)
+
+    Local cJson   := ""
+    Local cQry    := ""
+    Local cAlias  := GetNextAlias()
+    Local lFirst  := .T.
+    Local aTokens := {}
+    Local nI      := 0
+
+    If Len(AllTrim(cQ)) < 2
+        Return '{"ok":true,"itens":[]}'
+    EndIf
+
+    aTokens := fSolTokens(cQ)
+
+    cQry := " SELECT TOP 20 RTRIM(B1.B1_COD) AS COD, RTRIM(B1.B1_DESC) AS DESCR, B1.B1_PRV1 AS PRECO "
+    cQry += " FROM " + RetSqlName("SB1") + " B1 WITH (NOLOCK) "
+    cQry += " WHERE B1.D_E_L_E_T_ = ' ' AND B1.B1_MSBLQL <> '1' "
+    For nI := 1 To Len(aTokens)
+        cQry += " AND (UPPER(B1.B1_COD) LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%' "
+        cQry += "   OR UPPER(B1.B1_DESC) LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%') "
+    Next
+    cQry += " ORDER BY B1.B1_DESC "
+
+    dbUseArea(.T., "TOPCONN", TCGenQry(,, cQry), cAlias, .F., .T.)
+
+    cJson := '{"ok":true,"itens":['
+
+    While !(cAlias)->(Eof())
+        If !lFirst
+            cJson += ','
+        EndIf
+        lFirst := .F.
+        cJson += '{"codigo":"'   + fSolJsonEsc(AllTrim((cAlias)->COD)) + '",'
+        cJson += '"descricao":"' + fSolJsonEsc(AllTrim((cAlias)->DESCR)) + '",'
+        cJson += '"preco":'      + fSolJsonNum((cAlias)->PRECO) + '}'
+        (cAlias)->(dbSkip())
+    EndDo
+
+    cJson += ']}'
+    (cAlias)->(dbCloseArea())
+Return cJson
+
+Static Function fSolPrecoProd(cCli, cLoja, cProd)
+
+    Local nPreco := 0
+    Local aArea  := GetArea()
+
+    Default cCli  := ""
+    Default cLoja := ""
+    Default cProd := ""
+
+    DbSelectArea("SB1")
+    SB1->(DbSetOrder(1))
+    If SB1->(DbSeek(xFilial("SB1") + PadR(cProd, TamSX3("B1_COD")[1])))
+        nPreco := SB1->B1_PRV1
+    EndIf
+
+    RestArea(aArea)
+Return nPreco
+
+//=====================================================================
 // Armazem esperado por tipo de pedido
 //=====================================================================
 Static Function fSolArmEsperado(cTipo)
@@ -163,6 +234,8 @@ Static Function fSolPrefixoPV(cTipo)
             Return "C"
         Case cTipo == "P"
             Return "P"
+        Case cTipo == "M"
+            Return "M"
         Otherwise
             Return "N"
     EndCase
@@ -495,14 +568,14 @@ Static Function fSolAutoComplete(cTipoAuto, cQ, cVend)
             cQry += " GROUP BY C5.C5_PACIENT ORDER BY C5.C5_PACIENT "
 
         Case cTipoAuto == "MED"
-            cCampo := "C5_XNOMEDI"
-            cQry := " SELECT TOP 20 RTRIM(C5.C5_XNOMEDI) AS NOME, RTRIM(C5.C5_MEDICO) AS ID, '' AS INFO1, '' AS INFO2, '' AS INFO3 "
+            cCampo := "C5_MEDICO"
+            cQry := " SELECT TOP 20 RTRIM(C5.C5_MEDICO) AS NOME, RTRIM(C5.C5_MEDICO) AS ID, '' AS INFO1, '' AS INFO2, '' AS INFO3 "
             cQry += " FROM " + RetSqlName("SC5") + " C5 WITH (NOLOCK) "
-            cQry += " WHERE C5.D_E_L_E_T_ = ' ' AND RTRIM(ISNULL(C5.C5_XNOMEDI,'')) <> '' "
+            cQry += " WHERE C5.D_E_L_E_T_ = ' ' AND RTRIM(ISNULL(C5.C5_MEDICO,'')) <> '' "
             For nI := 1 To Len(aTokens)
-                cQry += " AND UPPER(C5.C5_XNOMEDI) LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%' "
+                cQry += " AND UPPER(C5.C5_MEDICO) LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%' "
             Next
-            cQry += " GROUP BY C5.C5_XNOMEDI, C5.C5_MEDICO ORDER BY C5.C5_XNOMEDI "
+            cQry += " GROUP BY C5.C5_MEDICO ORDER BY C5.C5_MEDICO "
 
         Case cTipoAuto == "CONV"
             cCampo := "C5_XCONVEN"
@@ -611,11 +684,11 @@ Static Function fSolPainel(cFil)
     cQry := " SELECT "
     cQry += "   RTRIM(C5.C5_FILIAL) AS C5_FILIAL, "
     cQry += "   RTRIM(C5.C5_NUM)    AS C5_NUM, "
-    cQry += "   RTRIM(C5.C5_TPSAIDA) AS C5_TPSAIDA, "
+    cQry += "   LEFT(RTRIM(C5.C5_NUM), 1) AS C5_TPSAIDA, "
     cQry += "   RTRIM(C5.C5_VEND1)  AS C5_VEND1, "
     cQry += "   RTRIM(A3.A3_NOME)   AS A3_NOME, "
     cQry += "   RTRIM(C5.C5_PACIENT) AS C5_PACIENT, "
-    cQry += "   RTRIM(C5.C5_XNOMEDI) AS C5_XNOMEDI, "
+    cQry += "   RTRIM(C5.C5_MEDICO) AS C5_XNOMEDI, "
     cQry += "   C5.C5_DTUSO         AS C5_DTUSO, "
     cQry += "   RTRIM(C5.C5_XCONVEN) AS C5_XCONVEN, "
     cQry += "   RTRIM(A1.A1_NOME)   AS A1_NOME, "
@@ -630,11 +703,12 @@ Static Function fSolPainel(cFil)
     cQry += "   ON A3.D_E_L_E_T_ = ' ' AND A3.A3_COD = C5.C5_VEND1 "
     cQry += " WHERE C5.D_E_L_E_T_ = ' ' "
     cQry += "   AND C5.C5_EMISSAO >= '" + DToS(Date() - 30) + "' "
+    cQry += "   AND LEFT(RTRIM(C5.C5_NUM), 1) IN ('R','C','P','N','M') "
     If !Empty(cFil)
         cQry += "   AND RTRIM(C5.C5_FILIAL) = '" + fSolSqlEsc(PadR(cFil, TamSX3("C5_FILIAL")[1])) + "' "
     EndIf
-    cQry += " GROUP BY C5.C5_FILIAL, C5.C5_NUM, C5.C5_TPSAIDA, C5.C5_VEND1, A3.A3_NOME, "
-    cQry += "   C5.C5_PACIENT, C5.C5_XNOMEDI, C5.C5_DTUSO, C5.C5_XCONVEN, A1.A1_NOME "
+    cQry += " GROUP BY C5.C5_FILIAL, C5.C5_NUM, C5.C5_VEND1, A3.A3_NOME, "
+    cQry += "   C5.C5_PACIENT, C5.C5_MEDICO, C5.C5_DTUSO, C5.C5_XCONVEN, A1.A1_NOME "
     cQry += " ORDER BY C5.C5_NUM DESC "
 
     dbUseArea(.T., "TOPCONN", TCGenQry(,, cQry), cAlias, .F., .T.)
@@ -764,6 +838,9 @@ Static Function fSolCriarPedido(oJson)
     Local aLogAuto := {}
     Local nX       := 0
     Local nY       := 0
+    Local nQtd     := 1
+    Local nPreco   := 0
+    Local cProd    := ""
     Local cLocal   := fSolArmEsperado(cTipo)
     Local cPref    := fSolPrefixoPV(cTipo)
     Local cTes     := "615"
@@ -831,6 +908,12 @@ Static Function fSolCriarPedido(oJson)
         aAdd(aCabec, {"C5_DTUSO",   CtoD(cDtUso), Nil})
     EndIf
     cMenFull := cMenNota
+    If cTipo == "M"
+        cMenFull := "SOLICITACAO DE MATERIAL - reserva estoque sem serial"
+        If !Empty(cMenNota)
+            cMenFull += " | " + cMenNota
+        EndIf
+    EndIf
     If !Empty(cObs)
         cMenFull += IIF(!Empty(cMenFull), " | ", "") + "Obs: " + cObs
     EndIf
@@ -840,18 +923,37 @@ Static Function fSolCriarPedido(oJson)
 
     For nX := 1 To Len(oItems)
         aLinha := {}
-        aAdd(aLinha, {"C6_ITEM",    StrZero(nX, 2),                                              Nil})
-        aAdd(aLinha, {"C6_PRODUTO", AllTrim(oItems[nX]:GetJsonObject("produto")),                 Nil})
-        aAdd(aLinha, {"C6_QTDVEN",  1,                                                           Nil})
-        aAdd(aLinha, {"C6_PRCVEN",  oItems[nX]:GetJsonObject("preco"),                            Nil})
-        aAdd(aLinha, {"C6_VALOR",   oItems[nX]:GetJsonObject("preco"),                            Nil})
-        aAdd(aLinha, {"C6_LOTECTL", AllTrim(oItems[nX]:GetJsonObject("lote")),                    Nil})
-        aAdd(aLinha, {"C6_NUMSERI", AllTrim(oItems[nX]:GetJsonObject("serial")),                  Nil})
-        aAdd(aLinha, {"C6_TES",     cTes,                                                        Nil})
-        aAdd(aLinha, {"C6_LOCAL",   cLocal,                                                      Nil})
-        If !Empty(AllTrim(oItems[nX]:GetJsonObject("validade")))
-            aAdd(aLinha, {"C6_DTVALID", StoD(AllTrim(oItems[nX]:GetJsonObject("validade"))), Nil})
+        cProd  := AllTrim(oItems[nX]:GetJsonObject("produto"))
+        nQtd   := 1
+        nPreco := oItems[nX]:GetJsonObject("preco")
+
+        If ValType(nPreco) != "N" .Or. nPreco <= 0
+            nPreco := fSolPrecoProd(cCliente, cLoja, cProd)
         EndIf
+
+        If cTipo == "M"
+            nQtd := oItems[nX]:GetJsonObject("qtd")
+            If ValType(nQtd) != "N" .Or. nQtd <= 0
+                nQtd := 1
+            EndIf
+        EndIf
+
+        aAdd(aLinha, {"C6_ITEM",    StrZero(nX, 2), Nil})
+        aAdd(aLinha, {"C6_PRODUTO", cProd,          Nil})
+        aAdd(aLinha, {"C6_QTDVEN",  nQtd,           Nil})
+        aAdd(aLinha, {"C6_PRCVEN",  nPreco,         Nil})
+        aAdd(aLinha, {"C6_VALOR",   nPreco * nQtd,  Nil})
+        aAdd(aLinha, {"C6_TES",     cTes,           Nil})
+        aAdd(aLinha, {"C6_LOCAL",   cLocal,         Nil})
+
+        If cTipo != "M"
+            aAdd(aLinha, {"C6_LOTECTL", AllTrim(oItems[nX]:GetJsonObject("lote")),   Nil})
+            aAdd(aLinha, {"C6_NUMSERI", AllTrim(oItems[nX]:GetJsonObject("serial")), Nil})
+            If !Empty(AllTrim(oItems[nX]:GetJsonObject("validade")))
+                aAdd(aLinha, {"C6_DTVALID", StoD(AllTrim(oItems[nX]:GetJsonObject("validade"))), Nil})
+            EndIf
+        EndIf
+
         aAdd(aItens, aLinha)
     Next
 
