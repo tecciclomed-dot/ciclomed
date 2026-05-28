@@ -317,6 +317,24 @@
     font-size: 16px;
     cursor: pointer;
   }
+  .entry-pass-hint {
+    font-size: 12px;
+    opacity: 0.92;
+    margin: 4px 0 8px;
+    line-height: 1.45;
+  }
+  .entry-pass-quick {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 11px;
+    border: 1px dashed rgba(255,255,255,0.55);
+    border-radius: 8px;
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
   .entry-heard {
     min-height: 24px;
     font-size: 15px;
@@ -1052,7 +1070,9 @@
     <div class="entry-pass" id="entryPass">
       <div id="entryPassNome" style="font-weight:700;margin-bottom:8px;"></div>
       <label>Senha do vendedor (SA3)</label>
-      <input type="password" id="entryPassSenha" placeholder="Ex: 000119">
+      <div class="entry-pass-hint" id="entryPassHint">Use a senha cadastrada no Protheus (geralmente igual ao código do vendedor).</div>
+      <input type="password" id="entryPassSenha" inputmode="numeric" autocomplete="current-password" placeholder="Ex: 000119">
+      <button type="button" class="entry-pass-quick" id="entryPassQuick" onclick="usarCodigoComoSenha()">Usar código do vendedor como senha</button>
       <button type="button" onclick="confirmarEntradaVendedor()">Entrar</button>
     </div>
   </div>
@@ -2105,8 +2125,15 @@
   let voiceRec = null;
   let voiceTarget = null;
 
+  function stripAccents(s) {
+    return (s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\x00-\x7F\u00A0-\u024F\s]/g, ' ');
+  }
+
   function cleanVoiceText(txt) {
-    return (txt || '')
+    return stripAccents(txt)
       .replace(/[.,;:!?]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
@@ -2140,7 +2167,7 @@
       voiceRec.onresult = (e) => {
         let txt = '';
         for (let i = e.resultIndex; i < e.results.length; i++) txt += e.results[i][0].transcript;
-        document.getElementById('voiceHeard').textContent = txt;
+        document.getElementById('voiceHeard').textContent = e.results[e.results.length - 1].isFinal ? cleanVoiceText(txt) : txt;
         if (e.results[e.results.length - 1].isFinal) applyVoiceResult(txt);
       };
       voiceRec.onerror = (e) => {
@@ -2434,6 +2461,26 @@
       </div>
     `).join('');
     window._entryLista = lista;
+    if (lista.length === 1) selecionarPessoa(0);
+  }
+
+  function abrirSenhaVendedor(p) {
+    const cod = String(p.codigo || '').trim().padStart(6, '0');
+    document.getElementById('entryPassNome').textContent = p.nome + ' — Vendedor ' + cod;
+    document.getElementById('entryPassHint').innerHTML =
+      'A senha <strong>não é seu nome</strong>. Use a senha do cadastro SA3.<br>Geralmente é igual ao código: <strong>' + cod + '</strong>.';
+    document.getElementById('entryPassSenha').value = '';
+    document.getElementById('entryPassQuick').textContent = 'Usar código ' + cod + ' como senha';
+    document.getElementById('entryPass').classList.add('show');
+    document.getElementById('entryPass').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('entryPassSenha').focus();
+  }
+
+  function usarCodigoComoSenha() {
+    if (!pessoaSelecionada || pessoaSelecionada.tipo !== 'V') return;
+    const cod = String(pessoaSelecionada.codigo || '').trim().padStart(6, '0');
+    document.getElementById('entryPassSenha').value = cod;
+    confirmarEntradaVendedor();
   }
 
   function selecionarPessoa(idx) {
@@ -2448,20 +2495,21 @@
       return;
     }
     document.getElementById('entryPassNome').textContent = p.nome + ' — Vendedor ' + p.codigo;
-    document.getElementById('entryPassSenha').value = '';
-    document.getElementById('entryPass').classList.add('show');
-    document.getElementById('entryPassSenha').focus();
+    abrirSenhaVendedor(p);
   }
 
   async function confirmarEntradaVendedor() {
     if (!pessoaSelecionada || pessoaSelecionada.tipo !== 'V') return;
-    const senha = document.getElementById('entryPassSenha').value;
-    if (!senha) { alert('Informe a senha.'); return; }
+    const senha = document.getElementById('entryPassSenha').value.trim();
+    if (!senha) { alert('Informe a senha do vendedor (ex.: 000119).'); return; }
     showLoading(true);
     try {
-      const cod = pessoaSelecionada.codigo.trim().padStart(6, '0');
+      const cod = String(pessoaSelecionada.codigo || '').trim().padStart(6, '0');
       const r = await apiGet({ acao: 'login', vendedor: cod, senha });
-      if (!r.ok) { alert(r.msg || 'Senha inválida'); return; }
+      if (!r.ok) {
+        alert((r.msg || 'Senha inválida') + '\n\nDica: a senha é a do cadastro SA3, não seu nome.\nPara o vendedor ' + cod + ', tente ' + cod + '.');
+        return;
+      }
       aplicarSessao({ tipo: 'V', vendedor: r.vendedor, senha, nome: r.nome });
     } catch (e) {
       alert(e.message);
@@ -2491,7 +2539,8 @@
       if (e.results[e.results.length - 1].isFinal) {
         const q = cleanVoiceText(txt);
         document.getElementById('entrySearch').value = q;
-        buscarPessoas(q);
+        document.getElementById('entryHeard').textContent = q ? ('Buscando: ' + q) : 'Nome não reconhecido';
+        if (q) buscarPessoas(q);
       }
     };
     entryVoiceRec.onerror = () => {
@@ -2505,7 +2554,10 @@
   function initEntryScreen() {
     document.getElementById('entrySearch').addEventListener('input', () => {
       clearTimeout(entrySearchTimer);
-      entrySearchTimer = setTimeout(() => buscarPessoas(document.getElementById('entrySearch').value), 350);
+      const raw = document.getElementById('entrySearch').value;
+      const q = cleanVoiceText(raw);
+      if (raw !== q) document.getElementById('entrySearch').value = q;
+      entrySearchTimer = setTimeout(() => buscarPessoas(q), 350);
     });
     document.getElementById('entryPassSenha').addEventListener('keydown', e => {
       if (e.key === 'Enter') confirmarEntradaVendedor();
@@ -2541,6 +2593,38 @@
   function abrirLogin(msg) {
     abrirEntry();
     if (msg) document.getElementById('entryHeard').textContent = msg;
+  }
+
+  function fecharLogin() {
+    document.getElementById('loginOverlay').classList.remove('show');
+  }
+
+  async function confirmarLogin() {
+    const cod = document.getElementById('loginCod').value.trim().padStart(6, '0');
+    const senha = document.getElementById('loginSenha').value.trim();
+    const err = document.getElementById('loginErr');
+    err.classList.remove('show');
+    if (!cod || !senha) {
+      err.textContent = 'Informe código e senha.';
+      err.classList.add('show');
+      return;
+    }
+    showLoading(true);
+    try {
+      const r = await apiGet({ acao: 'login', vendedor: cod, senha });
+      if (!r.ok) {
+        err.textContent = (r.msg || 'Senha inválida') + ' — tente o código ' + cod;
+        err.classList.add('show');
+        return;
+      }
+      fecharLogin();
+      aplicarSessao({ tipo: 'V', vendedor: r.vendedor, senha, nome: r.nome });
+    } catch (e) {
+      err.textContent = e.message;
+      err.classList.add('show');
+    } finally {
+      showLoading(false);
+    }
   }
 
   showStep(0);
