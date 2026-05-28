@@ -396,23 +396,11 @@
         <text x="110" y="48" text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif"
               font-size="28" font-weight="300" fill="#fff" letter-spacing="1">CicloMed</text>
     </svg>
-    <div style="flex:1;">
+    <div>
         <div class="top-title">Painel de Aprovação</div>
         <div class="top-subtitle" id="topSubtitle">Solicitação de Compras</div>
     </div>
-    <button onclick="voltarPainel()" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-        &larr; Voltar ao Painel
-    </button>
 </div>
-<script>
-function voltarPainel() {
-    if (window.history.length > 1) {
-        window.history.back();
-    } else {
-        window.close();
-    }
-}
-</script>
 
 <div class="container" id="app">
     <!-- Estado inicial: carregando -->
@@ -460,7 +448,7 @@ function voltarPainel() {
     'use strict';
 
     /* ── Config ───────────────────────────────────────────────── */
-    var API_BASE  = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03';
+    var API_BASE  = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03';
     var API_PANEL = API_BASE + '/WSSCPAINEL';
     var API_APROV = API_BASE + '/WSAPROVSC';
     var BASIC_AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
@@ -561,13 +549,7 @@ function voltarPainel() {
             '<div class="sc-field wide">' +
                 '<label>Fornecedor</label>' +
                 '<span>' + forn + '</span>' +
-            '</div>' +
-            (d.motivo ? (
-                '<div class="sc-field wide">' +
-                    '<label>Motivo da Solicitação</label>' +
-                    '<span>' + esc(d.motivo) + '</span>' +
-                '</div>'
-            ) : '');
+            '</div>';
 
         // ── Stats chips
         var r = d.resumo || {};
@@ -638,12 +620,7 @@ function voltarPainel() {
         }
         el('tabRejeitados').innerHTML = htmlRej;
 
-        // ── Auto-selecionar aba com conteudo (se pendentes vazia)
-        if (iPend.length === 0 && iAprov.length > 0) {
-            gActiveTab = 'aprov';
-        } else if (iPend.length === 0 && iRej.length > 0) {
-            gActiveTab = 'rej';
-        }
+        // ── Re-apply active tab
         switchTab(gActiveTab);
 
         // ── Bind action buttons (after DOM insert)
