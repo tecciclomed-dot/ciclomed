@@ -214,6 +214,117 @@
   .header-vendedor.logado { background: rgba(255,255,255,0.12); }
   #loginStatus.ok { color: #a8f0c8; font-weight: 700; }
 
+  /* ===== ENTRADA — QUEM E VOCE (voz) ===== */
+  .entry-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: linear-gradient(160deg, var(--verde-escuro) 0%, var(--verde-principal) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    color: #fff;
+  }
+  .entry-screen.hidden { display: none; }
+  .entry-box {
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .entry-box h2 { font-size: 22px; margin: 0 0 8px; }
+  .entry-box p { font-size: 14px; opacity: 0.9; margin: 0 0 20px; line-height: 1.4; }
+  .entry-voice-btn {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 40px;
+    cursor: pointer;
+    margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s;
+  }
+  .entry-voice-btn:active { transform: scale(0.95); }
+  .entry-voice-btn.listening {
+    background: rgba(255,255,255,0.35);
+    animation: micPulse 1.2s infinite;
+  }
+  .entry-search {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  .entry-results {
+    max-height: 220px;
+    overflow-y: auto;
+    text-align: left;
+    margin-top: 8px;
+  }
+  .entry-person {
+    background: rgba(255,255,255,0.95);
+    color: var(--verde-escuro);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .entry-person:hover { background: #fff; }
+  .entry-person .ep-nome { font-weight: 700; font-size: 15px; }
+  .entry-person .ep-info { font-size: 12px; color: var(--cinza-texto); margin-top: 2px; }
+  .entry-person .ep-tipo {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+  .entry-person .ep-tipo.v { background: var(--verde-fundo); color: var(--verde-principal); }
+  .entry-person .ep-tipo.u { background: var(--azul-fundo); color: var(--azul); }
+  .entry-pass {
+    display: none;
+    margin-top: 16px;
+    text-align: left;
+    background: rgba(255,255,255,0.12);
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .entry-pass.show { display: block; }
+  .entry-pass label { font-size: 12px; font-weight: 700; }
+  .entry-pass input {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    margin: 8px 0 12px;
+    font-size: 16px;
+  }
+  .entry-pass button {
+    width: 100%;
+    padding: 14px;
+    background: #fff;
+    color: var(--verde-principal);
+    border: none;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .entry-heard {
+    min-height: 24px;
+    font-size: 15px;
+    font-style: italic;
+    opacity: 0.95;
+    margin-bottom: 8px;
+  }
+
   /* ===== CONTEÚDO ===== */
   .content {
     flex: 1;
@@ -929,7 +1040,25 @@
 </head>
 <body>
 
-<div class="app">
+<!-- ============ ENTRADA — QUEM E VOCE ============ -->
+<div class="entry-screen" id="entryScreen">
+  <div class="entry-box">
+    <h2>Quem é você?</h2>
+    <p>Fale seu nome ou digite abaixo.<br>Vendedor ou usuário interno.</p>
+    <button type="button" class="entry-voice-btn" id="entryVoiceBtn" onclick="falarMeuNome()" title="Falar nome">🎤</button>
+    <div class="entry-heard" id="entryHeard">Toque no microfone e diga seu nome</div>
+    <input type="text" class="entry-search" id="entrySearch" placeholder="Ex: Maurilio, Antonio..." autocomplete="off">
+    <div class="entry-results" id="entryResults"></div>
+    <div class="entry-pass" id="entryPass">
+      <div id="entryPassNome" style="font-weight:700;margin-bottom:8px;"></div>
+      <label>Senha do vendedor (SA3)</label>
+      <input type="password" id="entryPassSenha" placeholder="Ex: 000119">
+      <button type="button" onclick="confirmarEntradaVendedor()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="appMain">
 
   <!-- ============ HEADER ============ -->
   <div class="header">
@@ -1236,6 +1365,9 @@
   const API_FIL  = '01';   // filial padrao para gerar PV (ajustar conforme vendedor)
   let API_VEND = '000119';
   let API_SENHA = '';
+  let SESS_TIPO = '';       // 'V' vendedor | 'U' usuario interno
+  let pessoaSelecionada = null;
+  let entrySearchTimer = null;
   const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
   const USE_API = true;
 
@@ -2188,8 +2320,13 @@
       })
     };
 
-    if (USE_API && !API_SENHA) {
+    if (USE_API && !API_SENHA && SESS_TIPO !== 'U') {
       abrirLogin('Faça login para enviar o pedido ao Protheus.');
+      return;
+    }
+    if (SESS_TIPO === 'U') {
+      alert('Usuário interno não gera pedido pelo app.\nAbra o Painel de Logística.');
+      window.location.href = 'painel-consignado.html';
       return;
     }
 
@@ -2230,8 +2367,8 @@
   function updateLoginUI() {
     const st = document.getElementById('loginStatus');
     const hdr = document.getElementById('hdrVendedor');
-    if (API_SENHA) {
-      st.textContent = '✓ Logado';
+    if (API_SENHA || SESS_TIPO === 'U') {
+      st.textContent = SESS_TIPO === 'U' ? '✓ Usuário' : '✓ Logado';
       st.className = 'ok';
       hdr.classList.add('logado');
     } else {
@@ -2241,79 +2378,170 @@
     }
   }
 
-  (function initLogin() {
-    const s = sessionStorage.getItem('solpv_sess');
-    if (!s) {
-      updateLoginUI();
-      return;
-    }
-    try {
-      const o = JSON.parse(s);
+  function fecharEntry() {
+    document.getElementById('entryScreen').classList.add('hidden');
+  }
+
+  function abrirEntry() {
+    document.getElementById('entryScreen').classList.remove('hidden');
+    document.getElementById('entryPass').classList.remove('show');
+    pessoaSelecionada = null;
+  }
+
+  function aplicarSessao(o) {
+    SESS_TIPO = o.tipo || 'V';
+    if (o.tipo === 'V') {
       API_VEND = o.vendedor || API_VEND;
       API_SENHA = o.senha || '';
       document.getElementById('vendCod').textContent = API_VEND;
       document.getElementById('vendNome').textContent = o.nome || 'Vendedor';
-      updateLoginUI();
-    } catch (e) {
-      updateLoginUI();
+    } else {
+      API_SENHA = '';
+      document.getElementById('vendCod').textContent = o.userId || '';
+      document.getElementById('vendNome').textContent = o.nome || 'Usuário';
     }
-  })();
-  initProdutoSearch();
-
-  function abrirLogin(msg) {
-    document.getElementById('loginErr').classList.remove('show');
-    document.getElementById('loginErr').textContent = msg || '';
-    if (msg) document.getElementById('loginErr').classList.add('show');
-    document.getElementById('loginCod').value = API_VEND || '000119';
-    document.getElementById('loginSenha').value = '';
-    document.getElementById('loginOverlay').classList.add('show');
-    setTimeout(() => document.getElementById('loginSenha').focus(), 300);
+    sessionStorage.setItem('solpv_sess', JSON.stringify(o));
+    updateLoginUI();
+    fecharEntry();
   }
 
-  function fecharLogin() {
-    document.getElementById('loginOverlay').classList.remove('show');
-  }
-
-  async function confirmarLogin() {
-    const cod = document.getElementById('loginCod').value.trim().padStart(6, '0');
-    const senha = document.getElementById('loginSenha').value;
-    const errEl = document.getElementById('loginErr');
-    errEl.classList.remove('show');
-    if (!cod || !senha) {
-      errEl.textContent = 'Informe código e senha.';
-      errEl.classList.add('show');
+  async function buscarPessoas(q) {
+    q = cleanVoiceText(q);
+    if (q.length < 2) {
+      document.getElementById('entryResults').innerHTML = '';
       return;
     }
+    document.getElementById('entryHeard').textContent = 'Buscando: ' + q;
+    try {
+      const r = await apiGet({ acao: 'identificar', q });
+      renderEntryResults(r.pessoas || []);
+    } catch (e) {
+      document.getElementById('entryHeard').textContent = e.message;
+    }
+  }
+
+  function renderEntryResults(lista) {
+    const el = document.getElementById('entryResults');
+    if (!lista.length) {
+      el.innerHTML = '<div style="opacity:0.85;font-size:13px;padding:8px;">Ninguém encontrado. Tente outro nome.</div>';
+      return;
+    }
+    el.innerHTML = lista.map((p, i) => `
+      <div class="entry-person" onclick="selecionarPessoa(${i})">
+        <div class="ep-nome">${escHtml(p.nome)}</div>
+        <div class="ep-info">${escHtml(p.info || '')}</div>
+        <span class="ep-tipo ${p.tipo === 'V' ? 'v' : 'u'}">${p.tipo === 'V' ? 'Vendedor' : 'Usuário interno'}</span>
+      </div>
+    `).join('');
+    window._entryLista = lista;
+  }
+
+  function selecionarPessoa(idx) {
+    const p = (window._entryLista || [])[idx];
+    if (!p) return;
+    pessoaSelecionada = p;
+    if (p.tipo === 'U') {
+      aplicarSessao({ tipo: 'U', userId: p.codigo, nome: p.nome });
+      if (confirm('Olá, ' + p.nome + '!\n\nAbrir o Painel de Logística?')) {
+        window.location.href = 'painel-consignado.html';
+      }
+      return;
+    }
+    document.getElementById('entryPassNome').textContent = p.nome + ' — Vendedor ' + p.codigo;
+    document.getElementById('entryPassSenha').value = '';
+    document.getElementById('entryPass').classList.add('show');
+    document.getElementById('entryPassSenha').focus();
+  }
+
+  async function confirmarEntradaVendedor() {
+    if (!pessoaSelecionada || pessoaSelecionada.tipo !== 'V') return;
+    const senha = document.getElementById('entryPassSenha').value;
+    if (!senha) { alert('Informe a senha.'); return; }
     showLoading(true);
     try {
+      const cod = pessoaSelecionada.codigo.trim().padStart(6, '0');
       const r = await apiGet({ acao: 'login', vendedor: cod, senha });
-      if (!r.ok) {
-        errEl.textContent = r.msg || 'Código ou senha inválidos.';
-        errEl.classList.add('show');
-        return;
-      }
-      API_VEND = r.vendedor;
-      API_SENHA = senha;
-      sessionStorage.setItem('solpv_sess', JSON.stringify({
-        vendedor: r.vendedor,
-        senha,
-        nome: r.nome
-      }));
-      document.getElementById('vendCod').textContent = r.vendedor;
-      document.getElementById('vendNome').textContent = r.nome;
-      updateLoginUI();
-      fecharLogin();
+      if (!r.ok) { alert(r.msg || 'Senha inválida'); return; }
+      aplicarSessao({ tipo: 'V', vendedor: r.vendedor, senha, nome: r.nome });
     } catch (e) {
-      errEl.textContent = e.message || 'Erro ao conectar. Tente novamente.';
-      errEl.classList.add('show');
+      alert(e.message);
     } finally {
       showLoading(false);
     }
   }
 
-  document.getElementById('loginSenha').addEventListener('keydown', e => {
-    if (e.key === 'Enter') confirmarLogin();
-  });
+  let entryVoiceRec = null;
+  function falarMeuNome() {
+    if (!VOICE_SUPPORTED) {
+      document.getElementById('entrySearch').focus();
+      alert('Use o campo de texto ou Chrome no Android.');
+      return;
+    }
+    if (entryVoiceRec) { try { entryVoiceRec.abort(); } catch (e) {} }
+    const btn = document.getElementById('entryVoiceBtn');
+    btn.classList.add('listening');
+    document.getElementById('entryHeard').textContent = 'Ouvindo... diga seu nome';
+    entryVoiceRec = new SR();
+    entryVoiceRec.lang = 'pt-BR';
+    entryVoiceRec.interimResults = true;
+    entryVoiceRec.onresult = (e) => {
+      let txt = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) txt += e.results[i][0].transcript;
+      document.getElementById('entryHeard').textContent = txt;
+      if (e.results[e.results.length - 1].isFinal) {
+        const q = cleanVoiceText(txt);
+        document.getElementById('entrySearch').value = q;
+        buscarPessoas(q);
+      }
+    };
+    entryVoiceRec.onerror = () => {
+      document.getElementById('entryHeard').textContent = 'Não ouvi. Tente de novo ou digite.';
+      btn.classList.remove('listening');
+    };
+    entryVoiceRec.onend = () => btn.classList.remove('listening');
+    entryVoiceRec.start();
+  }
+
+  function initEntryScreen() {
+    document.getElementById('entrySearch').addEventListener('input', () => {
+      clearTimeout(entrySearchTimer);
+      entrySearchTimer = setTimeout(() => buscarPessoas(document.getElementById('entrySearch').value), 350);
+    });
+    document.getElementById('entryPassSenha').addEventListener('keydown', e => {
+      if (e.key === 'Enter') confirmarEntradaVendedor();
+    });
+  }
+
+  (function initLogin() {
+    const s = sessionStorage.getItem('solpv_sess');
+    if (!s) {
+      updateLoginUI();
+      initEntryScreen();
+      return;
+    }
+    try {
+      const o = JSON.parse(s);
+      SESS_TIPO = o.tipo || 'V';
+      if (o.tipo === 'V') {
+        API_VEND = o.vendedor || API_VEND;
+        API_SENHA = o.senha || '';
+      }
+      document.getElementById('vendCod').textContent = o.vendedor || o.userId || API_VEND;
+      document.getElementById('vendNome').textContent = o.nome || 'Vendedor';
+      updateLoginUI();
+      fecharEntry();
+    } catch (e) {
+      updateLoginUI();
+      initEntryScreen();
+    }
+    initEntryScreen();
+  })();
+  initProdutoSearch();
+
+  function abrirLogin(msg) {
+    abrirEntry();
+    if (msg) document.getElementById('entryHeard').textContent = msg;
+  }
 
   showStep(0);
 </script>

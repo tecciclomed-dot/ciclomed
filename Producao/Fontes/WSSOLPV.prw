@@ -59,6 +59,9 @@ WSMETHOD GET WSRECEIVE acao, serial, tipo, fil, vendedor, senha, q WSSERVICE WSS
         Case cAcao == "LOGIN"
             cJson := fSolLogin(AllTrim(::vendedor), AllTrim(::senha))
 
+        Case cAcao == "IDENTIFICAR"
+            cJson := fSolIdentificar(AllTrim(::q))
+
         Case cAcao == "SERIAL"
             cJson := fSolBuscaSerial(AllTrim(::serial), Upper(AllTrim(::tipo)), AllTrim(::fil), AllTrim(::vendedor))
 
@@ -81,13 +84,13 @@ WSMETHOD GET WSRECEIVE acao, serial, tipo, fil, vendedor, senha, q WSSERVICE WSS
             cJson := fSolBuscaProd(AllTrim(::q))
 
         Case cAcao == "VERSAO"
-            cJson := '{"ok":true,"servico":"WSSOLPV","versao":"1.0.3-material"}'
+            cJson := '{"ok":true,"servico":"WSSOLPV","versao":"1.0.4-voz-login"}'
 
         Case cAcao == "PAINEL"
             cJson := fSolPainel(AllTrim(::fil))
 
         Otherwise
-            cJson := '{"ok":false,"msg":"Acao invalida. Use: login, serial, produtos, painel, hospitais, pacientes, medicos, convenios, cirurgias"}'
+            cJson := '{"ok":false,"msg":"Acao invalida. Use: login, identificar, serial, produtos, painel, hospitais, pacientes, medicos, convenios, cirurgias"}'
     EndCase
 
     ::SetResponse(cJson)
@@ -151,6 +154,86 @@ Static Function fSolLogin(cVend, cSenha)
     cJson += '"email":"'    + fSolJsonEsc(AllTrim((cAlias)->A3_EMAIL)) + '"}'
 
     (cAlias)->(dbCloseArea())
+Return cJson
+
+//=====================================================================
+// Identificar pessoa por nome (vendedor SA3 ou usuario SYS_USR)
+//=====================================================================
+Static Function fSolIdentificar(cQ)
+
+    Local cJson   := ""
+    Local cQry    := ""
+    Local cAlias  := GetNextAlias()
+    Local lFirst  := .T.
+    Local aTokens := {}
+    Local nI      := 0
+    Local nTot    := 0
+
+    If Len(AllTrim(cQ)) < 2
+        Return '{"ok":true,"pessoas":[]}'
+    EndIf
+
+    aTokens := fSolTokens(cQ)
+    If Len(aTokens) == 0
+        Return '{"ok":true,"pessoas":[]}'
+    EndIf
+
+    cJson := '{"ok":true,"pessoas":['
+
+    // --- Vendedores (SA3) ---
+    cQry := " SELECT TOP 15 RTRIM(A3.A3_COD) AS COD, RTRIM(A3.A3_NOME) AS NOME, "
+    cQry += "        RTRIM(A3.A3_NREDUZ) AS NREDUZ, RTRIM(A3.A3_EMAIL) AS EMAIL "
+    cQry += " FROM " + RetSqlName("SA3") + " A3 WITH (NOLOCK) "
+    cQry += " WHERE A3.D_E_L_E_T_ = ' ' "
+    For nI := 1 To Len(aTokens)
+        cQry += " AND (UPPER(A3.A3_NOME) LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%' "
+        cQry += "   OR UPPER(A3.A3_NREDUZ) LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%' "
+        cQry += "   OR A3.A3_COD LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%') "
+    Next
+    cQry += " ORDER BY A3.A3_NOME "
+
+    dbUseArea(.T., "TOPCONN", TCGenQry(,, cQry), cAlias, .F., .T.)
+
+    While !(cAlias)->(Eof()) .And. nTot < 15
+        If !lFirst
+            cJson += ','
+        EndIf
+        lFirst := .F.
+        cJson += '{"tipo":"V","codigo":"' + fSolJsonEsc(AllTrim((cAlias)->COD)) + '",'
+        cJson += '"nome":"' + fSolJsonEsc(AllTrim((cAlias)->NOME)) + '",'
+        cJson += '"info":"Vendedor ' + fSolJsonEsc(AllTrim((cAlias)->COD)) + '"}'
+        nTot++
+        (cAlias)->(dbSkip())
+    EndDo
+    (cAlias)->(dbCloseArea())
+
+    // --- Usuarios internos (SYS_USR) ---
+    cQry := " SELECT TOP 10 RTRIM(USR.USR_ID) AS COD, RTRIM(USR.USR_NOME) AS NOME, "
+    cQry += "        RTRIM(ISNULL(USR.USR_EMAIL,'')) AS EMAIL "
+    cQry += " FROM SYS_USR USR WITH (NOLOCK) "
+    cQry += " WHERE 1=1 "
+    For nI := 1 To Len(aTokens)
+        cQry += " AND (UPPER(USR.USR_NOME) LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%' "
+        cQry += "   OR UPPER(USR.USR_ID) LIKE '%" + fSolSqlEsc(Upper(aTokens[nI])) + "%') "
+    Next
+    cQry += " ORDER BY USR.USR_NOME "
+
+    dbUseArea(.T., "TOPCONN", TCGenQry(,, cQry), cAlias, .F., .T.)
+
+    While !(cAlias)->(Eof()) .And. nTot < 20
+        If !lFirst
+            cJson += ','
+        EndIf
+        lFirst := .F.
+        cJson += '{"tipo":"U","codigo":"' + fSolJsonEsc(AllTrim((cAlias)->COD)) + '",'
+        cJson += '"nome":"' + fSolJsonEsc(AllTrim((cAlias)->NOME)) + '",'
+        cJson += '"info":"Usuario ' + fSolJsonEsc(AllTrim((cAlias)->COD)) + '"}'
+        nTot++
+        (cAlias)->(dbSkip())
+    EndDo
+    (cAlias)->(dbCloseArea())
+
+    cJson += ']}'
 Return cJson
 
 //=====================================================================
