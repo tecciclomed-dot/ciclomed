@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel de Consignados — CicloMed</title>
+<title>Painel de Consignados â€” CicloMed</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -88,7 +88,7 @@
     font-size: 13px;
   }
   .filter-search::before {
-    content: '🔍';
+    content: 'ðŸ”';
     position: absolute;
     left: 11px;
     top: 8px;
@@ -324,12 +324,12 @@
     <div class="header-logo">CM</div>
     <h1>
       Painel de Consignados
-      <span>Pedidos de Venda — Logística CicloMed</span>
+      <span>Pedidos de Venda â€” LogÃ­stica CicloMed</span>
     </h1>
   </div>
   <div class="header-right">
-    <span class="last-update">Atualizado: 19:24:15</span>
-    <button class="btn-refresh">↻ Atualizar</button>
+    <span class="last-update" id="lastUpdate">Carregando...</span>
+    <button class="btn-refresh" onclick="carregarPainel()">â†» Atualizar</button>
   </div>
 </div>
 
@@ -339,9 +339,9 @@
     <input type="text" placeholder="Buscar por PV, cliente, paciente, produto...">
   </div>
   <span class="filter-chip on">Todos</span>
-  <span class="filter-chip">Consignação (C)</span>
+  <span class="filter-chip">ConsignaÃ§Ã£o (C)</span>
   <span class="filter-chip">Reserva (R)</span>
-  <span class="filter-chip">⚠️ Com Alerta de Saldo</span>
+  <span class="filter-chip">âš ï¸ Com Alerta de Saldo</span>
 </div>
 
 <!-- BOARD -->
@@ -350,245 +350,91 @@
   <!-- ===== COLUNA: A ATENDER ===== -->
   <div class="column col-atender">
     <div class="col-header">
-      <span class="col-title">⏳ Pedidos a Atender</span>
-      <span class="col-badge">4</span>
+      <span class="col-title">â³ Pedidos a Atender</span>
+      <span class="col-badge" id="badgePend">0</span>
     </div>
-    <div class="col-body">
-
-      <!-- Card 1: URGENTE COM ALERTA -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-num">PV C022895</span>
-          <span class="card-tipo tipo-C">Consignação</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">👤</span>
-          <span><span class="lbl">Vendedor:</span> Antônio Carlos (000119)</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">🏥</span>
-          <span><span class="lbl">Hospital:</span> HOSPITAL SIRIO LIBANES</span>
-        </div>
-        <div class="card-procedimento">
-          <div class="lbl">Procedimento</div>
-          <div>Maria de Souza · Dr. João Almeida · 29/05/2026 às 08:30 · Unimed</div>
-        </div>
-        <div class="card-itens">
-          <div class="card-item-line">
-            <span class="prod">RED68KIT</span> — 2 un — CATETER DE REPERFUSAO RED 68 132CM
-          </div>
-          <div class="card-item-line">
-            <span class="prod">G-NB-2_0</span> — 1 un — COLA CIRURGICA GLUBRAN 2 1ML
-            <div class="alerta">⚠️ Saldo baixo no Arm.50 (3 un)</div>
-          </div>
-        </div>
-        <div class="alerta-saldo">
-          <strong>⚠ Atenção:</strong> 1 item com alerta de saldo. Conferir disponibilidade antes de faturar.
-        </div>
-        <div class="card-footer">
-          <span class="card-prio urgente"><span class="dot"></span>Procedimento em 2 dias</span>
-          <div class="card-actions">
-            <button class="btn-act btn-conferir">🔍 Conferir</button>
-            <button class="btn-act btn-faturar">📄 Faturar</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 2: RESERVA -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-num">PV R022896</span>
-          <span class="card-tipo tipo-R">Reserva</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">👤</span>
-          <span><span class="lbl">Vendedor:</span> Marcos Silva (000105)</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">🏥</span>
-          <span><span class="lbl">Hospital:</span> HOSPITAL ALBERT EINSTEIN</span>
-        </div>
-        <div class="card-procedimento">
-          <div class="lbl">Procedimento</div>
-          <div>Carlos Oliveira · Dra. Ana Lima · 30/05/2026 às 14:00 · Bradesco</div>
-        </div>
-        <div class="card-itens">
-          <div class="card-item-line">
-            <span class="prod">BR-1259-11</span> — 1 un — BRONCOSCOPIO FLEXIVEL TI 5.8 C 2.8MM
-            <div style="font-size: 11px; color: #1A5276; margin-top: 2px;">
-              📍 Item em P3 (consignado) no Arm.57 deste cliente
-            </div>
-          </div>
-        </div>
-        <div class="card-footer">
-          <span class="card-prio"><span class="dot" style="background: var(--amarelo)"></span>Em 3 dias</span>
-          <div class="card-actions">
-            <button class="btn-act btn-conferir">🔍 Conferir</button>
-            <button class="btn-act btn-faturar">📄 Faturar</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 3 -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-num">PV C022897</span>
-          <span class="card-tipo tipo-C">Consignação</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">👤</span>
-          <span><span class="lbl">Vendedor:</span> Antônio Carlos (000119)</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">🏥</span>
-          <span><span class="lbl">Hospital:</span> HOSPITAL SAMARITANO</span>
-        </div>
-        <div class="card-procedimento">
-          <div class="lbl">Procedimento</div>
-          <div>José Ferreira · Dr. Pedro Costa · 31/05/2026 às 10:15 · Amil</div>
-        </div>
-        <div class="card-itens">
-          <div class="card-item-line">
-            <span class="prod">PS012</span> — 3 un — MATERIAL DE CONSUMO
-          </div>
-        </div>
-        <div class="card-footer">
-          <span class="card-prio"><span class="dot" style="background: var(--verde-claro)"></span>Em 4 dias</span>
-          <div class="card-actions">
-            <button class="btn-act btn-conferir">🔍 Conferir</button>
-            <button class="btn-act btn-faturar">📄 Faturar</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Card 4 -->
-      <div class="card">
-        <div class="card-header">
-          <span class="card-num">PV R022898</span>
-          <span class="card-tipo tipo-R">Reserva</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">👤</span>
-          <span><span class="lbl">Vendedor:</span> Mario Marcelo (000166)</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">🏥</span>
-          <span><span class="lbl">Hospital:</span> PACIFICO OPER. HOSPITALARES</span>
-        </div>
-        <div class="card-procedimento">
-          <div class="lbl">Procedimento</div>
-          <div>Paula Reis · Dr. Carlos Mendes · 01/06/2026 às 16:30 · SulAmérica</div>
-        </div>
-        <div class="card-itens">
-          <div class="card-item-line">
-            <span class="prod">G-NB-2_0</span> — 1 un — COLA CIRURGICA GLUBRAN 2 1ML
-            <div style="font-size: 11px; color: #1A5276; margin-top: 2px;">
-              📍 Item em P3 no Arm.57
-            </div>
-          </div>
-          <div class="card-item-line">
-            <span class="prod">GB-DS 30</span> — 1 un — APLICADOR GLUTACK 30
-          </div>
-        </div>
-        <div class="card-footer">
-          <span class="card-prio"><span class="dot" style="background: var(--verde-claro)"></span>Em 5 dias</span>
-          <div class="card-actions">
-            <button class="btn-act btn-conferir">🔍 Conferir</button>
-            <button class="btn-act btn-faturar">📄 Faturar</button>
-          </div>
-        </div>
-      </div>
-
+    <div class="col-body" id="colPendentes">
+      <div class="empty">Carregando pedidos...</div>
     </div>
   </div>
 
   <!-- ===== COLUNA: ATENDIDOS ===== -->
   <div class="column col-atendido">
     <div class="col-header">
-      <span class="col-title">✅ Pedidos Atendidos</span>
-      <span class="col-badge">3</span>
+      <span class="col-title">âœ… Pedidos Atendidos</span>
+      <span class="col-badge" id="badgeAtend">0</span>
     </div>
-    <div class="col-body">
-
-      <div class="card atendido">
-        <div class="card-header">
-          <span class="card-num">PV C022890</span>
-          <span class="card-tipo tipo-C">Consignação</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">🏥</span>
-          <span><span class="lbl">Hospital:</span> HOSPITAL SIRIO LIBANES</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">📄</span>
-          <span><span class="lbl">NF:</span> 167900 · Série 001 · 27/05/2026</span>
-        </div>
-        <div class="card-itens">
-          <div class="card-item-line">
-            <span class="prod">RED68KIT</span> — 1 un — Serial <strong>171103</strong>
-          </div>
-        </div>
-        <div class="card-footer">
-          <span class="badge-done">✓ Faturado às 14:32</span>
-          <button class="btn-act btn-conferir">📋 Ver NF</button>
-        </div>
-      </div>
-
-      <div class="card atendido">
-        <div class="card-header">
-          <span class="card-num">PV R022891</span>
-          <span class="card-tipo tipo-R">Reserva</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">🏥</span>
-          <span><span class="lbl">Hospital:</span> HOSPITAL ALBERT EINSTEIN</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">📄</span>
-          <span><span class="lbl">NF:</span> 167895 · Série 001 · 27/05/2026</span>
-        </div>
-        <div class="card-itens">
-          <div class="card-item-line">
-            <span class="prod">G-NB-2_0</span> — 1 un — Serial <strong>171089</strong>
-          </div>
-          <div class="card-item-line">
-            <span class="prod">GB-DS 30</span> — 2 un — Seriais <strong>171090, 171091</strong>
-          </div>
-        </div>
-        <div class="card-footer">
-          <span class="badge-done">✓ Faturado às 11:18</span>
-          <button class="btn-act btn-conferir">📋 Ver NF</button>
-        </div>
-      </div>
-
-      <div class="card atendido">
-        <div class="card-header">
-          <span class="card-num">PV C022888</span>
-          <span class="card-tipo tipo-C">Consignação</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">🏥</span>
-          <span><span class="lbl">Hospital:</span> HOSPITAL SAMARITANO</span>
-        </div>
-        <div class="card-row">
-          <span class="icon">📄</span>
-          <span><span class="lbl">NF:</span> 167887 · Série 001 · 26/05/2026</span>
-        </div>
-        <div class="card-itens">
-          <div class="card-item-line">
-            <span class="prod">PS012</span> — 6 un — Lote H00007902
-          </div>
-        </div>
-        <div class="card-footer">
-          <span class="badge-done">✓ Faturado às 09:45</span>
-          <button class="btn-act btn-conferir">📋 Ver NF</button>
-        </div>
-      </div>
-
+    <div class="col-body" id="colAtendidos">
+      <div class="empty">Carregando...</div>
     </div>
   </div>
 
 </div>
+
+<script>
+const API_BASE = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03/WSSOLPV';
+const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
+
+const TIPO_NOME = { C: 'ConsignaÃ§Ã£o', R: 'Reserva', P: 'Consig. Perm.', N: 'Venda' };
+
+function esc(s) {
+  return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+}
+
+async function carregarPainel() {
+  document.getElementById('lastUpdate').textContent = 'Atualizando...';
+  try {
+    const r = await fetch(API_BASE + '?acao=painel', { headers: { Authorization: AUTH } });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.msg || 'Erro ao carregar painel');
+    renderColuna('colPendentes', 'badgePend', data.pendentes || [], false);
+    renderColuna('colAtendidos', 'badgeAtend', data.atendidos || [], true);
+    document.getElementById('lastUpdate').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+  } catch (e) {
+    document.getElementById('colPendentes').innerHTML = '<div class="empty">âš  ' + esc(e.message) + '<br><br>Recompile WSSOLPV (acao=painel) e reinicie o REST.</div>';
+    document.getElementById('colAtendidos').innerHTML = '';
+    document.getElementById('lastUpdate').textContent = 'Erro';
+  }
+}
+
+function renderColuna(elId, badgeId, lista, atendido) {
+  document.getElementById(badgeId).textContent = lista.length;
+  const el = document.getElementById(elId);
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty">' + (atendido ? 'Nenhum pedido atendido ainda.' : 'Nenhum pedido pendente.') + '</div>';
+    return;
+  }
+  el.innerHTML = lista.map(p => renderCard(p, atendido)).join('');
+}
+
+function renderCard(p, atendido) {
+  const tipo = (p.tipo || 'C').trim();
+  const itensHtml = (p.itens || []).map(it =>
+    '<div class="card-item-line"><span class="prod">' + esc(it.produto) + '</span> â€” ' +
+    esc(it.qtd || 1) + ' un â€” ' + esc(it.descricao || '') +
+    (it.serial ? '<div style="font-size:11px;color:#666;">Serial ' + esc(it.serial) + (it.lote ? ' Â· Lote ' + esc(it.lote) : '') + '</div>' : '') +
+    '</div>'
+  ).join('');
+
+  return '<div class="card' + (atendido ? ' atendido' : '') + '">' +
+    '<div class="card-header">' +
+      '<span class="card-num">PV ' + esc(p.pedido) + '</span>' +
+      '<span class="card-tipo tipo-' + esc(tipo) + '">' + esc(TIPO_NOME[tipo] || tipo) + '</span>' +
+    '</div>' +
+    '<div class="card-row"><span class="icon">ðŸ‘¤</span><span><span class="lbl">Vendedor:</span> ' + esc(p.vendedorNome || p.vendedor) + '</span></div>' +
+    '<div class="card-row"><span class="icon">ðŸ¥</span><span><span class="lbl">Hospital:</span> ' + esc(p.cliente) + '</span></div>' +
+    (p.paciente ? '<div class="card-procedimento"><span class="lbl">Procedimento</span><div>' + esc(p.paciente) + (p.medico ? ' Â· ' + esc(p.medico) : '') + (p.dtUso ? ' Â· ' + esc(p.dtUso) : '') + (p.convenio ? ' Â· ' + esc(p.convenio) : '') + '</div></div>' : '') +
+    '<div class="card-itens">' + itensHtml + '</div>' +
+    '<div class="card-footer">' +
+      (atendido ? '<span class="badge-done">âœ“ Faturado</span>' : '<span class="card-prio urgente"><span class="dot"></span>Aguardando</span>') +
+      '<div class="card-actions"><button class="btn-act btn-conferir">ðŸ” Conferir</button>' +
+      (atendido ? '' : '<button class="btn-act btn-faturar">ðŸ“„ Faturar</button>') +
+      '</div></div></div>';
+}
+
+carregarPainel();
+setInterval(carregarPainel, 60000);
+</script>
 
 </body>
 </html>

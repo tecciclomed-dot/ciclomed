@@ -76,8 +76,11 @@ WSMETHOD GET WSRECEIVE acao, serial, tipo, fil, vendedor, senha, q WSSERVICE WSS
         Case cAcao == "VERSAO"
             cJson := '{"ok":true,"servico":"WSSOLPV","versao":"1.0.0-27mai2026"}'
 
+        Case cAcao == "PAINEL"
+            cJson := fSolPainel(AllTrim(::fil))
+
         Otherwise
-            cJson := '{"ok":false,"msg":"Acao invalida. Use: login, serial, hospitais, pacientes, medicos, convenios, cirurgias"}'
+            cJson := '{"ok":false,"msg":"Acao invalida. Use: login, serial, painel, hospitais, pacientes, medicos, convenios, cirurgias"}'
     EndCase
 
     ::SetResponse(cJson)
@@ -274,7 +277,7 @@ Static Function fSolBuscaSerial(cSerial, cTipo, cFil, cVend)
 
     // --- 2) Fallback SB6 (P3) somente para Reserva ---
     If !lAchou .And. cTipo == "R"
-        cJson := fSolBuscaSerialSB6(cSerial, cFil, @cProd, @cDesc, @cLote, @cVal, @cArm, @cCliFor, @cLoja, @cNomCli, @cCidade, @cFilSbf, @nPreco, @cPedAtivo)
+        cJson := fSolSerSB6(cSerial, cFil, @cProd, @cDesc, @cLote, @cVal, @cArm, @cCliFor, @cLoja, @cNomCli, @cCidade, @cFilSbf, @nPreco, @cPedAtivo)
         If Left(cJson, 8) == '{"ok":fa'
             Return cJson
         EndIf
@@ -306,7 +309,8 @@ Static Function fSolBuscaSerial(cSerial, cTipo, cFil, cVend)
     cJson := fSolMontaJsonSerial(cSerial, cTipo, cOrigem, cProd, cDesc, cLote, cVal, cArm, cArmEsp, cFilSbf, nPreco, cCliFor, cLoja, cNomCli, cCidade, cAviso)
 Return cJson
 
-Static Function fSolBuscaSerialSB6(cSerial, cFil, cProd, cDesc, cLote, cVal, cArm, cCliFor, cLoja, cNomCli, cCidade, cFilB6, nPreco, cPedAtivo)
+// Nome curto (10 chars AdvPL) - evita colisao com fSolBuscaSerial -> fSolBuscaS
+Static Function fSolSerSB6(cSerial, cFil, cProd, cDesc, cLote, cVal, cArm, cCliFor, cLoja, cNomCli, cCidade, cFilB6, nPreco, cPedAtivo)
 
     Local cQry   := ""
     Local cAlias := GetNextAlias()
@@ -587,6 +591,147 @@ Static Function fSolTokens(cQ)
         aAdd(aRet, Upper(AllTrim(cQ)))
     EndIf
 Return aRet
+
+//=====================================================================
+// Painel logistica - pedidos a atender / atendidos (SC5/SC6)
+//=====================================================================
+Static Function fSolPainel(cFil)
+
+    Local cJson   := ""
+    Local cQry    := ""
+    Local cAlias  := GetNextAlias()
+    Local cFilPV  := ""
+    Local cNum    := ""
+    Local cTipo   := ""
+    Local lFirstP := .T.
+    Local lFirstA := .T.
+    Local nQtdP   := 0
+    Local nQtdF   := 0
+
+    cQry := " SELECT "
+    cQry += "   RTRIM(C5.C5_FILIAL) AS C5_FILIAL, "
+    cQry += "   RTRIM(C5.C5_NUM)    AS C5_NUM, "
+    cQry += "   RTRIM(C5.C5_TPSAIDA) AS C5_TPSAIDA, "
+    cQry += "   RTRIM(C5.C5_VEND1)  AS C5_VEND1, "
+    cQry += "   RTRIM(A3.A3_NOME)   AS A3_NOME, "
+    cQry += "   RTRIM(C5.C5_PACIENT) AS C5_PACIENT, "
+    cQry += "   RTRIM(C5.C5_XNOMEDI) AS C5_XNOMEDI, "
+    cQry += "   C5.C5_DTUSO         AS C5_DTUSO, "
+    cQry += "   RTRIM(C5.C5_XCONVEN) AS C5_XCONVEN, "
+    cQry += "   RTRIM(A1.A1_NOME)   AS A1_NOME, "
+    cQry += "   SUM(C6.C6_QTDVEN)   AS QTD_PED, "
+    cQry += "   SUM(C6.C6_QTDENT)   AS QTD_FAT "
+    cQry += " FROM " + RetSqlName("SC5") + " C5 WITH (NOLOCK) "
+    cQry += " INNER JOIN " + RetSqlName("SC6") + " C6 WITH (NOLOCK) "
+    cQry += "   ON C6.D_E_L_E_T_ = ' ' AND C6.C6_FILIAL = C5.C5_FILIAL AND C6.C6_NUM = C5.C5_NUM "
+    cQry += " LEFT JOIN " + RetSqlName("SA1") + " A1 WITH (NOLOCK) "
+    cQry += "   ON A1.D_E_L_E_T_ = ' ' AND A1.A1_COD = C5.C5_CLIENTE AND A1.A1_LOJA = C5.C5_LOJACLI "
+    cQry += " LEFT JOIN " + RetSqlName("SA3") + " A3 WITH (NOLOCK) "
+    cQry += "   ON A3.D_E_L_E_T_ = ' ' AND A3.A3_COD = C5.C5_VEND1 "
+    cQry += " WHERE C5.D_E_L_E_T_ = ' ' "
+    cQry += "   AND C5.C5_EMISSAO >= '" + DToS(Date() - 30) + "' "
+    If !Empty(cFil)
+        cQry += "   AND RTRIM(C5.C5_FILIAL) = '" + fSolSqlEsc(PadR(cFil, TamSX3("C5_FILIAL")[1])) + "' "
+    EndIf
+    cQry += " GROUP BY C5.C5_FILIAL, C5.C5_NUM, C5.C5_TPSAIDA, C5.C5_VEND1, A3.A3_NOME, "
+    cQry += "   C5.C5_PACIENT, C5.C5_XNOMEDI, C5.C5_DTUSO, C5.C5_XCONVEN, A1.A1_NOME "
+    cQry += " ORDER BY C5.C5_NUM DESC "
+
+    dbUseArea(.T., "TOPCONN", TCGenQry(,, cQry), cAlias, .F., .T.)
+
+    cJson := '{"ok":true,"pendentes":['
+
+    While !(cAlias)->(Eof())
+        nQtdP := (cAlias)->QTD_PED
+        nQtdF := (cAlias)->QTD_FAT
+        If nQtdF < nQtdP
+            If !lFirstP
+                cJson += ','
+            EndIf
+            lFirstP := .F.
+            cJson += fSolPnCard(AllTrim((cAlias)->C5_FILIAL), AllTrim((cAlias)->C5_NUM), AllTrim((cAlias)->C5_TPSAIDA), cAlias, .F.)
+        EndIf
+        (cAlias)->(dbSkip())
+    EndDo
+
+    cJson += '],"atendidos":['
+    (cAlias)->(dbGoTop())
+    While !(cAlias)->(Eof())
+        nQtdP := (cAlias)->QTD_PED
+        nQtdF := (cAlias)->QTD_FAT
+        If nQtdF >= nQtdP .And. nQtdP > 0
+            If !lFirstA
+                cJson += ','
+            EndIf
+            lFirstA := .F.
+            cJson += fSolPnCard(AllTrim((cAlias)->C5_FILIAL), AllTrim((cAlias)->C5_NUM), AllTrim((cAlias)->C5_TPSAIDA), cAlias, .T.)
+        EndIf
+        (cAlias)->(dbSkip())
+    EndDo
+
+    cJson += ']}'
+    (cAlias)->(dbCloseArea())
+Return cJson
+
+Static Function fSolPnCard(cFil, cNum, cTipo, cAlias, lAtend)
+
+    Local cJson  := ""
+    Local cItens := fSolPnItens(cFil, cNum)
+
+    cJson := '{'
+    cJson += '"pedido":"'       + fSolJsonEsc(cNum) + '",'
+    cJson += '"filial":"'       + fSolJsonEsc(cFil) + '",'
+    cJson += '"tipo":"'         + fSolJsonEsc(cTipo) + '",'
+    cJson += '"vendedor":"'     + fSolJsonEsc(AllTrim((cAlias)->C5_VEND1)) + '",'
+    cJson += '"vendedorNome":"' + fSolJsonEsc(AllTrim((cAlias)->A3_NOME)) + '",'
+    cJson += '"cliente":"'      + fSolJsonEsc(AllTrim((cAlias)->A1_NOME)) + '",'
+    cJson += '"paciente":"'     + fSolJsonEsc(AllTrim((cAlias)->C5_PACIENT)) + '",'
+    cJson += '"medico":"'       + fSolJsonEsc(AllTrim((cAlias)->C5_XNOMEDI)) + '",'
+    cJson += '"dtUso":"'        + fSolJsonEsc(fSolFmtData((cAlias)->C5_DTUSO)) + '",'
+    cJson += '"convenio":"'     + fSolJsonEsc(AllTrim((cAlias)->C5_XCONVEN)) + '",'
+    cJson += '"atendido":'      + IIF(lAtend, "true", "false") + ','
+    cJson += '"itens":'         + cItens
+    cJson += '}'
+Return cJson
+
+Static Function fSolPnItens(cFil, cNum)
+
+    Local cJson   := "["
+    Local cQry    := ""
+    Local cAlias  := GetNextAlias()
+    Local lFirst  := .T.
+
+    cQry := " SELECT RTRIM(C6.C6_PRODUTO) AS PRODUTO, "
+    cQry += "        RTRIM(B1.B1_DESC) AS DESCR, "
+    cQry += "        RTRIM(C6.C6_NUMSERI) AS SERIAL, "
+    cQry += "        RTRIM(C6.C6_LOTECTL) AS LOTE, "
+    cQry += "        C6.C6_QTDVEN AS QTD "
+    cQry += " FROM " + RetSqlName("SC6") + " C6 WITH (NOLOCK) "
+    cQry += " LEFT JOIN " + RetSqlName("SB1") + " B1 WITH (NOLOCK) "
+    cQry += "   ON B1.D_E_L_E_T_ = ' ' AND B1.B1_COD = C6.C6_PRODUTO "
+    cQry += " WHERE C6.D_E_L_E_T_ = ' ' "
+    cQry += "   AND RTRIM(C6.C6_FILIAL) = '" + fSolSqlEsc(cFil) + "' "
+    cQry += "   AND RTRIM(C6.C6_NUM) = '" + fSolSqlEsc(cNum) + "' "
+    cQry += " ORDER BY C6.C6_ITEM "
+
+    dbUseArea(.T., "TOPCONN", TCGenQry(,, cQry), cAlias, .F., .T.)
+
+    While !(cAlias)->(Eof())
+        If !lFirst
+            cJson += ","
+        EndIf
+        lFirst := .F.
+        cJson += '{"produto":"' + fSolJsonEsc(AllTrim((cAlias)->PRODUTO)) + '",'
+        cJson += '"descricao":"' + fSolJsonEsc(AllTrim((cAlias)->DESCR)) + '",'
+        cJson += '"serial":"' + fSolJsonEsc(AllTrim((cAlias)->SERIAL)) + '",'
+        cJson += '"lote":"' + fSolJsonEsc(AllTrim((cAlias)->LOTE)) + '",'
+        cJson += '"qtd":' + fSolJsonNum((cAlias)->QTD) + '}'
+        (cAlias)->(dbSkip())
+    EndDo
+
+    cJson += "]"
+    (cAlias)->(dbCloseArea())
+Return cJson
 
 //=====================================================================
 // POST - Gerar pedido (MATA410) - baseado em WSRESERVA

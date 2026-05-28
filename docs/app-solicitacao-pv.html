@@ -791,9 +791,10 @@
         <h1>Solicitação de Pedido <small>Vendedor externo</small></h1>
       </div>
     </div>
-    <div class="header-vendedor">
+    <div class="header-vendedor" id="hdrVendedor" onclick="abrirLogin()" style="cursor:pointer;" title="Toque para login">
       <span>👤</span>
-      <span><strong>Antônio Carlos</strong> — Vendedor 000119</span>
+      <span><strong id="vendNome">Antônio Carlos</strong> — Vendedor <span id="vendCod">000119</span></span>
+      <span id="loginStatus" style="margin-left:8px;font-size:11px;opacity:0.85;">🔒 Login</span>
     </div>
     <div class="tipo-selecionado" id="tipoSelHdr">
       <span class="tipo-label" id="tipoSelLabel">⚡ RESERVA</span>
@@ -1042,8 +1043,8 @@
   // ============================================================
   const API_BASE = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03/WSSOLPV';
   const API_FIL  = '01';   // filial padrao para gerar PV (ajustar conforme vendedor)
-  const API_VEND = '000119';
-  const API_SENHA = '';  // preencher quando tiver login no app
+  let API_VEND = '000119';
+  let API_SENHA = '';
   const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
   const USE_API = true;
 
@@ -1870,6 +1871,11 @@
       }))
     };
 
+    if (USE_API && !API_SENHA) {
+      alert('Informe a senha do vendedor para gerar o pedido no Protheus.\n\nToque no nome do vendedor no topo para fazer login.');
+      return;
+    }
+
     if (USE_API && API_SENHA) {
       showLoading(true);
       try {
@@ -1886,7 +1892,8 @@
         showLoading(false);
       }
     } else {
-      document.getElementById('pvNum').textContent = tipoPedido + String(Math.floor(8000 + Math.random() * 1500)).padStart(6, '0');
+      alert('Modo demonstração desativado. Faça login do vendedor para gerar pedido real.');
+      return;
     }
 
     document.querySelectorAll('#panel3 > *').forEach(el => {
@@ -1901,8 +1908,37 @@
   }
 
   // ============================================================
-  // INIT
+  // INIT + LOGIN VENDEDOR
   // ============================================================
+  (function initLogin() {
+    const s = sessionStorage.getItem('solpv_sess');
+    if (!s) return;
+    try {
+      const o = JSON.parse(s);
+      API_VEND = o.vendedor || API_VEND;
+      API_SENHA = o.senha || '';
+      document.getElementById('vendCod').textContent = API_VEND;
+      document.getElementById('vendNome').textContent = o.nome || 'Vendedor';
+      document.getElementById('loginStatus').textContent = '✓ Logado';
+    } catch (e) {}
+  })();
+
+  function abrirLogin() {
+    const cod = prompt('Código do vendedor:', API_VEND);
+    if (!cod) return;
+    const senha = prompt('Senha do vendedor (SA3):');
+    if (!senha) return;
+    apiGet({ acao: 'login', vendedor: cod.trim().padStart(6, '0'), senha }).then(r => {
+      if (!r.ok) { alert(r.msg || 'Login inválido'); return; }
+      API_VEND = r.vendedor;
+      API_SENHA = senha;
+      sessionStorage.setItem('solpv_sess', JSON.stringify({ vendedor: r.vendedor, senha, nome: r.nome }));
+      document.getElementById('vendCod').textContent = r.vendedor;
+      document.getElementById('vendNome').textContent = r.nome;
+      document.getElementById('loginStatus').textContent = '✓ Logado';
+    }).catch(e => alert(e.message));
+  }
+
   showStep(0);
 </script>
 
