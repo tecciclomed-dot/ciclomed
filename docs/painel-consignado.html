@@ -153,7 +153,18 @@
     border-left: 4px solid var(--amarelo);
     transition: all .15s;
   }
-  .card.atendido { border-left-color: var(--verde-sucesso); opacity: 0.92; }
+  .card.revisar { border-left-color: var(--vermelho); box-shadow: 0 0 0 1px rgba(192,57,43,0.15); }
+  .card-alerta {
+    background: #FDEDEC;
+    color: #922B21;
+    border: 1px solid #F5B7B1;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 8px 0;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .card-alerta strong { display: block; margin-bottom: 4px; }
   .card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.13); transform: translateY(-1px); }
   .card-header {
     display: flex;
@@ -385,19 +396,28 @@ function renderCard(p, atendido) {
       '</div></div>'
     : '';
 
-  return '<div class="card' + (atendido ? ' atendido' : '') + '">' +
+  const alerta = p.revisar
+    ? '<div class="card-alerta"><strong>⚠ Revisar antes de faturar</strong>' +
+      esc(p.avisos || 'Pedido gerado pelo app — conferir saldo, P3 ou serial.') +
+      '</div>'
+    : '';
+
+  return '<div class="card' + (atendido ? ' atendido' : '') + (p.revisar ? ' revisar' : '') + '">' +
     '<div class="card-header">' +
       '<span class="card-num">PV ' + esc(p.pedido) + '</span>' +
       '<span class="card-tipo tipo-' + esc(tipo) + '">' + esc(TIPO_NOME[tipo] || tipo) + '</span>' +
     '</div>' +
     '<div class="card-row"><span class="lbl">Vendedor:</span> ' + esc(p.vendedorNome || p.vendedor) + '</div>' +
     '<div class="card-row"><span class="lbl">Hospital:</span> ' + esc(p.cliente) + '</div>' +
+    alerta +
     proc +
     '<div class="card-itens">' + itensHtml + '</div>' +
     '<div class="card-footer">' +
-      (atendido
+        (atendido
         ? '<span class="badge-done">Faturado</span>'
-        : '<span class="card-prio"><span class="dot"></span>Aguardando</span>') +
+        : (p.revisar
+          ? '<span class="card-prio" style="color:#922B21"><span class="dot" style="background:#C0392B"></span>Revisar</span>'
+          : '<span class="card-prio"><span class="dot"></span>Aguardando</span>')) +
       '<div class="card-actions">' +
         '<button class="btn-act btn-conferir">Conferir</button>' +
         (atendido ? '' : '<button class="btn-act btn-faturar">Faturar</button>') +

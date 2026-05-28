@@ -1324,7 +1324,7 @@
         <h2>Pedido enviado!</h2>
         <p>Foi gerado o pedido de venda:</p>
         <div class="pv-num" id="pvNum">PV-008441</div>
-        <p>A logística já está vendo o pedido no painel.<br>Você receberá um aviso quando for atendido.</p>
+        <p id="successMsg">A logística já está vendo o pedido no painel.<br>Você receberá um aviso quando for atendido.</p>
         <button onclick="restart()">Nova solicitação</button>
       </div>
     </div>
@@ -2390,6 +2390,13 @@
           return;
         }
         document.getElementById('pvNum').textContent = resp.pedido;
+        const msgEl = document.getElementById('successMsg');
+        if (resp.revisar) {
+          msgEl.innerHTML = 'Pedido registrado com sucesso.<br><strong>A logística vai conferir saldo/serial antes de faturar.</strong>' +
+            (resp.avisos ? '<br><small style="opacity:0.85">' + escHtml(resp.avisos) + '</small>' : '');
+        } else {
+          msgEl.innerHTML = 'A logística já está vendo o pedido no painel.<br>Você receberá um aviso quando for atendido.';
+        }
       } catch (e) {
         alert(e.message);
         return;
