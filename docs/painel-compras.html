@@ -512,38 +512,46 @@ async function carregarDados() {
   document.getElementById('spinner').style.display = 'block';
   document.getElementById('error-msg').style.display = 'none';
 
-  try {
-    const url = `${REST_URL}/WSPAINELCP?apr=${encodeURIComponent(APR_ID)}&token=${encodeURIComponent(TOKEN)}`;
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json', 'Authorization': REST_AUTH }
-    });
+  const url = `${REST_URL}/WSPAINELCP?apr=${encodeURIComponent(APR_ID)}&token=${encodeURIComponent(TOKEN)}`;
+  const delays = [0, 3000, 6000];
+  let lastErr;
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    if (tentativa > 0) {
+      mostrarErro(`Aguardando Protheus... tentativa ${tentativa + 1} de 3`);
+      await new Promise(r => setTimeout(r, delays[tentativa]));
+      document.getElementById('error-msg').style.display = 'none';
     }
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'Authorization': REST_AUTH }
+      });
 
-    const data = await res.json();
+      if ([502, 503, 504].includes(res.status)) {
+        lastErr = new Error(`HTTP ${res.status} — Protheus não respondeu a tempo`);
+        continue;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    if (data.erro) {
-      mostrarErro('Erro do servidor: ' + data.erro);
+      const data = await res.json();
+      if (data.erro) { mostrarErro('Erro do servidor: ' + data.erro); return; }
+
+      if (data.nome_apr) document.getElementById('apr-nome').textContent = data.nome_apr;
+      renderizarPainel(data);
+      document.getElementById('last-update').textContent =
+        'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+      document.getElementById('spinner').style.display = 'none';
       return;
+
+    } catch (e) {
+      lastErr = e;
+      if (!e.message.includes('503') && !e.message.includes('502') && !e.message.includes('504')) break;
     }
-
-    // Exibe nome do aprovador no header
-    if (data.nome_apr) {
-      document.getElementById('apr-nome').textContent = data.nome_apr;
-    }
-
-    renderizarPainel(data);
-    document.getElementById('last-update').textContent =
-      'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
-
-  } catch (e) {
-    mostrarErro(`Não foi possível conectar ao servidor Protheus. Verifique a URL configurada.<br><small>${e.message}</small>`);
-  } finally {
-    document.getElementById('spinner').style.display = 'none';
   }
+
+  mostrarErro(`Não foi possível conectar ao Protheus após 3 tentativas.<br><small>${lastErr ? lastErr.message : ''}</small>`);
+  document.getElementById('spinner').style.display = 'none';
 }
 
 // ============================================================
