@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Painel de Consignados â€” CicloMed</title>
+<title>Painel de Consignados — CicloMed</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -29,7 +29,6 @@
     color: #2C3E2D;
   }
 
-  /* ===== HEADER ===== */
   .header {
     background: linear-gradient(135deg, var(--verde-escuro) 0%, var(--verde-principal) 100%);
     color: var(--branco);
@@ -60,12 +59,10 @@
     cursor: pointer;
     font-size: 13px;
     font-weight: 600;
-    display: flex; align-items: center; gap: 6px;
   }
   .btn-refresh:hover { background: rgba(255,255,255,0.25); }
   .last-update { font-size: 11px; opacity: 0.75; }
 
-  /* ===== FILTROS ===== */
   .filters {
     background: #fff;
     padding: 12px 24px;
@@ -75,25 +72,13 @@
     align-items: center;
     flex-wrap: wrap;
   }
-  .filter-search {
-    flex: 1;
-    min-width: 280px;
-    position: relative;
-  }
+  .filter-search { flex: 1; min-width: 280px; }
   .filter-search input {
     width: 100%;
-    padding: 9px 12px 9px 36px;
+    padding: 9px 12px;
     border: 1.5px solid var(--cinza-borda);
     border-radius: 8px;
     font-size: 13px;
-  }
-  .filter-search::before {
-    content: 'ðŸ”';
-    position: absolute;
-    left: 11px;
-    top: 8px;
-    font-size: 14px;
-    opacity: 0.6;
   }
   .filter-chip {
     padding: 7px 14px;
@@ -111,7 +96,6 @@
     border-color: var(--verde-principal);
   }
 
-  /* ===== BOARD ===== */
   .board {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -119,15 +103,9 @@
     padding: 18px 24px 30px;
     min-height: calc(100vh - 130px);
   }
-  @media (max-width: 900px) {
-    .board { grid-template-columns: 1fr; }
-  }
+  @media (max-width: 900px) { .board { grid-template-columns: 1fr; } }
 
-  .column {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-  }
+  .column { display: flex; flex-direction: column; min-width: 0; }
   .col-header {
     border-radius: 10px 10px 0 0;
     padding: 13px 18px;
@@ -141,9 +119,6 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
   }
   .col-badge {
     background: rgba(255,255,255,0.25);
@@ -165,14 +140,11 @@
     gap: 12px;
     min-height: 300px;
   }
-
   .col-atender .col-header { background: var(--amarelo); color: #623c00; }
   .col-atender .col-header .col-title { color: #623c00; }
   .col-atender .col-badge { background: rgba(0,0,0,0.12); color: #623c00; }
-
   .col-atendido .col-header { background: var(--verde-sucesso); }
 
-  /* ===== CARD ===== */
   .card {
     background: #fff;
     border-radius: 10px;
@@ -183,18 +155,13 @@
   }
   .card.atendido { border-left-color: var(--verde-sucesso); opacity: 0.92; }
   .card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.13); transform: translateY(-1px); }
-
   .card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 8px;
   }
-  .card-num {
-    font-size: 15px;
-    font-weight: 800;
-    color: var(--verde-escuro);
-  }
+  .card-num { font-size: 15px; font-weight: 800; color: var(--verde-escuro); }
   .card-tipo {
     font-size: 10px;
     font-weight: 700;
@@ -206,7 +173,6 @@
   }
   .card-tipo.tipo-C { background: #D6EAF8; color: #1A5276; }
   .card-tipo.tipo-R { background: #FCF3CF; color: #B7770F; }
-
   .card-row {
     display: flex;
     gap: 8px;
@@ -216,9 +182,7 @@
     color: #444;
     line-height: 1.4;
   }
-  .card-row .icon { width: 18px; flex-shrink: 0; font-size: 14px; }
-  .card-row .lbl  { font-weight: 600; color: var(--verde-escuro); margin-right: 4px; }
-
+  .card-row .lbl { font-weight: 600; color: var(--verde-escuro); margin-right: 4px; }
   .card-procedimento {
     background: var(--verde-fundo);
     padding: 8px 11px;
@@ -228,8 +192,12 @@
     color: var(--verde-escuro);
     border-left: 3px solid var(--verde-principal);
   }
-  .card-procedimento .lbl { font-weight: 700; text-transform: uppercase; font-size: 10px; opacity: 0.7; }
-
+  .card-procedimento .lbl {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10px;
+    opacity: 0.7;
+  }
   .card-itens {
     background: #FAFBFA;
     border: 1px solid #ECF0ED;
@@ -238,14 +206,9 @@
     margin: 8px 0;
     font-size: 12px;
   }
-  .card-item-line {
-    padding: 3px 0;
-    line-height: 1.4;
-  }
+  .card-item-line { padding: 3px 0; line-height: 1.4; }
   .card-item-line + .card-item-line { border-top: 1px dashed #E0E5E2; }
   .card-item-line .prod { font-weight: 700; color: var(--verde-escuro); }
-  .card-item-line .alerta { color: var(--amarelo); font-size: 11px; font-weight: 700; }
-
   .card-footer {
     margin-top: 10px;
     padding-top: 10px;
@@ -262,14 +225,14 @@
     font-weight: 700;
     text-transform: uppercase;
   }
-  .card-prio .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--vermelho); }
-  .card-prio.urgente .dot { background: var(--vermelho); animation: pulse 1.2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
-
-  .card-actions {
-    display: flex;
-    gap: 6px;
+  .card-prio .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--vermelho);
+    animation: pulse 1.2s infinite;
   }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .card-actions { display: flex; gap: 6px; }
   .btn-act {
     padding: 6px 12px;
     border: none;
@@ -278,13 +241,13 @@
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
-    transition: all .15s;
   }
-  .btn-conferir { background: var(--verde-fundo); color: var(--verde-escuro); border: 1.5px solid var(--verde-medio); }
-  .btn-conferir:hover { background: var(--verde-medio); color: #fff; }
-  .btn-faturar  { background: var(--verde-sucesso); color: #fff; box-shadow: 0 2px 4px rgba(39,174,96,0.3); }
-  .btn-faturar:hover { background: #1E8449; }
-
+  .btn-conferir {
+    background: var(--verde-fundo);
+    color: var(--verde-escuro);
+    border: 1.5px solid var(--verde-medio);
+  }
+  .btn-faturar { background: var(--verde-sucesso); color: #fff; }
   .badge-done {
     font-size: 11px;
     font-weight: 700;
@@ -293,64 +256,44 @@
     background: #D5F5E3;
     color: #1E8449;
   }
-
-  /* ===== EMPTY STATE ===== */
   .empty {
     text-align: center;
     padding: 40px 20px;
     color: #B0B8B2;
     font-size: 13px;
   }
-  .empty svg { width: 48px; height: 48px; opacity: 0.4; margin-bottom: 10px; }
-
-  /* ===== ALERTAS ===== */
-  .alerta-saldo {
-    background: #FEF9E7;
-    border-left: 3px solid var(--amarelo);
-    padding: 6px 9px;
-    margin-top: 6px;
-    font-size: 11px;
-    color: #7D6608;
-    border-radius: 0 4px 4px 0;
-  }
-  .alerta-saldo strong { color: #7D6608; }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
   <div class="header-left">
     <div class="header-logo">CM</div>
     <h1>
       Painel de Consignados
-      <span>Pedidos de Venda â€” LogÃ­stica CicloMed</span>
+      <span>Pedidos de Venda — Logística CicloMed</span>
     </h1>
   </div>
   <div class="header-right">
     <span class="last-update" id="lastUpdate">Carregando...</span>
-    <button class="btn-refresh" onclick="carregarPainel()">â†» Atualizar</button>
+    <button class="btn-refresh" onclick="carregarPainel()">Atualizar</button>
   </div>
 </div>
 
-<!-- FILTROS -->
 <div class="filters">
   <div class="filter-search">
     <input type="text" placeholder="Buscar por PV, cliente, paciente, produto...">
   </div>
   <span class="filter-chip on">Todos</span>
-  <span class="filter-chip">ConsignaÃ§Ã£o (C)</span>
+  <span class="filter-chip">Consignação (C)</span>
   <span class="filter-chip">Reserva (R)</span>
-  <span class="filter-chip">âš ï¸ Com Alerta de Saldo</span>
+  <span class="filter-chip">Com alerta de saldo</span>
 </div>
 
-<!-- BOARD -->
 <div class="board">
-
-  <!-- ===== COLUNA: A ATENDER ===== -->
   <div class="column col-atender">
     <div class="col-header">
-      <span class="col-title">â³ Pedidos a Atender</span>
+      <span class="col-title">Pedidos a Atender</span>
       <span class="col-badge" id="badgePend">0</span>
     </div>
     <div class="col-body" id="colPendentes">
@@ -358,27 +301,33 @@
     </div>
   </div>
 
-  <!-- ===== COLUNA: ATENDIDOS ===== -->
   <div class="column col-atendido">
     <div class="col-header">
-      <span class="col-title">âœ… Pedidos Atendidos</span>
+      <span class="col-title">Pedidos Atendidos</span>
       <span class="col-badge" id="badgeAtend">0</span>
     </div>
     <div class="col-body" id="colAtendidos">
       <div class="empty">Carregando...</div>
     </div>
   </div>
-
 </div>
 
 <script>
 const API_BASE = 'https://gentle-dawn-f83d.ciclomed.workers.dev/rest03/WSSOLPV';
 const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
 
-const TIPO_NOME = { C: 'ConsignaÃ§Ã£o', R: 'Reserva', P: 'Consig. Perm.', N: 'Venda' };
+const TIPO_NOME = {
+  C: 'Consignação',
+  R: 'Reserva',
+  P: 'Consig. Perm.',
+  N: 'Venda'
+};
 
 function esc(s) {
-  return (s == null ? '' : String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;');
 }
 
 async function carregarPainel() {
@@ -389,9 +338,12 @@ async function carregarPainel() {
     if (!data.ok) throw new Error(data.msg || 'Erro ao carregar painel');
     renderColuna('colPendentes', 'badgePend', data.pendentes || [], false);
     renderColuna('colAtendidos', 'badgeAtend', data.atendidos || [], true);
-    document.getElementById('lastUpdate').textContent = 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+    document.getElementById('lastUpdate').textContent =
+      'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
   } catch (e) {
-    document.getElementById('colPendentes').innerHTML = '<div class="empty">âš  ' + esc(e.message) + '<br><br>Recompile WSSOLPV (acao=painel) e reinicie o REST.</div>';
+    document.getElementById('colPendentes').innerHTML =
+      '<div class="empty">Erro: ' + esc(e.message) +
+      '<br><br>Recompile WSSOLPV (acao=painel) e reinicie o REST.</div>';
     document.getElementById('colAtendidos').innerHTML = '';
     document.getElementById('lastUpdate').textContent = 'Erro';
   }
@@ -401,7 +353,9 @@ function renderColuna(elId, badgeId, lista, atendido) {
   document.getElementById(badgeId).textContent = lista.length;
   const el = document.getElementById(elId);
   if (!lista.length) {
-    el.innerHTML = '<div class="empty">' + (atendido ? 'Nenhum pedido atendido ainda.' : 'Nenhum pedido pendente.') + '</div>';
+    el.innerHTML = '<div class="empty">' +
+      (atendido ? 'Nenhum pedido atendido ainda.' : 'Nenhum pedido pendente.') +
+      '</div>';
     return;
   }
   el.innerHTML = lista.map(p => renderCard(p, atendido)).join('');
@@ -410,25 +364,40 @@ function renderColuna(elId, badgeId, lista, atendido) {
 function renderCard(p, atendido) {
   const tipo = (p.tipo || 'C').trim();
   const itensHtml = (p.itens || []).map(it =>
-    '<div class="card-item-line"><span class="prod">' + esc(it.produto) + '</span> â€” ' +
-    esc(it.qtd || 1) + ' un â€” ' + esc(it.descricao || '') +
-    (it.serial ? '<div style="font-size:11px;color:#666;">Serial ' + esc(it.serial) + (it.lote ? ' Â· Lote ' + esc(it.lote) : '') + '</div>' : '') +
+    '<div class="card-item-line"><span class="prod">' + esc(it.produto) + '</span> — ' +
+    esc(it.qtd || 1) + ' un — ' + esc(it.descricao || '') +
+    (it.serial
+      ? '<div style="font-size:11px;color:#666;">Serial ' + esc(it.serial) +
+        (it.lote ? ' · Lote ' + esc(it.lote) : '') + '</div>'
+      : '') +
     '</div>'
   ).join('');
+
+  const proc = p.paciente
+    ? '<div class="card-procedimento"><span class="lbl">Procedimento</span><div>' +
+      esc(p.paciente) +
+      (p.medico ? ' · ' + esc(p.medico) : '') +
+      (p.dtUso ? ' · ' + esc(p.dtUso) : '') +
+      (p.convenio ? ' · ' + esc(p.convenio) : '') +
+      '</div></div>'
+    : '';
 
   return '<div class="card' + (atendido ? ' atendido' : '') + '">' +
     '<div class="card-header">' +
       '<span class="card-num">PV ' + esc(p.pedido) + '</span>' +
       '<span class="card-tipo tipo-' + esc(tipo) + '">' + esc(TIPO_NOME[tipo] || tipo) + '</span>' +
     '</div>' +
-    '<div class="card-row"><span class="icon">ðŸ‘¤</span><span><span class="lbl">Vendedor:</span> ' + esc(p.vendedorNome || p.vendedor) + '</span></div>' +
-    '<div class="card-row"><span class="icon">ðŸ¥</span><span><span class="lbl">Hospital:</span> ' + esc(p.cliente) + '</span></div>' +
-    (p.paciente ? '<div class="card-procedimento"><span class="lbl">Procedimento</span><div>' + esc(p.paciente) + (p.medico ? ' Â· ' + esc(p.medico) : '') + (p.dtUso ? ' Â· ' + esc(p.dtUso) : '') + (p.convenio ? ' Â· ' + esc(p.convenio) : '') + '</div></div>' : '') +
+    '<div class="card-row"><span class="lbl">Vendedor:</span> ' + esc(p.vendedorNome || p.vendedor) + '</div>' +
+    '<div class="card-row"><span class="lbl">Hospital:</span> ' + esc(p.cliente) + '</div>' +
+    proc +
     '<div class="card-itens">' + itensHtml + '</div>' +
     '<div class="card-footer">' +
-      (atendido ? '<span class="badge-done">âœ“ Faturado</span>' : '<span class="card-prio urgente"><span class="dot"></span>Aguardando</span>') +
-      '<div class="card-actions"><button class="btn-act btn-conferir">ðŸ” Conferir</button>' +
-      (atendido ? '' : '<button class="btn-act btn-faturar">ðŸ“„ Faturar</button>') +
+      (atendido
+        ? '<span class="badge-done">Faturado</span>'
+        : '<span class="card-prio"><span class="dot"></span>Aguardando</span>') +
+      '<div class="card-actions">' +
+        '<button class="btn-act btn-conferir">Conferir</button>' +
+        (atendido ? '' : '<button class="btn-act btn-faturar">Faturar</button>') +
       '</div></div></div>';
 }
 
