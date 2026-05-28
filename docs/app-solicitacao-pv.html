@@ -1787,6 +1787,7 @@
       lote: data.lote,
       val: data.validadeFmt || data.validade,
       local: data.local,
+      origem: data.origem || 'SBF',
       preco: data.preco || 0,
       cliente: data.cliente ? {
         id: data.cliente.id,
@@ -2364,6 +2365,7 @@
           produto: s.produto,
           lote: s.lote,
           validade: s.val,
+          origem: s.origem || 'SBF',
           preco: s.preco || 0
         };
       })
