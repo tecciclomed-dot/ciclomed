@@ -1,0 +1,2954 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Solicitação de Pedido — CicloMed</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --verde-principal: #1B5E3F;
+    --verde-escuro:    #0E3A24;
+    --verde-medio:     #2A7A4F;
+    --verde-claro:     #4CAF50;
+    --verde-fundo:     #E8F5EE;
+    --verde-sucesso:   #27AE60;
+    --vermelho:        #C0392B;
+    --vermelho-fundo:  #FDECEA;
+    --amarelo:         #F39C12;
+    --amarelo-fundo:   #FFF3CD;
+    --azul:            #3498DB;
+    --azul-fundo:      #E8F4FE;
+    --laranja-fundo:   #FFE5E5;
+    --cinza-fundo:     #F5F7F6;
+    --cinza-borda:     #E0E5E2;
+    --cinza-texto:     #5B6B61;
+    --branco:          #FFFFFF;
+  }
+
+  html, body {
+    height: 100%;
+    font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
+    background: var(--cinza-fundo);
+    color: #2C3E2D;
+    overscroll-behavior: none;
+  }
+
+  .app {
+    max-width: 480px;
+    margin: 0 auto;
+    min-height: 100vh;
+    background: var(--branco);
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 30px rgba(0,0,0,0.05);
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    background: linear-gradient(135deg, var(--verde-escuro) 0%, var(--verde-principal) 100%);
+    color: var(--branco);
+    padding: 16px 20px 14px;
+    position: relative;
+  }
+  .header-top {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-logo {
+    width: 42px; height: 42px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 17px;
+    letter-spacing: -1px;
+    color: #fff;
+    border: 1.5px solid rgba(255,255,255,0.3);
+  }
+  .header h1 { font-size: 16px; font-weight: 700; line-height: 1.2; }
+  .header h1 small { font-size: 11px; font-weight: 400; opacity: 0.8; display: block; margin-top: 1px; }
+
+  .header-vendedor {
+    margin-top: 10px;
+    font-size: 12px;
+    opacity: 0.85;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .tipo-selecionado {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 8px;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 13px;
+  }
+  .tipo-selecionado .tipo-label { font-weight: 700; letter-spacing: 0.3px; }
+  .tipo-selecionado button {
+    background: rgba(255,255,255,0.25);
+    color: #fff;
+    border: none;
+    padding: 4px 10px;
+    border-radius: 5px;
+    font-size: 11px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+
+  /* ===== STEPPER ===== */
+  .stepper {
+    display: flex;
+    background: var(--branco);
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--cinza-borda);
+    gap: 4px;
+  }
+  .step {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #B8C2BC;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .step .num {
+    display: inline-flex;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: var(--cinza-borda);
+    color: #999;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .step.active { color: var(--verde-principal); }
+  .step.active .num { background: var(--verde-principal); color: #fff; }
+  .step.done .num { background: var(--verde-sucesso); color: #fff; }
+  .step.done .num::after { content: '✓'; }
+  .step.done .num span { display: none; }
+
+  /* ===== MODAL LOGIN ===== */
+  .login-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14, 58, 36, 0.55);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .login-overlay.show { display: flex; }
+  .login-box {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 20px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .login-box h3 {
+    margin: 0 0 6px;
+    color: var(--verde-escuro);
+    font-size: 18px;
+  }
+  .login-box p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: var(--cinza-texto);
+    line-height: 1.4;
+  }
+  .login-box label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin: 10px 0 6px;
+  }
+  .login-box input {
+    width: 100%;
+    padding: 12px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 16px;
+  }
+  .login-err {
+    display: none;
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--vermelho-fundo);
+    color: var(--vermelho);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .login-err.show { display: block; }
+  .login-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .login-actions button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .login-actions .btn-cancel { background: var(--cinza-fundo); color: #555; }
+  .login-actions .btn-enter { background: var(--verde-principal); color: #fff; }
+  .header-vendedor.logado { background: rgba(255,255,255,0.12); }
+  #loginStatus.ok { color: #a8f0c8; font-weight: 700; }
+
+  /* ===== ENTRADA — QUEM E VOCE (voz) ===== */
+  .entry-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: linear-gradient(160deg, var(--verde-escuro) 0%, var(--verde-principal) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 20px;
+    color: #fff;
+  }
+  .entry-screen.hidden { display: none; }
+  .entry-box {
+    width: 100%;
+    max-width: 400px;
+    text-align: center;
+  }
+  .entry-box h2 { font-size: 22px; margin: 0 0 8px; }
+  .entry-box p { font-size: 14px; opacity: 0.9; margin: 0 0 20px; line-height: 1.4; }
+  .entry-voice-btn {
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    border: 3px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    font-size: 40px;
+    cursor: pointer;
+    margin: 0 auto 16px;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform .15s;
+  }
+  .entry-voice-btn:active { transform: scale(0.95); }
+  .entry-voice-btn.listening {
+    background: rgba(255,255,255,0.35);
+    animation: micPulse 1.2s infinite;
+  }
+  .entry-search {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+    font-size: 16px;
+    margin-bottom: 12px;
+  }
+  .entry-results {
+    max-height: 220px;
+    overflow-y: auto;
+    text-align: left;
+    margin-top: 8px;
+  }
+  .entry-person {
+    background: rgba(255,255,255,0.95);
+    color: var(--verde-escuro);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+  }
+  .entry-person:hover { background: #fff; }
+  .entry-person .ep-nome { font-weight: 700; font-size: 15px; }
+  .entry-person .ep-info { font-size: 12px; color: var(--cinza-texto); margin-top: 2px; }
+  .entry-person .ep-tipo {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 6px;
+    text-transform: uppercase;
+  }
+  .entry-person .ep-tipo.v { background: var(--verde-fundo); color: var(--verde-principal); }
+  .entry-person .ep-tipo.u { background: var(--azul-fundo); color: var(--azul); }
+  .entry-pass {
+    display: none;
+    margin-top: 16px;
+    text-align: left;
+    background: rgba(255,255,255,0.12);
+    padding: 16px;
+    border-radius: 12px;
+  }
+  .entry-pass.show { display: block; }
+  .entry-pass label { font-size: 12px; font-weight: 700; }
+  .entry-pass input {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    margin: 8px 0 12px;
+    font-size: 16px;
+  }
+  .entry-pass button {
+    width: 100%;
+    padding: 14px;
+    background: #fff;
+    color: var(--verde-principal);
+    border: none;
+    border-radius: 8px;
+    font-weight: 800;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  .entry-pass-hint {
+    font-size: 12px;
+    opacity: 0.92;
+    margin: 4px 0 8px;
+    line-height: 1.45;
+  }
+  .entry-pass-quick {
+    width: 100%;
+    margin-bottom: 8px;
+    padding: 11px;
+    border: 1px dashed rgba(255,255,255,0.55);
+    border-radius: 8px;
+    background: transparent;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .entry-painel-link {
+    display: block;
+    margin-top: 20px;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.15);
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 700;
+  }
+  .entry-painel-link small {
+    display: block;
+    font-size: 11px;
+    font-weight: 500;
+    opacity: 0.85;
+    margin-top: 4px;
+  }
+  .entry-heard {
+    min-height: 24px;
+    font-size: 15px;
+    font-style: italic;
+    opacity: 0.95;
+    margin-bottom: 8px;
+  }
+
+  /* ===== CONTEÚDO ===== */
+  .content {
+    flex: 1;
+    padding: 18px 20px 100px;
+  }
+
+  .panel { display: none; }
+  .panel.active { display: block; animation: slide-in .25s ease; }
+  @keyframes slide-in {
+    from { opacity: 0; transform: translateX(8px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .panel-title {
+    font-size: 19px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin-bottom: 4px;
+  }
+  .panel-subtitle {
+    font-size: 13px;
+    color: var(--cinza-texto);
+    margin-bottom: 18px;
+    line-height: 1.45;
+  }
+
+  /* ===== CARDS DE TIPO DE PEDIDO ===== */
+  .tipo-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .tipo-card {
+    background: #fff;
+    border: 2px solid var(--cinza-borda);
+    border-radius: 14px;
+    padding: 16px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tipo-card:hover, .tipo-card:active {
+    border-color: var(--verde-principal);
+    background: var(--verde-fundo);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(27,94,63,0.12);
+  }
+  .tipo-card .tipo-icon {
+    width: 54px; height: 54px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-size: 26px;
+  }
+  .tipo-card .tipo-nome {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin-bottom: 4px;
+    letter-spacing: 0.2px;
+  }
+  .tipo-card .tipo-desc {
+    font-size: 11px;
+    color: var(--cinza-texto);
+    line-height: 1.35;
+  }
+  .tipo-card.tipo-wide { grid-column: 1 / -1; }
+
+  /* ===== BUSCA PRODUTO (SOLICITACAO MATERIAL) ===== */
+  .product-card {
+    background: #fff;
+    border: 2px solid var(--cinza-borda);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .product-card label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin-bottom: 8px;
+  }
+  .product-search-wrap { position: relative; }
+  .product-search-wrap input {
+    width: 100%;
+    padding: 11px 12px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .prod-suggestions {
+    position: absolute;
+    left: 0; right: 0;
+    top: calc(100% + 4px);
+    background: #fff;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+    z-index: 50;
+    display: none;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  }
+  .prod-suggestions.show { display: block; }
+  .prod-suggestions div {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--cinza-borda);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .prod-suggestions div:hover { background: var(--verde-fundo); }
+  .prod-suggestions .cod { font-weight: 700; color: var(--verde-escuro); }
+  .prod-suggestions .desc { font-size: 11px; color: var(--cinza-texto); margin-top: 2px; }
+  .product-qty-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    align-items: center;
+  }
+  .product-qty-row input {
+    width: 70px;
+    padding: 10px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    text-align: center;
+    font-size: 16px;
+  }
+  .product-qty-row button {
+    flex: 1;
+    padding: 11px;
+    background: var(--verde-principal);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .card-tipo.tipo-M { background: #E8DAEF; color: #6C3483; }
+
+  .tipo-hint {
+    background: var(--verde-fundo);
+    border-left: 4px solid var(--verde-principal);
+    border-radius: 6px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--verde-escuro);
+    line-height: 1.5;
+  }
+
+  /* ===== CAMPOS ===== */
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    margin-bottom: 5px;
+  }
+  .field label .req { color: var(--vermelho); }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 14px;
+    background: #fff;
+    transition: border-color .15s, box-shadow .15s;
+    font-family: inherit;
+  }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: var(--verde-principal);
+    box-shadow: 0 0 0 3px rgba(27,94,63,0.12);
+  }
+  .field textarea { resize: vertical; min-height: 76px; }
+  .field-hint { font-size: 11px; color: var(--cinza-texto); margin-top: 4px; }
+
+  .row { display: flex; gap: 10px; }
+  .row .field { flex: 1; }
+
+  /* ===== AUTOCOMPLETE ===== */
+  .autocomplete { position: relative; }
+  .autocomplete .input-wrap {
+    position: relative;
+    width: 100%;
+    display: block;
+  }
+  .autocomplete .input-wrap input { padding-right: 46px; width: 100%; }
+
+  .suggestions {
+    position: absolute;
+    top: calc(100% + 2px); left: 0; right: 0;
+    background: #fff;
+    border: 1.5px solid var(--verde-principal);
+    border-radius: 8px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    max-height: 230px;
+    overflow-y: auto;
+    z-index: 100;
+    display: none;
+  }
+  .suggestions.open { display: block; }
+  .suggestion-item {
+    padding: 10px 13px;
+    border-bottom: 1px solid var(--cinza-borda);
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .suggestion-item:last-child { border-bottom: none; }
+  .suggestion-item:hover { background: var(--verde-fundo); }
+  .suggestion-item .si-name { font-weight: 600; color: var(--verde-escuro); }
+  .suggestion-item .si-info { font-size: 11px; color: var(--cinza-texto); margin-top: 2px; }
+
+  /* ===== MIC ===== */
+  .mic-btn {
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px; height: 36px;
+    border: none;
+    background: var(--verde-fundo);
+    color: var(--verde-principal);
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .mic-btn:hover { background: #d4ecdc; }
+  .mic-btn:active { transform: translateY(-50%) scale(0.94); }
+  .mic-btn svg { width: 18px; height: 18px; }
+  .mic-btn.listening {
+    background: var(--vermelho);
+    color: #fff;
+    animation: micPulse 1.2s infinite;
+  }
+  @keyframes micPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(192,57,43,0.5); }
+    50%      { box-shadow: 0 0 0 8px rgba(192,57,43,0); }
+  }
+  .mic-btn.unsupported { opacity: 0.35; cursor: not-allowed; }
+
+  /* ===== SCANNER ===== */
+  .scanner-card {
+    background: linear-gradient(135deg, var(--verde-escuro), var(--verde-principal));
+    color: #fff;
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .scanner-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at 30% 20%, rgba(255,255,255,0.15), transparent 50%);
+  }
+  .btn-scan {
+    width: 100%;
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-radius: 12px;
+    padding: 18px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    backdrop-filter: blur(4px);
+    transition: all .15s;
+    -webkit-tap-highlight-color: transparent;
+    position: relative;
+  }
+  .btn-scan:hover, .btn-scan:active {
+    background: rgba(255,255,255,0.3);
+    transform: scale(1.01);
+  }
+  .btn-scan svg { width: 44px; height: 44px; }
+  .btn-scan small { font-size: 11px; font-weight: 400; opacity: 0.85; }
+
+  .scanner-or {
+    text-align: center;
+    color: var(--cinza-texto);
+    font-size: 12px;
+    margin: 12px 0;
+    position: relative;
+  }
+  .scanner-or::before, .scanner-or::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 36%;
+    height: 1px;
+    background: var(--cinza-borda);
+  }
+  .scanner-or::before { left: 0; }
+  .scanner-or::after { right: 0; }
+
+  .manual-row {
+    display: flex;
+    gap: 8px;
+  }
+  .manual-row input { flex: 1; }
+  .manual-row button {
+    background: var(--verde-principal);
+    color: #fff;
+    border: none;
+    padding: 0 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  /* ===== CARD DE SERIAL ESCANEADO ===== */
+  .serial-card {
+    background: #fff;
+    border: 1.5px solid var(--cinza-borda);
+    border-left: 4px solid var(--verde-principal);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    position: relative;
+    animation: slide-in .25s ease;
+  }
+  .serial-card .sc-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .serial-card .sc-prod-cod {
+    font-size: 11px;
+    color: var(--verde-principal);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .serial-card .sc-prod-desc {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--verde-escuro);
+    margin-top: 2px;
+    line-height: 1.3;
+  }
+  .serial-card .sc-meta {
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px 12px;
+    font-size: 11px;
+    color: var(--cinza-texto);
+  }
+  .serial-card .sc-meta strong { color: var(--verde-escuro); font-weight: 600; }
+  .serial-card .sc-remove {
+    background: transparent;
+    border: none;
+    color: var(--vermelho);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 4px;
+    flex-shrink: 0;
+  }
+  .serial-card .sc-cliente-badge {
+    background: var(--verde-fundo);
+    border: 1px solid var(--verde-principal);
+    border-radius: 6px;
+    padding: 6px 10px;
+    margin-top: 10px;
+    font-size: 11px;
+    color: var(--verde-escuro);
+  }
+  .serial-card .sc-cliente-badge strong { display: block; font-size: 12px; }
+
+  .serial-card.warn {
+    border-left-color: var(--amarelo);
+    background: #FFFCF5;
+  }
+  .serial-card.err {
+    border-left-color: var(--vermelho);
+    background: var(--vermelho-fundo);
+  }
+
+  .empty-state {
+    background: var(--cinza-fundo);
+    border: 2px dashed var(--cinza-borda);
+    border-radius: 10px;
+    padding: 24px 18px;
+    text-align: center;
+    color: var(--cinza-texto);
+    font-size: 13px;
+  }
+  .empty-state .es-icon { font-size: 36px; opacity: 0.4; margin-bottom: 6px; }
+
+  /* ===== CLIENTE DETECTADO ===== */
+  .cliente-detectado {
+    background: var(--verde-fundo);
+    border: 2px solid var(--verde-principal);
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .cliente-detectado .cd-check {
+    width: 36px; height: 36px;
+    background: var(--verde-principal);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .cliente-detectado .cd-info {
+    flex: 1;
+    min-width: 0;
+  }
+  .cliente-detectado .cd-label {
+    font-size: 10px;
+    color: var(--verde-principal);
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .cliente-detectado .cd-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin-top: 1px;
+  }
+  .cliente-detectado .cd-extra {
+    font-size: 11px;
+    color: var(--cinza-texto);
+    margin-top: 2px;
+  }
+
+  /* ===== CAMERA OVERLAY ===== */
+  .cam-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    z-index: 9999;
+    display: none;
+    flex-direction: column;
+  }
+  .cam-overlay.show { display: flex; }
+  .cam-header {
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    backdrop-filter: blur(4px);
+  }
+  .cam-header h3 { font-size: 14px; font-weight: 600; }
+  .cam-header button {
+    background: rgba(255,255,255,0.2);
+    color: #fff;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .cam-viewport {
+    flex: 1;
+    position: relative;
+    background: #111;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  .cam-frame {
+    width: 80%;
+    max-width: 320px;
+    aspect-ratio: 1.3;
+    border: 3px solid #fff;
+    border-radius: 16px;
+    position: relative;
+    box-shadow: 0 0 0 9999px rgba(0,0,0,0.6);
+  }
+  .cam-corners::before, .cam-corners::after,
+  .cam-corners > span::before, .cam-corners > span::after {
+    content: '';
+    position: absolute;
+    width: 22px; height: 22px;
+    border: 4px solid var(--verde-claro);
+  }
+  .cam-corners::before { top: -3px; left: -3px; border-right: none; border-bottom: none; border-top-left-radius: 12px; }
+  .cam-corners::after  { top: -3px; right: -3px; border-left: none; border-bottom: none; border-top-right-radius: 12px; }
+  .cam-corners > span::before { bottom: -3px; left: -3px; border-right: none; border-top: none; border-bottom-left-radius: 12px; }
+  .cam-corners > span::after  { bottom: -3px; right: -3px; border-left: none; border-top: none; border-bottom-right-radius: 12px; }
+
+  .cam-laser {
+    position: absolute;
+    left: 6%; right: 6%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--verde-claro), transparent);
+    top: 50%;
+    animation: laser 1.8s ease-in-out infinite;
+    box-shadow: 0 0 12px var(--verde-claro);
+  }
+  @keyframes laser {
+    0%, 100% { top: 12%; }
+    50%      { top: 86%; }
+  }
+
+  .cam-instructions {
+    background: rgba(0,0,0,0.7);
+    color: #fff;
+    padding: 14px 18px;
+    text-align: center;
+    font-size: 13px;
+    backdrop-filter: blur(4px);
+  }
+  .cam-instructions strong { color: var(--verde-claro); display: block; font-size: 15px; margin-bottom: 4px; }
+
+  .cam-detected {
+    position: absolute;
+    bottom: 14px;
+    left: 14px;
+    right: 14px;
+    background: var(--verde-principal);
+    color: #fff;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 13px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    animation: pop .3s ease;
+    display: none;
+  }
+  .cam-detected.show { display: block; }
+  .cam-detected strong { font-size: 18px; display: block; margin-bottom: 2px; }
+  @keyframes pop {
+    0% { transform: scale(0.9); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  /* ===== VOICE OVERLAY ===== */
+  .voice-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(14,58,36,0.55);
+    z-index: 9999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .voice-overlay.show { display: flex; }
+  .voice-card {
+    background: #fff;
+    border-radius: 16px;
+    padding: 28px 24px 22px;
+    max-width: 320px;
+    width: 100%;
+    text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  }
+  .voice-card .pulse {
+    width: 80px; height: 80px;
+    margin: 0 auto 14px;
+    background: var(--vermelho);
+    color: #fff;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    animation: micPulse 1.2s infinite;
+  }
+  .voice-card .pulse svg { width: 36px; height: 36px; }
+  .voice-card h3 { color: var(--verde-escuro); font-size: 17px; margin-bottom: 6px; }
+  .voice-card p { color: var(--cinza-texto); font-size: 13px; margin-bottom: 14px; }
+  .voice-card .heard {
+    background: var(--cinza-fundo);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: var(--verde-escuro);
+    min-height: 40px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    font-style: italic;
+  }
+  .voice-card button {
+    background: var(--cinza-fundo);
+    border: none;
+    padding: 10px 22px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--verde-escuro);
+    cursor: pointer;
+  }
+
+  /* ===== REVIEW ===== */
+  .review-box {
+    background: var(--verde-fundo);
+    border-left: 4px solid var(--verde-principal);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .review-box h4 {
+    font-size: 12px;
+    color: var(--verde-principal);
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    margin-bottom: 8px;
+  }
+  .review-line {
+    display: flex;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 13px;
+    border-bottom: 1px dashed rgba(27,94,63,0.15);
+  }
+  .review-line:last-child { border-bottom: none; }
+  .review-line .lbl { color: var(--cinza-texto); }
+  .review-line .val { color: var(--verde-escuro); font-weight: 600; text-align: right; }
+
+  .success-screen {
+    text-align: center;
+    padding: 40px 20px;
+    display: none;
+  }
+  .success-screen .check-icon {
+    width: 80px; height: 80px;
+    margin: 0 auto 18px;
+    background: var(--verde-sucesso);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff;
+    font-size: 38px;
+  }
+  .success-screen h2 { font-size: 22px; color: var(--verde-escuro); margin-bottom: 8px; }
+  .success-screen p { color: var(--cinza-texto); font-size: 14px; margin-bottom: 6px; }
+  .success-screen .pv-num {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--verde-principal);
+    background: var(--verde-fundo);
+    padding: 8px 18px;
+    border-radius: 8px;
+    display: inline-block;
+    margin: 12px 0;
+    letter-spacing: 1px;
+  }
+  .success-screen button {
+    background: var(--verde-principal);
+    color: #fff;
+    border: none;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 14px;
+  }
+
+  /* ===== FOOTER ===== */
+  .footer {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 480px;
+    background: #fff;
+    border-top: 1px solid var(--cinza-borda);
+    padding: 12px 20px;
+    display: flex;
+    gap: 10px;
+    z-index: 50;
+  }
+  .btn {
+    flex: 1;
+    padding: 13px;
+    border: none;
+    border-radius: 9px;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--verde-principal); color: #fff; }
+  .btn-primary:hover { background: var(--verde-medio); }
+  .btn-primary:disabled { background: #B8C2BC; cursor: not-allowed; }
+  .btn-secondary { background: var(--cinza-fundo); color: var(--verde-escuro); }
+  .btn-secondary:hover { background: #E0E5E2; }
+
+  .btn-anexos {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 8px;
+    padding: 14px 16px;
+    background: var(--verde-fundo);
+    border: 2px dashed var(--verde-medio);
+    border-radius: 10px;
+    color: var(--verde-principal);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-anexos.tem-fotos { border-style: solid; background: #fff; }
+  .btn-anexos .anexo-badge {
+    margin-left: auto;
+    background: var(--verde-principal);
+    color: #fff;
+    min-width: 22px;
+    height: 22px;
+    border-radius: 11px;
+    padding: 0 6px;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-fotos-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14,58,36,0.45);
+    z-index: 8000;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .modal-fotos-overlay.show { display: flex; }
+  .modal-fotos-sheet {
+    background: #fff;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+    border-radius: 20px 20px 0 0;
+    padding: 16px 16px 24px;
+  }
+  .modal-fotos-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .modal-fotos-head h3 { font-size: 16px; color: var(--verde-escuro); }
+  .modal-fotos-head button {
+    border: none;
+    background: var(--cinza-fundo);
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .fotos-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .foto-thumb {
+    position: relative;
+    aspect-ratio: 1;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--cinza-borda);
+  }
+  .foto-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .foto-thumb .foto-remove {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 22px; height: 22px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .btn-add-foto {
+    aspect-ratio: 1;
+    border: 2px dashed var(--cinza-borda);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: var(--verde-principal);
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .foto-counter {
+    text-align: center;
+    font-size: 12px;
+    color: var(--cinza-texto);
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ ENTRADA — QUEM E VOCE ============ -->
+<div class="entry-screen" id="entryScreen">
+  <div class="entry-box">
+    <h2>Quem é você?</h2>
+    <p>Fale seu nome ou digite abaixo.<br>Vendedor ou usuário interno.</p>
+    <button type="button" class="entry-voice-btn" id="entryVoiceBtn" onclick="falarMeuNome()" title="Falar nome">🎤</button>
+    <div class="entry-heard" id="entryHeard">Toque no microfone e diga seu nome</div>
+    <input type="text" class="entry-search" id="entrySearch" placeholder="Ex: Maurilio, Antonio..." autocomplete="off">
+    <div class="entry-results" id="entryResults"></div>
+    <div class="entry-pass" id="entryPass">
+      <div id="entryPassNome" style="font-weight:700;margin-bottom:8px;"></div>
+      <label>Senha do vendedor (SA3)</label>
+      <div class="entry-pass-hint" id="entryPassHint">Use a senha cadastrada no Protheus (geralmente igual ao código do vendedor).</div>
+      <input type="password" id="entryPassSenha" inputmode="numeric" autocomplete="current-password" placeholder="Ex: 000119">
+      <button type="button" class="entry-pass-quick" id="entryPassQuick" onclick="usarCodigoComoSenha()">Usar código do vendedor como senha</button>
+      <button type="button" onclick="confirmarEntradaVendedor()">Entrar</button>
+    </div>
+    <a class="entry-painel-link" href="painel-consignado.html">
+      📋 Painel de Logística
+      <small>Pedidos pendentes e atendidos — consignação / reserva</small>
+    </a>
+  </div>
+</div>
+
+<div class="app" id="appMain">
+
+  <!-- ============ HEADER ============ -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-logo">CM</div>
+      <div>
+        <h1>Solicitação de Pedido <small>Vendedor externo</small></h1>
+      </div>
+    </div>
+    <div class="header-vendedor" id="hdrVendedor" onclick="abrirLogin()" style="cursor:pointer;" title="Toque para login">
+      <span>👤</span>
+      <span><strong id="vendNome">Vendedor</strong> — Cód. <span id="vendCod">000119</span></span>
+      <span id="loginStatus" style="margin-left:8px;font-size:11px;opacity:0.85;">🔒 Toque para login</span>
+    </div>
+    <div class="tipo-selecionado" id="tipoSelHdr">
+      <span class="tipo-label" id="tipoSelLabel">⚡ RESERVA</span>
+      <button onclick="trocarTipo()">trocar</button>
+    </div>
+  </div>
+
+  <!-- ============ STEPPER ============ -->
+  <div class="stepper" id="stepper">
+    <div class="step active" id="step1"><span class="num"><span>1</span></span>Itens</div>
+    <div class="step" id="step2"><span class="num"><span>2</span></span>Procedimento</div>
+    <div class="step" id="step3"><span class="num"><span>3</span></span>Confirmar</div>
+  </div>
+
+  <!-- ============ CONTEUDO ============ -->
+  <div class="content">
+
+    <!-- ============ TELA 0: ESCOLHA DO TIPO ============ -->
+    <div class="panel active" id="panel0">
+      <div class="panel-title">Que tipo de pedido?</div>
+      <div class="panel-subtitle">
+        Selecione o tipo para começar. O sistema vai pedir os dados certos para cada caso.
+      </div>
+
+      <div class="tipo-grid">
+        <div class="tipo-card" onclick="escolherTipo('R')">
+          <div class="tipo-icon" style="background:var(--laranja-fundo);color:var(--vermelho);">⚡</div>
+          <div class="tipo-nome">RESERVA</div>
+          <div class="tipo-desc">Item já em poder<br>do cliente (Arm 57)</div>
+        </div>
+
+        <div class="tipo-card" onclick="escolherTipo('C')">
+          <div class="tipo-icon" style="background:var(--verde-fundo);color:var(--verde-principal);">📦</div>
+          <div class="tipo-nome">CONSIGNAÇÃO</div>
+          <div class="tipo-desc">Remessa em<br>consignação (Arm 50)</div>
+        </div>
+
+        <div class="tipo-card" onclick="escolherTipo('P')">
+          <div class="tipo-icon" style="background:var(--amarelo-fundo);color:var(--amarelo);">🏥</div>
+          <div class="tipo-nome">CONSIG. PERMANENTE</div>
+          <div class="tipo-desc">Material em consignação<br>permanente no cliente</div>
+        </div>
+
+        <div class="tipo-card" onclick="escolherTipo('N')">
+          <div class="tipo-icon" style="background:var(--azul-fundo);color:var(--azul);">🩺</div>
+          <div class="tipo-nome">VENDA / ELETIVO</div>
+          <div class="tipo-desc">Venda direta<br>do estoque (Arm 50)</div>
+        </div>
+
+        <div class="tipo-card tipo-wide" onclick="escolherTipo('M')">
+          <div class="tipo-icon" style="background:#F4ECF7;color:#6C3483;">📋</div>
+          <div class="tipo-nome">SOLICITAÇÃO DE MATERIAL</div>
+          <div class="tipo-desc">Reserva estoque sem serial — procedimento ainda não confirmado.<br>Logística converte depois em consignação com serial.</div>
+        </div>
+      </div>
+
+      <div class="tipo-hint">
+        <strong>💡 Reserva:</strong> use quando o material já está no hospital (poder de terceiros). Basta escanear o serial — o sistema identifica o cliente automaticamente.
+      </div>
+    </div>
+
+    <!-- ============ TELA 1: ITENS (SCAN-FIRST) ============ -->
+    <div class="panel" id="panel1">
+      <div class="panel-title">Itens da cirurgia</div>
+      <div class="panel-subtitle" id="panel1Sub">
+        Escaneie os seriais que serão utilizados na cirurgia.
+      </div>
+
+      <!-- SCANNER (R/C/P/N) -->
+      <div class="scanner-card" id="scannerCard">
+        <button class="btn-scan" onclick="abrirCamera()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+            <circle cx="12" cy="13" r="4"/>
+          </svg>
+          <span>Escanear Serial</span>
+          <small>Toque para abrir a câmera</small>
+        </button>
+
+        <div class="scanner-or">— ou —</div>
+
+        <div class="manual-row">
+          <input type="text" id="inpSerialManual" placeholder="Digitar serial manualmente" autocomplete="off"
+                 onkeydown="if(event.key==='Enter'){event.preventDefault();adicionarSerialManual();}">
+          <button onclick="adicionarSerialManual()">Adicionar</button>
+        </div>
+      </div>
+
+      <!-- BUSCA PRODUTO (SOLICITACAO MATERIAL) -->
+      <div class="product-card" id="productCard" style="display:none;">
+        <label>Buscar produto (código ou descrição)</label>
+        <div class="product-search-wrap">
+          <input type="text" id="inpProduto" placeholder="Ex: RED68 ou cateter..." autocomplete="off">
+          <div class="prod-suggestions" id="sugProduto"></div>
+        </div>
+        <div class="product-qty-row">
+          <label style="margin:0;font-size:12px;">Qtd</label>
+          <input type="number" id="inpProdQtd" value="1" min="1" max="99">
+          <button type="button" onclick="adicionarProdutoSelecionado()">Adicionar produto</button>
+        </div>
+      </div>
+
+      <!-- LISTA DE ITENS -->
+      <div id="listaSeriais">
+        <div class="empty-state" id="emptySeriais">
+          <div class="es-icon">📋</div>
+          Nenhum serial escaneado ainda.<br>
+          Use o botão acima para começar.
+        </div>
+      </div>
+
+      <!-- CLIENTE DETECTADO (só pra Reserva) -->
+      <div class="cliente-detectado" id="clienteDetectado" style="display:none;">
+        <div class="cd-check">✓</div>
+        <div class="cd-info">
+          <div class="cd-label">Cliente detectado automaticamente</div>
+          <div class="cd-name" id="cdNome">—</div>
+          <div class="cd-extra" id="cdExtra">—</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ TELA 2: PROCEDIMENTO ============ -->
+    <div class="panel" id="panel2">
+      <div class="panel-title">Dados do procedimento</div>
+      <div class="panel-subtitle" id="panel2Sub">
+        Informe os dados do paciente e da cirurgia.<br>
+        <span style="color: var(--verde-principal); font-weight: 600;">🎤 Toque no microfone</span>
+        em qualquer campo para falar em vez de digitar.
+      </div>
+      <div class="tipo-hint" id="procOpcional" style="display:none;margin-bottom:14px;">
+        <strong>Solicitação de material:</strong> hospital é obrigatório. Paciente, data e médico são opcionais (procedimento ainda não confirmado).
+      </div>
+
+      <!-- Cliente (só aparece para C/P/N) -->
+      <div class="field autocomplete" id="fldCliente" style="display:none;">
+        <label>Hospital / Cliente <span class="req">*</span></label>
+        <input type="text" id="inpCliente" placeholder="Digite o nome do hospital..." autocomplete="off"
+               data-ac="hospitais" data-target-id="hidCliId" data-target-info="hospInfo">
+        <input type="hidden" id="hidCliId">
+        <input type="hidden" id="hidCliLoja">
+        <div class="suggestions" id="sugCliente"></div>
+        <div class="field-hint" id="hospInfo">Comece a digitar (mínimo 2 letras)</div>
+      </div>
+
+      <div class="field autocomplete">
+        <label>Paciente <span class="req">*</span></label>
+        <input type="text" id="inpPaciente" placeholder="Nome do paciente..." autocomplete="off"
+               data-ac="pacientes" data-allow-new="true">
+        <div class="suggestions" id="sugPaciente"></div>
+        <div class="field-hint">Se o paciente não estiver na lista, digite o nome completo</div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label>Data <span class="req">*</span></label>
+          <input type="date" id="inpData">
+        </div>
+        <div class="field">
+          <label>Hora <span class="req">*</span></label>
+          <input type="time" id="inpHora">
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field autocomplete" style="flex: 1;">
+          <label>Médico <span class="req">*</span></label>
+          <input type="text" id="inpMedico" placeholder="Digite o nome do médico..." autocomplete="off"
+                 data-ac="medicos" data-target-info="medInfo">
+          <div class="suggestions" id="sugMedico"></div>
+        </div>
+        <div class="field" style="flex: 0.6;">
+          <label>CRM</label>
+          <input type="text" id="inpCRM" placeholder="00000">
+        </div>
+      </div>
+      <div class="field-hint" id="medInfo" style="margin-top: -10px; margin-bottom: 14px;"></div>
+
+      <div class="field autocomplete">
+        <label>Convênio</label>
+        <input type="text" id="inpConvenio" placeholder="Digite o nome do convênio..." autocomplete="off"
+               data-ac="convenios" data-allow-new="true">
+        <div class="suggestions" id="sugConvenio"></div>
+      </div>
+
+      <div class="field autocomplete">
+        <label>Cirurgia / Procedimento</label>
+        <input type="text" id="inpCirurgia" placeholder="Ex: Embolização cerebral" autocomplete="off"
+               data-ac="cirurgias" data-allow-new="true">
+        <div class="suggestions" id="sugCirurgia"></div>
+      </div>
+
+      <div class="field">
+        <label>Observações (opcional)</label>
+        <textarea id="inpObs" placeholder="Alguma observação para a logística..."></textarea>
+      </div>
+
+      <button type="button" class="btn-anexos" id="btnAnexos" onclick="abrirModalFotos()">
+        <span>📷</span>
+        <span>Documentos da sala (fotos)</span>
+        <span class="anexo-badge" id="anexoBadge" style="display:none;">0</span>
+      </button>
+      <div class="field-hint" style="margin-top:6px;">Fotografe guias, termos ou documentos do procedimento. Ficam no Protheus em <strong>Outras Ações → Conhec.</strong></div>
+    </div>
+
+    <!-- ============ TELA 3: CONFIRMAR ============ -->
+    <div class="panel" id="panel3">
+      <div class="panel-title">Revisão do pedido</div>
+      <div class="panel-subtitle">Confira os dados antes de enviar.</div>
+
+      <div id="reviewBox"></div>
+
+      <div class="success-screen" id="successScreen">
+        <div class="check-icon">✓</div>
+        <h2>Pedido enviado!</h2>
+        <p>Foi gerado o pedido de venda:</p>
+        <div class="pv-num" id="pvNum">PV-008441</div>
+        <p id="successMsg">A logística já está vendo o pedido no painel.<br>Você receberá um aviso quando for atendido.</p>
+        <button onclick="restart()">Nova solicitação</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ============ FOOTER (botoes navegacao) ============ -->
+  <div class="footer" id="footer" style="display:none;">
+    <button class="btn btn-secondary" id="btnBack" onclick="go(-1)" style="display:none;">Voltar</button>
+    <button class="btn btn-primary" id="btnNext" onclick="go(1)">Avançar</button>
+    <button class="btn btn-primary" id="btnSend" onclick="enviar()" style="display:none;">Enviar pedido</button>
+  </div>
+
+</div>
+
+<!-- Modal fotos documentos -->
+<div class="modal-fotos-overlay" id="modalFotos" onclick="if(event.target===this)fecharModalFotos()">
+  <div class="modal-fotos-sheet">
+    <div class="modal-fotos-head">
+      <h3>Documentos / Fotos</h3>
+      <button type="button" onclick="fecharModalFotos()">&times;</button>
+    </div>
+    <div class="fotos-grid" id="fotosGrid">
+      <label class="btn-add-foto" id="btnAddFoto">
+        <span style="font-size:24px;">+</span>
+        <span>Adicionar</span>
+        <input type="file" accept="image/*" capture="environment" multiple onchange="adicionarFotos(this.files)" style="display:none;">
+      </label>
+    </div>
+    <div class="foto-counter" id="fotoCounter"></div>
+  </div>
+</div>
+
+<!-- ============ LOGIN MODAL ============ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h3>Login do vendedor</h3>
+    <p>Código e senha do cadastro SA3 no Protheus.<br>Ex.: código <strong>000119</strong>, senha <strong>000119</strong></p>
+    <label for="loginCod">Código</label>
+    <input type="text" id="loginCod" inputmode="numeric" autocomplete="username" value="000119">
+    <label for="loginSenha">Senha</label>
+    <input type="password" id="loginSenha" autocomplete="current-password" placeholder="Mesma do cadastro SA3">
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-actions">
+      <button type="button" class="btn-cancel" onclick="fecharLogin()">Cancelar</button>
+      <button type="button" class="btn-enter" onclick="confirmarLogin()">Entrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CAMERA OVERLAY ============ -->
+<div class="cam-overlay" id="camOverlay">
+  <div class="cam-header">
+    <h3>📷 Escanear Serial / Código de Barras</h3>
+    <button onclick="fecharCamera()">Cancelar</button>
+  </div>
+  <div class="cam-viewport">
+    <div class="cam-frame">
+      <div class="cam-corners"><span></span></div>
+      <div class="cam-laser"></div>
+    </div>
+    <div class="cam-detected" id="camDetected">
+      <strong id="camDetSerial">—</strong>
+      <span id="camDetProd">—</span>
+    </div>
+  </div>
+  <div class="cam-instructions">
+    <strong>Aponte para o código de barras</strong>
+    Posicione o serial dentro do quadro
+  </div>
+</div>
+
+<script>
+  // ============================================================
+  // ESTADO
+  // ============================================================
+  const TIPOS = {
+    'R': { label: '⚡ RESERVA',             nome: 'RESERVA',            cor: 'var(--vermelho)',         armazem: '57', deduzCliente: true,  modo: 'serial', sub: 'Item já em poder do cliente. Escaneie o serial — o cliente é detectado automaticamente.' },
+    'C': { label: '📦 CONSIGNAÇÃO',         nome: 'CONSIGNAÇÃO',        cor: 'var(--verde-principal)',  armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Remessa em consignação. Escaneie os seriais do estoque (Arm 50).' },
+    'P': { label: '🏥 CONSIG. PERMANENTE',  nome: 'CONSIG. PERMANENTE', cor: 'var(--amarelo)',          armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Material em consignação permanente. Escaneie os seriais do estoque (Arm 50).' },
+    'N': { label: '🩺 VENDA / ELETIVO',     nome: 'VENDA',              cor: 'var(--azul)',             armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Venda direta do estoque. Escaneie os seriais (Arm 50).' },
+    'M': { label: '📋 SOLIC. MATERIAL',     nome: 'SOLIC. MATERIAL',    cor: '#6C3483',                 armazem: '50', deduzCliente: false, modo: 'material', sub: 'Reserva estoque sem serial. Informe hospital e produtos — logística converte depois em consignação.' }
+  };
+
+  let tipoPedido = null;
+  let curStep = 0;
+  const TOTAL = 3;
+  let seriaisLidos = [];
+  let clienteDetectado = null;
+  let filialPedido = '01';
+  let produtoSelecionado = null;
+  let prodSearchTimer = null;
+  let fotosDocumentos = [];
+
+  // ============================================================
+  // API PROTHEUS (WSSOLPV)
+  // ============================================================
+  const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
+  const API_FIL  = '01';   // filial padrao para gerar PV (ajustar conforme vendedor)
+  let API_VEND = '000119';
+  let API_SENHA = '';
+  let SESS_TIPO = '';       // 'V' vendedor | 'U' usuario interno
+  let pessoaSelecionada = null;
+  let entrySearchTimer = null;
+  const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
+  const USE_API = true;
+
+  // Retry automático: tenta até 3x com espera crescente (2s, 5s)
+  // Necessário pois o Protheus pode demorar >10s e o Worker retorna 503 transitório
+  async function apiCallWithRetry(fn, maxTries = 3) {
+    const delays = [0, 2000, 5000];
+    let lastErr;
+    for (let i = 0; i < maxTries; i++) {
+      if (i > 0) {
+        const el = document.getElementById('apiLoading');
+        if (el) el.innerHTML = 'Aguardando Protheus... tentativa ' + (i + 1) + ' de ' + maxTries;
+        await new Promise(r => setTimeout(r, delays[i]));
+      }
+      try {
+        const result = await fn();
+        return result;
+      } catch (e) {
+        lastErr = e;
+        const msg = e.message || '';
+        // Só faz retry em 503/502/504/timeout — erros de negócio (login inválido etc.) não repetem
+        if (!msg.includes('503') && !msg.includes('502') && !msg.includes('504') && !msg.includes('indisponível') && !msg.includes('inválida')) throw e;
+        console.warn('[retry ' + (i+1) + '] ' + msg);
+      }
+    }
+    throw lastErr;
+  }
+
+  async function apiGet(params) {
+    return apiCallWithRetry(async () => {
+      const url = API_BASE + '?' + new URLSearchParams(params).toString();
+      const resp = await fetch(url, { headers: { 'Authorization': AUTH } });
+      const text = await resp.text();
+      if (!resp.ok) {
+        if ([502, 503, 504].includes(resp.status))
+          throw new Error('REST ' + resp.status + ' — aguardando Protheus...');
+        if (!text.trim())
+          throw new Error('Servidor sem resposta (HTTP ' + resp.status + ')');
+      }
+      try { return JSON.parse(text); }
+      catch (e) {
+        if (text.includes('<!DOCTYPE') || text.includes('<html'))
+          throw new Error('REST indisponível — compile WSSOLPV e reinicie o rest03');
+        throw new Error('Resposta inválida: ' + text.trim().substring(0, 120));
+      }
+    });
+  }
+
+  async function apiPost(body) {
+    return apiCallWithRetry(async () => {
+      const resp = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Authorization': AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const text = await resp.text();
+      if (!resp.ok) {
+        if ([502, 503, 504].includes(resp.status))
+          throw new Error('REST ' + resp.status + ' — aguardando Protheus...');
+        if (!text.trim())
+          throw new Error('Servidor sem resposta (HTTP ' + resp.status + ')');
+      }
+      try { return JSON.parse(text); }
+      catch (e) {
+        if (text.includes('<!DOCTYPE') || text.includes('<html'))
+          throw new Error('REST indisponível — compile WSSOLPV e reinicie o rest03');
+        throw new Error('Resposta inválida: ' + text.trim().substring(0, 120));
+      }
+    });
+  }
+
+  function showLoading(on) {
+    let el = document.getElementById('apiLoading');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'apiLoading';
+      el.style.cssText = 'position:fixed;inset:0;background:rgba(14,58,36,0.35);z-index:9998;display:none;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:15px;text-align:center;padding:20px;';
+      document.body.appendChild(el);
+    }
+    if (on) el.innerHTML = 'Consultando Protheus...';
+    el.style.display = on ? 'flex' : 'none';
+  }
+
+  // ============================================================
+  // BASE MOCK (fallback offline / demo)
+  // ============================================================
+  // Cada serial tem:
+  // - produto, descricao, lote, validade
+  // - local57: { cliente }  (se está em poder de terceiros)
+  // - local50: true|false   (se está no estoque proprio)
+  const SERIAIS_DB = {
+    // ===== Seriais em poder do SÍRIO LIBANES (Arm 57) =====
+    'BOS70123456': { produto: 'RED68KIT',  desc: 'CATETER DE REPERFUSAO RED 68 132CM',  lote: 'H00007902', val: '28/04/2028', local: '57', cliente: { id:'001234', nome:'HOSPITAL SIRIO LIBANES', cidade:'São Paulo/SP' } },
+    'BOS70123457': { produto: 'RED68KIT',  desc: 'CATETER DE REPERFUSAO RED 68 132CM',  lote: 'H00007902', val: '28/04/2028', local: '57', cliente: { id:'001234', nome:'HOSPITAL SIRIO LIBANES', cidade:'São Paulo/SP' } },
+    'GLU2024001':  { produto: 'G-NB-2_0',  desc: 'COLA CIRURGICA GLUBRAN 2 1ML',         lote: 'G2024A',    val: '12/2027',    local: '57', cliente: { id:'001234', nome:'HOSPITAL SIRIO LIBANES', cidade:'São Paulo/SP' } },
+
+    // ===== Seriais no ALBERT EINSTEIN (Arm 57) =====
+    'AF20550001':  { produto: 'AF-2055',   desc: 'VIDEO BRONCOSCOPIO SEESHEEN SERIE-AF', lote: 'VB2024',    val: '06/2028',    local: '57', cliente: { id:'001235', nome:'HOSPITAL ALBERT EINSTEIN', cidade:'São Paulo/SP' } },
+    'AF20550002':  { produto: 'AF-2055',   desc: 'VIDEO BRONCOSCOPIO SEESHEEN SERIE-AF', lote: 'VB2024',    val: '06/2028',    local: '57', cliente: { id:'001235', nome:'HOSPITAL ALBERT EINSTEIN', cidade:'São Paulo/SP' } },
+
+    // ===== Seriais no estoque próprio (Arm 50) =====
+    'STK00000001': { produto: 'GB-DS-30',  desc: 'APLICADOR GLUTACK 30',                lote: 'AP2025X',   val: '03/2028',    local: '50' },
+    'STK00000002': { produto: 'GB-DS-60',  desc: 'APLICADOR GLUTACK 60',                lote: 'AP2025Y',   val: '03/2028',    local: '50' },
+    'STK00000003': { produto: 'G-NB-2_0',  desc: 'COLA CIRURGICA GLUBRAN 2 1ML',        lote: 'G2024A',    val: '12/2027',    local: '50' },
+    'STK00000004': { produto: 'G-NB2-50_0',desc: 'COLA CIRURGICA GLUBRAN 2 0.50ML',     lote: 'G2024B',    val: '11/2027',    local: '50' },
+    'STK00000005': { produto: 'RED68KIT',  desc: 'CATETER DE REPERFUSAO RED 68 132CM',  lote: 'H00008010', val: '15/05/2028', local: '50' },
+  };
+
+  // pra simulacao de scan: cicla entre seriais conforme o tipo
+  let scanSimulIdx = 0;
+
+  // ============================================================
+  // BASES MOCK PARA AUTOCOMPLETE
+  // ============================================================
+  const BASES = {
+    hospitais: [
+      { id: '001234', nome: 'HOSPITAL SIRIO LIBANES',          info: 'CNPJ 60.097.000/0001-00 · São Paulo/SP' },
+      { id: '001235', nome: 'HOSPITAL ALBERT EINSTEIN',        info: 'CNPJ 60.765.823/0001-30 · São Paulo/SP' },
+      { id: '001236', nome: 'HOSPITAL SAMARITANO',             info: 'CNPJ 61.500.829/0001-01 · São Paulo/SP' },
+      { id: '001237', nome: 'HOSPITAL SANTA PAULA',            info: 'CNPJ 60.992.226/0001-72 · São Paulo/SP' },
+      { id: '001238', nome: 'HOSPITAL SAO LUIZ MORUMBI',       info: 'CNPJ 06.047.087/0007-44 · São Paulo/SP' },
+      { id: '001239', nome: 'HOSPITAL SAO LUIZ ITAIM',         info: 'CNPJ 06.047.087/0006-63 · São Paulo/SP' },
+      { id: '001240', nome: 'BENEFICENCIA PORTUGUESA SP',      info: 'CNPJ 61.599.908/0001-58 · São Paulo/SP' },
+      { id: '001241', nome: 'HCOR - HOSPITAL DO CORACAO',      info: 'CNPJ 60.992.418/0001-30 · São Paulo/SP' },
+      { id: '001243', nome: 'HOSPITAL OSWALDO CRUZ',           info: 'CNPJ 60.726.502/0001-08 · São Paulo/SP' },
+      { id: '001244', nome: 'HOSPITAL 9 DE JULHO',             info: 'CNPJ 60.742.616/0001-60 · São Paulo/SP' }
+    ],
+    pacientes: [
+      { id: 'P0001', nome: 'Maria de Souza',     info: 'CPF 123.456.789-00 · 58 anos' },
+      { id: 'P0002', nome: 'Carlos Oliveira',    info: 'CPF 234.567.890-11 · 47 anos' },
+      { id: 'P0003', nome: 'José Ferreira',      info: 'CPF 345.678.901-22 · 62 anos' },
+      { id: 'P0004', nome: 'Paula Reis',         info: 'CPF 456.789.012-33 · 51 anos' },
+      { id: 'P0005', nome: 'Ana Carolina Lima',  info: 'CPF 567.890.123-44 · 39 anos' },
+      { id: 'P0006', nome: 'Roberto Lima Santos',info: 'CPF 678.901.234-55 · 71 anos' }
+    ],
+    convenios: [
+      { id: 'C001', nome: 'Unimed',              info: 'Plano Saúde' },
+      { id: 'C002', nome: 'Bradesco Saúde',      info: 'Plano Saúde' },
+      { id: 'C003', nome: 'SulAmérica Saúde',    info: 'Plano Saúde' },
+      { id: 'C004', nome: 'Amil',                info: 'Plano Saúde' },
+      { id: 'C005', nome: 'Porto Seguro Saúde',  info: 'Plano Saúde' },
+      { id: 'C006', nome: 'Hapvida NotreDame Intermédica', info: 'Plano Saúde' },
+      { id: 'C007', nome: 'Particular',          info: 'Sem convênio (faturamento direto)' },
+      { id: 'C008', nome: 'SUS',                 info: 'Sistema Único de Saúde' }
+    ],
+    medicos: [
+      { id: 'M0001', nome: 'Dr. João Almeida',        info: 'CRM 12345 · Cirurgia Vascular' },
+      { id: 'M0002', nome: 'Dra. Ana Lima Pereira',   info: 'CRM 23456 · Ginecologia' },
+      { id: 'M0003', nome: 'Dr. Pedro Costa',         info: 'CRM 34567 · Ortopedia' },
+      { id: 'M0004', nome: 'Dr. Carlos Mendes',       info: 'CRM 45678 · Cardiologia' },
+      { id: 'M0005', nome: 'Dra. Beatriz Rocha',      info: 'CRM 56789 · Neurocirurgia' },
+      { id: 'M0006', nome: 'Dr. Roberto Santos',      info: 'CRM 67890 · Urologia' },
+      { id: 'M0007', nome: 'Dr. Renato Oliveira',     info: 'CRM 78901 · Endoscopia' }
+    ],
+    cirurgias: [
+      { id: 'CIR001', nome: 'Embolização cerebral',                info: '' },
+      { id: 'CIR002', nome: 'Angioplastia coronária',              info: '' },
+      { id: 'CIR003', nome: 'Broncoscopia diagnóstica',            info: '' },
+      { id: 'CIR004', nome: 'Tratamento de aneurisma',             info: '' },
+      { id: 'CIR005', nome: 'Implante de stent',                   info: '' },
+      { id: 'CIR006', nome: 'Cirurgia de revascularização',        info: '' }
+    ]
+  };
+
+  // ============================================================
+  // NORMALIZACAO E BUSCA (token-based, stopwords)
+  // ============================================================
+  function normalize(s) {
+    return (s || '').toString().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+  const STOPWORDS = new Set([
+    'hospital','hosp','clinica',
+    'doutor','doutora','dr','dra',
+    'sr','sra','senhor','senhora',
+    'plano','saude','convenio',
+    'medico','medica',
+    'paciente','cliente',
+    'produto','item','codigo',
+    'cirurgia','procedimento',
+    'da','de','do','das','dos','e','o','a','os','as'
+  ]);
+  function scoreItem(itemName, itemInfo, queryNorm) {
+    const haystack = normalize(itemName) + ' ' + normalize(itemInfo || '');
+    if (!queryNorm) return 0;
+    if (haystack.includes(queryNorm)) return 100;
+    const tokens = queryNorm.split(' ').filter(t => t && !STOPWORDS.has(t));
+    if (tokens.length === 0) return haystack.includes(queryNorm) ? 60 : 0;
+    let hits = 0;
+    for (const tok of tokens) if (haystack.includes(tok)) hits++;
+    if (hits === tokens.length)               return 80;
+    if (hits >= Math.ceil(tokens.length / 2)) return 40 + hits;
+    return 0;
+  }
+  function searchBase(base, query) {
+    const nq = normalize(query);
+    if (nq.length < 2) return [];
+    return base
+      .map(it => ({ it, sc: scoreItem(it.nome, it.info, nq) }))
+      .filter(x => x.sc > 0)
+      .sort((a, b) => b.sc - a.sc)
+      .slice(0, 8)
+      .map(x => x.it);
+  }
+
+  // ============================================================
+  // NAVEGACAO
+  // ============================================================
+  function showStep(n) {
+    curStep = n;
+    document.getElementById('panel0').classList.toggle('active', n === 0);
+    [1, 2, 3].forEach(i => {
+      document.getElementById('panel' + i).classList.toggle('active', i === n);
+      const el = document.getElementById('step' + i);
+      if (el) {
+        el.classList.toggle('active', i === n);
+        el.classList.toggle('done', i < n && n > 0);
+      }
+    });
+
+    // Header e stepper só aparecem após escolher tipo
+    document.getElementById('tipoSelHdr').style.display = n === 0 ? 'none' : 'flex';
+    document.getElementById('stepper').style.display    = n === 0 ? 'none' : 'flex';
+    document.getElementById('footer').style.display     = n === 0 ? 'none' : 'flex';
+
+    // Botões
+    document.getElementById('btnBack').style.display = (n === 0 || n === 1) ? 'none' : 'inline-block';
+    document.getElementById('btnNext').style.display = (n > 0 && n < TOTAL) ? 'inline-block' : 'none';
+    document.getElementById('btnSend').style.display = (n === TOTAL) ? 'inline-block' : 'none';
+
+    // Atualiza review ao chegar na tela 3
+    if (n === TOTAL) renderResumo();
+
+    window.scrollTo({top: 0, behavior: 'smooth'});
+  }
+
+  function go(delta) {
+    const next = curStep + delta;
+    if (next < 0 || next > TOTAL) return;
+    const tipo = TIPOS[tipoPedido];
+    if (delta > 0) {
+      if (curStep === 1 && seriaisLidos.length === 0) {
+        alert(tipo.modo === 'material'
+          ? 'Adicione pelo menos um produto antes de avançar.'
+          : 'Adicione pelo menos um serial antes de avançar.');
+        return;
+      }
+      if (curStep === 2) {
+        if (!tipo.deduzCliente && !document.getElementById('inpCliente').value.trim()) {
+          alert('Informe o Hospital / Cliente.');
+          return;
+        }
+        if (tipo.modo !== 'material') {
+          if (!document.getElementById('inpPaciente').value.trim()) {
+            alert('Informe o paciente.');
+            return;
+          }
+          if (!document.getElementById('inpData').value || !document.getElementById('inpHora').value) {
+            alert('Informe a data e hora do procedimento.');
+            return;
+          }
+          if (!document.getElementById('inpMedico').value.trim()) {
+            alert('Informe o médico responsável.');
+            return;
+          }
+        }
+      }
+    }
+    showStep(next);
+  }
+
+  // ============================================================
+  // ESCOLHA DO TIPO
+  // ============================================================
+  function escolherTipo(tipo) {
+    tipoPedido = tipo;
+    const t = TIPOS[tipo];
+
+    // header
+    const lbl = document.getElementById('tipoSelLabel');
+    lbl.textContent = t.label;
+    lbl.style.color = '#fff';
+
+    // panel1 subtitle
+    document.getElementById('panel1Sub').textContent = t.sub;
+
+    // reset estado
+    seriaisLidos = [];
+    clienteDetectado = null;
+    produtoSelecionado = null;
+    renderListaSeriais();
+    atualizarClienteDetectado();
+
+    document.getElementById('scannerCard').style.display = t.modo === 'material' ? 'none' : 'block';
+    document.getElementById('productCard').style.display = t.modo === 'material' ? 'block' : 'none';
+    document.getElementById('procOpcional').style.display = t.modo === 'material' ? 'block' : 'none';
+    document.getElementById('fldCliente').style.display = t.deduzCliente ? 'none' : 'block';
+    document.getElementById('emptySeriais').innerHTML = t.modo === 'material'
+      ? '<div class="es-icon">📋</div>Nenhum produto adicionado ainda.<br>Busque e adicione os materiais acima.'
+      : '<div class="es-icon">📋</div>Nenhum serial escaneado ainda.<br>Use o botão acima para começar.';
+
+    showStep(1);
+  }
+
+  function trocarTipo() {
+    if (seriaisLidos.length > 0 && !confirm('Trocar o tipo vai limpar os itens já escaneados. Deseja continuar?')) {
+      return;
+    }
+    tipoPedido = null;
+    seriaisLidos = [];
+    clienteDetectado = null;
+    showStep(0);
+  }
+
+  // ============================================================
+  // CAMERA + SERIAL (API WSSOLPV / SBF+SB6)
+  // ============================================================
+  let camStream = null;
+  let camDetectLoop = null;
+
+  async function abrirCamera() {
+    document.getElementById('camDetected').classList.remove('show');
+    document.getElementById('camOverlay').classList.add('show');
+
+    if (!('BarcodeDetector' in window)) {
+      fecharCamera();
+      alert('Leitura automática de código de barras não disponível neste navegador.\n\nUse Chrome no Android ou digite o serial manualmente abaixo.');
+      document.getElementById('inpSerialManual').focus();
+      return;
+    }
+
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }, audio: false
+      });
+      const video = document.createElement('video');
+      video.setAttribute('playsinline', 'true');
+      video.srcObject = camStream;
+      video.style.cssText = 'width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
+      const viewport = document.querySelector('.cam-viewport');
+      const oldVid = viewport.querySelector('video');
+      if (oldVid) oldVid.remove();
+      viewport.insertBefore(video, viewport.firstChild);
+      await video.play();
+
+      const detector = new BarcodeDetector({ formats: ['code_128', 'code_39', 'ean_13', 'ean_8', 'qr_code'] });
+      camDetectLoop = setInterval(async () => {
+        try {
+          const codes = await detector.detect(video);
+          if (codes.length > 0 && codes[0].rawValue) {
+            const serial = codes[0].rawValue.trim().toUpperCase();
+            document.getElementById('camDetSerial').textContent = serial;
+            document.getElementById('camDetProd').textContent = 'Serial lido — consultando...';
+            document.getElementById('camDetected').classList.add('show');
+            clearInterval(camDetectLoop);
+            camDetectLoop = null;
+            setTimeout(async () => {
+              fecharCamera();
+              await adicionarSerial(serial);
+            }, 600);
+          }
+        } catch (e) { /* continua tentando */ }
+      }, 400);
+    } catch (e) {
+      fecharCamera();
+      alert('Não foi possível abrir a câmera: ' + e.message + '\n\nDigite o serial manualmente.');
+      document.getElementById('inpSerialManual').focus();
+    }
+  }
+
+  function fecharCamera() {
+    if (camDetectLoop) { clearInterval(camDetectLoop); camDetectLoop = null; }
+    if (camStream) {
+      camStream.getTracks().forEach(t => t.stop());
+      camStream = null;
+    }
+    const viewport = document.querySelector('.cam-viewport');
+    const vid = viewport && viewport.querySelector('video');
+    if (vid) vid.remove();
+    document.getElementById('camOverlay').classList.remove('show');
+  }
+
+  function adicionarSerialManual() {
+    const inp = document.getElementById('inpSerialManual');
+    const s = inp.value.trim().toUpperCase();
+    if (!s) return;
+    adicionarSerial(s);
+    inp.value = '';
+  }
+
+  function aplicarSerialLocal(dados, serial) {
+    const tipo = TIPOS[tipoPedido];
+    if (dados.local !== tipo.armazem) {
+      const msg = tipo.armazem === '57'
+        ? 'Esse serial NÃO está em poder de terceiros (está no estoque). Para Reserva, escolha um serial em poder do cliente.'
+        : 'Esse serial está em poder de terceiros (Arm 57), não no estoque (Arm 50).';
+      seriaisLidos.push({ serial, produto: dados.produto, desc: dados.desc, lote: dados.lote, val: dados.val, local: dados.local, cliente: dados.cliente || null, warn: true, warnMsg: msg });
+    } else {
+      const item = { serial, produto: dados.produto, desc: dados.desc, lote: dados.lote, val: dados.val, local: dados.local, cliente: dados.cliente || null };
+      seriaisLidos.push(item);
+      if (tipo.deduzCliente && item.cliente && !clienteDetectado) clienteDetectado = item.cliente;
+    }
+    renderListaSeriais();
+    atualizarClienteDetectado();
+  }
+
+  function aplicarSerialAPI(data) {
+    const tipo = TIPOS[tipoPedido];
+    const item = {
+      serial: data.serial,
+      produto: data.produto,
+      desc: data.descricao,
+      lote: data.lote,
+      val: data.validadeFmt || data.validade,
+      local: data.local,
+      origem: data.origem || 'SBF',
+      preco: data.preco || 0,
+      cliente: data.cliente ? {
+        id: data.cliente.id,
+        loja: data.cliente.loja || '01',
+        nome: data.cliente.nome,
+        cidade: data.cliente.cidade || ''
+      } : null,
+      warn: false,
+      warnMsg: ''
+    };
+    if (data.aviso) {
+      item.warn = true;
+      item.warnMsg = data.aviso;
+    } else if (data.local !== data.localEsperado) {
+      item.warn = true;
+      item.warnMsg = 'Armazém ' + data.local + ', esperado ' + data.localEsperado;
+    }
+    seriaisLidos.push(item);
+    if (data.filial) filialPedido = data.filial;
+    if (tipo.deduzCliente && item.cliente && !clienteDetectado) {
+      clienteDetectado = { id: item.cliente.id, loja: item.cliente.loja, nome: item.cliente.nome, cidade: item.cliente.cidade };
+    }
+    renderListaSeriais();
+    atualizarClienteDetectado();
+  }
+
+  async function adicionarSerial(serial) {
+    serial = (serial || '').trim().toUpperCase();
+    if (!serial) return;
+    if (seriaisLidos.find(x => x.serial === serial)) {
+      alert('Serial ' + serial + ' já foi adicionado.');
+      return;
+    }
+
+    if (USE_API) {
+      showLoading(true);
+      try {
+        const data = await apiGet({
+          acao: 'serial', serial, tipo: tipoPedido, vendedor: API_VEND
+          // fil omitido: busca serial em todas as filiais (SBF/SB6)
+        });
+        if (!data.ok) {
+          alert(data.msg || 'Serial não encontrado no Protheus (SBF/SB6)');
+          return;
+        }
+        aplicarSerialAPI(data);
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        showLoading(false);
+      }
+      return;
+    }
+
+    // Fallback mock local
+    const dados = SERIAIS_DB[serial];
+    if (!dados) {
+      seriaisLidos.push({ serial, produto: '???', desc: 'Serial não encontrado (mock)', lote: '—', val: '—', local: '?', cliente: null, warn: true, err: true });
+      renderListaSeriais();
+      return;
+    }
+    aplicarSerialLocal(dados, serial);
+  }
+
+  function removerItem(chave) {
+    seriaisLidos = seriaisLidos.filter(x => (x.modo === 'material' ? x.produto : x.serial) !== chave);
+    const tipo = TIPOS[tipoPedido];
+    if (tipo && tipo.deduzCliente) {
+      const algumCliente = seriaisLidos.find(x => x.cliente);
+      clienteDetectado = algumCliente ? algumCliente.cliente : null;
+    }
+    renderListaSeriais();
+    atualizarClienteDetectado();
+  }
+
+  function removerSerial(serial) { removerItem(serial); }
+
+  function renderListaSeriais() {
+    const lista = document.getElementById('listaSeriais');
+    const tipo = tipoPedido ? TIPOS[tipoPedido] : null;
+    if (seriaisLidos.length === 0) {
+      lista.innerHTML = `
+        <div class="empty-state" id="emptySeriais">
+          <div class="es-icon">📋</div>
+          ${tipo && tipo.modo === 'material'
+            ? 'Nenhum produto adicionado ainda.<br>Busque e adicione os materiais acima.'
+            : 'Nenhum serial escaneado ainda.<br>Use o botão acima para começar.'}
+        </div>`;
+      return;
+    }
+    lista.innerHTML = seriaisLidos.map(s => {
+      if (s.modo === 'material') {
+        return `
+      <div class="serial-card">
+        <div class="sc-top">
+          <div style="flex:1;min-width:0;">
+            <div class="sc-prod-cod">${escHtml(s.produto)}</div>
+            <div class="sc-prod-desc">${escHtml(s.desc)}</div>
+          </div>
+          <button class="sc-remove" onclick="removerItem('${escHtml(s.produto)}')" title="Remover">✕</button>
+        </div>
+        <div class="sc-meta">
+          <div><strong>Quantidade:</strong> ${escHtml(s.qtd || 1)} un</div>
+          <div><strong>Preço ref.:</strong> R$ ${Number(s.preco || 0).toFixed(2)}</div>
+          <div><strong>Reserva:</strong> sem serial (conversão posterior)</div>
+        </div>
+      </div>`;
+      }
+      return `
+      <div class="serial-card ${s.err ? 'err' : (s.warn ? 'warn' : '')}">
+        <div class="sc-top">
+          <div style="flex:1;min-width:0;">
+            <div class="sc-prod-cod">${escHtml(s.produto)}</div>
+            <div class="sc-prod-desc">${escHtml(s.desc)}</div>
+          </div>
+          <button class="sc-remove" onclick="removerItem('${escHtml(s.serial)}')" title="Remover">✕</button>
+        </div>
+        <div class="sc-meta">
+          <div><strong>Serial:</strong> ${escHtml(s.serial)}</div>
+          <div><strong>Lote:</strong> ${escHtml(s.lote)}</div>
+          <div><strong>Validade:</strong> ${escHtml(s.val)}</div>
+          <div><strong>Local:</strong> Arm ${escHtml(s.local)}</div>
+        </div>
+        ${s.warn && s.warnMsg ? `<div class="sc-cliente-badge" style="background:var(--amarelo-fundo);border-color:var(--amarelo);color:#7a5b00;"><strong>⚠ Atenção</strong>${escHtml(s.warnMsg)}</div>` : ''}
+        ${(s.cliente && TIPOS[tipoPedido] && TIPOS[tipoPedido].deduzCliente && !s.warn) ? `
+          <div class="sc-cliente-badge">
+            <strong>📍 Em poder de: ${escHtml(s.cliente.nome)}</strong>
+            ${escHtml(s.cliente.cidade || '')}
+          </div>` : ''}
+      </div>`;
+    }).join('');
+  }
+
+  function atualizarClienteDetectado() {
+    const tipo = tipoPedido ? TIPOS[tipoPedido] : null;
+    const box = document.getElementById('clienteDetectado');
+    if (tipo && tipo.deduzCliente && clienteDetectado) {
+      document.getElementById('cdNome').textContent = clienteDetectado.nome;
+      document.getElementById('cdExtra').textContent = 'Código: ' + clienteDetectado.id + ' · ' + (clienteDetectado.cidade || '');
+      box.style.display = 'flex';
+    } else {
+      box.style.display = 'none';
+    }
+  }
+
+  function escHtml(s) {
+    return (s == null ? '' : String(s))
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function mostrarErroPedido(msg, debug) {
+    let el = document.getElementById('modalErroPedido');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'modalErroPedido';
+      el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;';
+      el.innerHTML = `
+        <div style="background:#fff;border-radius:12px;max-width:480px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+          <div style="background:#c0392b;color:#fff;padding:14px 18px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:20px;">&#9888;</span>
+            <strong style="flex:1;font-size:15px;">Erro ao gerar pedido</strong>
+            <button onclick="document.getElementById('modalErroPedido').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;">&#10005;</button>
+          </div>
+          <div style="padding:16px;">
+            <div id="erroMsgTexto" style="font-size:13px;color:#333;background:#fdf0ef;border:1px solid #f5c6cb;border-radius:8px;padding:12px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;line-height:1.5;"></div>
+            <div id="erroDebugTexto" style="font-size:11px;color:#888;margin-top:10px;display:none;background:#f8f8f8;border-radius:6px;padding:8px;white-space:pre-wrap;word-break:break-word;"></div>
+            <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+              <button onclick="navigator.clipboard.writeText(document.getElementById('erroMsgTexto').innerText).then(()=>alert('Copiado!'))" style="flex:1;min-width:120px;background:#e74c3c;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">&#128203; Copiar erro</button>
+              <button onclick="document.getElementById('modalErroPedido').style.display='none'" style="flex:1;min-width:120px;background:#eee;color:#333;border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">Fechar</button>
+            </div>
+            <p style="font-size:11px;color:#999;margin-top:10px;text-align:center;">Copie o texto acima e envie para o suporte</p>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+    }
+    const txt = document.getElementById('erroMsgTexto');
+    const dbg = document.getElementById('erroDebugTexto');
+    if (txt) txt.textContent = msg || 'Erro desconhecido';
+    if (dbg) {
+      if (debug) {
+        dbg.style.display = 'block';
+        dbg.textContent = 'Debug: ' + JSON.stringify(debug, null, 2);
+      } else {
+        dbg.style.display = 'none';
+      }
+    }
+    el.style.display = 'flex';
+  }
+
+  // ============================================================
+  // BUSCA PRODUTO (SOLICITACAO MATERIAL)
+  // ============================================================
+  function initProdutoSearch() {
+    const inp = document.getElementById('inpProduto');
+    const sug = document.getElementById('sugProduto');
+    if (!inp || !sug) return;
+
+    inp.addEventListener('input', () => {
+      clearTimeout(prodSearchTimer);
+      const q = inp.value.trim();
+      if (q.length < 2) {
+        sug.classList.remove('show');
+        sug.innerHTML = '';
+        produtoSelecionado = null;
+        return;
+      }
+      prodSearchTimer = setTimeout(() => buscarProdutos(q), 300);
+    });
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.product-search-wrap')) {
+        sug.classList.remove('show');
+      }
+    });
+  }
+
+  async function buscarProdutos(q) {
+    const sug = document.getElementById('sugProduto');
+    try {
+      const data = await apiGet({ acao: 'produtos', q });
+      if (!data.ok || !data.itens || !data.itens.length) {
+        sug.innerHTML = '<div style="padding:10px;color:#888;">Nenhum produto encontrado</div>';
+        sug.classList.add('show');
+        return;
+      }
+      sug.innerHTML = data.itens.map((it, idx) =>
+        `<div data-idx="${idx}"><div class="cod">${escHtml(it.codigo)}</div><div class="desc">${escHtml(it.descricao)}</div></div>`
+      ).join('');
+      sug.classList.add('show');
+      sug.querySelectorAll('div[data-idx]').forEach(el => {
+        el.addEventListener('click', () => {
+          const it = data.itens[Number(el.dataset.idx)];
+          produtoSelecionado = it;
+          document.getElementById('inpProduto').value = it.codigo + ' — ' + it.descricao;
+          sug.classList.remove('show');
+        });
+      });
+    } catch (e) {
+      sug.innerHTML = '<div style="padding:10px;color:#c0392b;">Erro ao buscar produtos</div>';
+      sug.classList.add('show');
+    }
+  }
+
+  function adicionarProdutoSelecionado() {
+    if (!produtoSelecionado) {
+      alert('Selecione um produto na lista de sugestões.');
+      return;
+    }
+    const qtd = Math.max(1, parseInt(document.getElementById('inpProdQtd').value, 10) || 1);
+    const cod = produtoSelecionado.codigo;
+    const existente = seriaisLidos.find(x => x.modo === 'material' && x.produto === cod);
+    if (existente) {
+      existente.qtd = (existente.qtd || 1) + qtd;
+    } else {
+      seriaisLidos.push({
+        modo: 'material',
+        produto: cod,
+        desc: produtoSelecionado.descricao,
+        qtd,
+        preco: produtoSelecionado.preco || 0
+      });
+    }
+    produtoSelecionado = null;
+    document.getElementById('inpProduto').value = '';
+    document.getElementById('inpProdQtd').value = '1';
+    renderListaSeriais();
+  }
+
+  // ============================================================
+  // AUTOCOMPLETE
+  // ============================================================
+  function bindAutocomplete(input) {
+    const baseName = input.dataset.ac;
+    const base = BASES[baseName] || [];
+    const sug = input.parentElement.querySelector('.suggestions');
+    if (!sug) return;
+
+    let highlightIdx = -1;
+
+    function renderItems(items, q) {
+      if (items.length === 0) {
+        sug.innerHTML = '<div class="suggestion-item" style="cursor:default;opacity:0.6;font-style:italic;">Nenhum resultado para "' + escHtml(q) + '"</div>';
+        sug.classList.add('open');
+        return;
+      }
+      sug.innerHTML = items.map((it, idx) => `
+        <div class="suggestion-item" data-idx="${idx}">
+          <div class="si-name">${highlightMatch(it.nome, q)}</div>
+          ${it.info ? '<div class="si-info">' + escHtml(it.info) + '</div>' : ''}
+        </div>
+      `).join('');
+      sug.classList.add('open');
+      Array.from(sug.querySelectorAll('.suggestion-item')).forEach((el, idx) => {
+        el.addEventListener('mousedown', e => {
+          e.preventDefault();
+          pickItem(items[idx]);
+        });
+      });
+      highlightIdx = -1;
+    }
+
+    function highlightMatch(text, q) {
+      if (!q) return escHtml(text);
+      const nq = normalize(q);
+      const nt = normalize(text);
+      const idx = nt.indexOf(nq);
+      if (idx >= 0) {
+        return escHtml(text.substr(0, idx)) + '<mark style="background:#FFF3CD;color:inherit;padding:0;">' + escHtml(text.substr(idx, q.length)) + '</mark>' + escHtml(text.substr(idx + q.length));
+      }
+      return escHtml(text);
+    }
+
+    function pickItem(it) {
+      input.value = it.nome;
+      sug.classList.remove('open');
+      const tgtId   = input.dataset.targetId;
+      const tgtInfo = input.dataset.targetInfo;
+      if (tgtId) {
+        const h = document.getElementById(tgtId);
+        if (h) h.value = it.id || '';
+      }
+      if (baseName === 'hospitais') {
+        const hLoja = document.getElementById('hidCliLoja');
+        if (hLoja) hLoja.value = it.loja || '01';
+      }
+      if (tgtInfo) {
+        const el = document.getElementById(tgtInfo);
+        if (el) el.textContent = it.info || '';
+      }
+      if (baseName === 'medicos' && it.info) {
+        const m = it.info.match(/CRM\s+(\d+)/);
+        if (m) {
+          const crm = document.getElementById('inpCRM');
+          if (crm) crm.value = m[1];
+        }
+      }
+    }
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim();
+      if (q.length < 2) { sug.classList.remove('open'); return; }
+      renderItems(searchBase(base, q), q);
+    });
+    input.addEventListener('blur', () => setTimeout(() => sug.classList.remove('open'), 180));
+    input.addEventListener('focus', () => {
+      const q = input.value.trim();
+      if (q.length >= 2) renderItems(searchBase(base, q), q);
+    });
+    input.addEventListener('keydown', e => {
+      if (!sug.classList.contains('open')) return;
+      const items = sug.querySelectorAll('.suggestion-item');
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        highlightIdx = Math.min(highlightIdx + 1, items.length - 1);
+        items.forEach((el, i) => el.style.background = i === highlightIdx ? 'var(--verde-fundo)' : '');
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        highlightIdx = Math.max(highlightIdx - 1, 0);
+        items.forEach((el, i) => el.style.background = i === highlightIdx ? 'var(--verde-fundo)' : '');
+      } else if (e.key === 'Enter') {
+        if (highlightIdx >= 0 && items[highlightIdx]) {
+          e.preventDefault();
+          items[highlightIdx].dispatchEvent(new MouseEvent('mousedown'));
+        }
+      } else if (e.key === 'Escape') {
+        sug.classList.remove('open');
+      }
+    });
+  }
+  document.querySelectorAll('input[data-ac]').forEach(bindAutocomplete);
+
+  // ============================================================
+  // VOZ — Web Speech API (pt-BR)
+  // ============================================================
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const VOICE_SUPPORTED = !!SR;
+  const MIC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="8" y1="22" x2="16" y2="22"/></svg>';
+
+  function buildVoiceOverlay() {
+    if (document.getElementById('voiceOverlay')) return;
+    const ov = document.createElement('div');
+    ov.id = 'voiceOverlay';
+    ov.className = 'voice-overlay';
+    ov.innerHTML = `
+      <div class="voice-card">
+        <div class="pulse">${MIC_SVG}</div>
+        <h3>Estou ouvindo...</h3>
+        <p>Diga o que deseja preencher</p>
+        <div class="heard" id="voiceHeard">—</div>
+        <button onclick="stopVoice(true)">Cancelar</button>
+      </div>
+    `;
+    document.body.appendChild(ov);
+  }
+
+  let voiceRec = null;
+  let voiceTarget = null;
+
+  function stripAccents(s) {
+    return (s || '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^\x00-\x7F\u00A0-\u024F\s]/g, ' ');
+  }
+
+  function cleanVoiceText(txt) {
+    return stripAccents(txt)
+      .replace(/[.,;:!?]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function startVoice(input) {
+    if (!VOICE_SUPPORTED) {
+      alert('Seu navegador não suporta reconhecimento de voz.\nUse o Chrome, Edge ou Safari.');
+      return;
+    }
+    if (voiceRec) { try { voiceRec.abort(); } catch(e) {} voiceRec = null; }
+    document.querySelectorAll('.mic-btn.listening').forEach(el => el.classList.remove('listening'));
+
+    voiceTarget = input;
+    setTimeout(() => {
+      voiceRec = new SR();
+      voiceRec.lang = 'pt-BR';
+      voiceRec.continuous = false;
+      voiceRec.interimResults = true;
+      voiceRec.maxAlternatives = 1;
+
+      buildVoiceOverlay();
+      document.getElementById('voiceHeard').textContent = '—';
+      document.getElementById('voiceOverlay').classList.add('show');
+      const wrap = input.closest('.input-wrap');
+      if (wrap) {
+        const btn = wrap.querySelector('.mic-btn');
+        if (btn) btn.classList.add('listening');
+      }
+
+      voiceRec.onresult = (e) => {
+        let txt = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) txt += e.results[i][0].transcript;
+        document.getElementById('voiceHeard').textContent = e.results[e.results.length - 1].isFinal ? cleanVoiceText(txt) : txt;
+        if (e.results[e.results.length - 1].isFinal) applyVoiceResult(txt);
+      };
+      voiceRec.onerror = (e) => {
+        let msg = 'Erro ao reconhecer voz.';
+        if (e.error === 'not-allowed') msg = 'Permita o uso do microfone.';
+        if (e.error === 'no-speech')   msg = 'Não ouvi nada. Tente novamente.';
+        const heard = document.getElementById('voiceHeard');
+        if (heard) heard.textContent = msg;
+        setTimeout(() => stopVoice(true), 1500);
+      };
+      voiceRec.onend = () => {
+        if (document.getElementById('voiceOverlay').classList.contains('show')) {
+          setTimeout(() => stopVoice(false), 400);
+        }
+      };
+      try { voiceRec.start(); } catch (err) { console.error(err); stopVoice(true); }
+    }, 60);
+  }
+
+  function applyVoiceResult(txt) {
+    txt = cleanVoiceText(txt);
+    if (!txt) return;
+    voiceTarget.value = txt;
+    voiceTarget.dispatchEvent(new Event('input', { bubbles: true }));
+    setTimeout(() => stopVoice(false), 600);
+  }
+
+  function stopVoice(cancel) {
+    if (voiceRec) {
+      try { voiceRec.stop(); } catch(e) {}
+      voiceRec = null;
+    }
+    document.querySelectorAll('.mic-btn.listening').forEach(el => el.classList.remove('listening'));
+    const ov = document.getElementById('voiceOverlay');
+    if (ov) ov.classList.remove('show');
+    if (!cancel && voiceTarget) voiceTarget.focus();
+  }
+
+  function attachMicButtons() {
+    document.querySelectorAll('input[data-ac]').forEach(input => {
+      if (input.parentElement.classList.contains('input-wrap')) return;
+      const wrap = document.createElement('div');
+      wrap.className = 'input-wrap';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'mic-btn' + (VOICE_SUPPORTED ? '' : ' unsupported');
+      btn.title = VOICE_SUPPORTED ? 'Falar para preencher' : 'Voz não suportada neste navegador';
+      btn.innerHTML = MIC_SVG;
+      btn.addEventListener('click', (e) => {
+        e.preventDefault(); e.stopPropagation();
+        startVoice(input);
+      });
+      wrap.appendChild(btn);
+    });
+  }
+  attachMicButtons();
+
+  // ============================================================
+  // RESUMO E ENVIO
+  // ============================================================
+  function renderResumo() {
+    const tipo = TIPOS[tipoPedido];
+    const cliente = tipo.deduzCliente
+      ? (clienteDetectado || { nome: '—', id: '—' })
+      : { nome: document.getElementById('inpCliente').value || '—', id: '—' };
+
+    const paciente  = document.getElementById('inpPaciente').value || '—';
+    const data      = document.getElementById('inpData').value || '—';
+    const hora      = document.getElementById('inpHora').value || '—';
+    const medico    = document.getElementById('inpMedico').value || '—';
+    const crm       = document.getElementById('inpCRM').value || '';
+    const convenio  = document.getElementById('inpConvenio').value || '—';
+    const cirurgia  = document.getElementById('inpCirurgia').value || '—';
+    const obs       = document.getElementById('inpObs').value;
+
+    const itensHtml = seriaisLidos.map((s, i) => {
+      if (s.modo === 'material') {
+        return `
+      <div class="review-line">
+        <span class="lbl">${i+1}. ${escHtml(s.produto)}</span>
+        <span class="val" style="font-size:11px;text-align:right;">${escHtml(s.qtd || 1)} un · sem serial</span>
+      </div>`;
+      }
+      return `
+      <div class="review-line">
+        <span class="lbl">${i+1}. ${escHtml(s.produto)}</span>
+        <span class="val" style="font-size:11px;text-align:right;">SN ${escHtml(s.serial)}<br>Lote ${escHtml(s.lote)} · Val ${escHtml(s.val)}</span>
+      </div>`;
+    }).join('');
+
+    const html = `
+      <div class="review-box">
+        <h4>Tipo de pedido</h4>
+        <div class="review-line"><span class="lbl">Tipo</span><span class="val">${escHtml(tipo.label)}</span></div>
+        <div class="review-line"><span class="lbl">Armazém</span><span class="val">${escHtml(tipo.armazem)}</span></div>
+      </div>
+      <div class="review-box">
+        <h4>Cliente</h4>
+        <div class="review-line"><span class="lbl">Hospital</span><span class="val">${escHtml(cliente.nome)}</span></div>
+        ${cliente.id && cliente.id !== '—' ? `<div class="review-line"><span class="lbl">Código</span><span class="val">${escHtml(cliente.id)}</span></div>` : ''}
+        ${tipo.deduzCliente ? '<div class="review-line"><span class="lbl">Origem</span><span class="val" style="font-size:11px;color:var(--verde-principal);">Detectado pelo serial</span></div>' : ''}
+      </div>
+      <div class="review-box">
+        <h4>Procedimento</h4>
+        <div class="review-line"><span class="lbl">Paciente</span><span class="val">${escHtml(paciente)}</span></div>
+        <div class="review-line"><span class="lbl">Data/Hora</span><span class="val">${escHtml(formatData(data))} ${escHtml(hora)}</span></div>
+        <div class="review-line"><span class="lbl">Médico</span><span class="val">${escHtml(medico)}${crm ? ' (CRM ' + escHtml(crm) + ')' : ''}</span></div>
+        <div class="review-line"><span class="lbl">Convênio</span><span class="val">${escHtml(convenio)}</span></div>
+        <div class="review-line"><span class="lbl">Cirurgia</span><span class="val">${escHtml(cirurgia)}</span></div>
+        ${obs ? `<div class="review-line"><span class="lbl">Obs.</span><span class="val">${escHtml(obs)}</span></div>` : ''}
+        ${fotosDocumentos.length ? `<div class="review-line"><span class="lbl">Documentos</span><span class="val">${fotosDocumentos.length} foto(s)</span></div>` : ''}
+      </div>
+      <div class="review-box">
+        <h4>Itens (${seriaisLidos.length})</h4>
+        ${itensHtml}
+      </div>
+    `;
+
+    document.getElementById('reviewBox').innerHTML = html;
+  }
+
+  function formatData(d) {
+    if (!d) return '';
+    const p = d.split('-');
+    if (p.length !== 3) return d;
+    return p[2] + '/' + p[1] + '/' + p[0];
+  }
+
+  async function enviar() {
+    const tipo = TIPOS[tipoPedido];
+    let cliId = '', cliLoja = '01';
+
+    if (tipo.deduzCliente && clienteDetectado) {
+      cliId = clienteDetectado.id;
+      cliLoja = clienteDetectado.loja || '01';
+    } else {
+      cliId = document.getElementById('hidCliId').value.trim();
+      cliLoja = document.getElementById('hidCliLoja').value.trim() || '01';
+    }
+
+    if (!cliId) {
+      alert('Cliente não informado.');
+      return;
+    }
+
+    const body = {
+      vendedor: API_VEND,
+      senha: API_SENHA,
+      fil: filialPedido || API_FIL,
+      tipo: tipoPedido,
+      cliente: cliId,
+      loja: cliLoja,
+      paciente: document.getElementById('inpPaciente').value.trim(),
+      nomeMedico: document.getElementById('inpMedico').value.trim(),
+      medico: document.getElementById('inpCRM').value.trim(),
+      convenio: document.getElementById('inpConvenio').value.trim(),
+      dtUso: document.getElementById('inpData').value.split('-').reverse().join('/'),
+      mennota: document.getElementById('inpCirurgia').value.trim(),
+      obs: document.getElementById('inpObs').value.trim(),
+      itens: seriaisLidos.filter(s => !s.err).map(s => {
+        if (s.modo === 'material') {
+          return {
+            produto: s.produto,
+            qtd: s.qtd || 1,
+            preco: s.preco || 0
+          };
+        }
+        return {
+          serial: s.serial,
+          produto: s.produto,
+          lote: s.lote,
+          validade: s.val,
+          origem: s.origem || 'SBF',
+          preco: s.preco || 0
+        };
+      }),
+      fotos: fotosDocumentos.map(f => ({ base64: f.base64, desc: f.nome }))
+    };
+
+    if (USE_API && !API_SENHA && SESS_TIPO !== 'U') {
+      abrirLogin('Faça login para enviar o pedido ao Protheus.');
+      return;
+    }
+    if (SESS_TIPO === 'U') {
+      alert('Usuário interno não gera pedido pelo app.\nAbra o Painel de Logística.');
+      window.location.href = 'painel-consignado.html';
+      return;
+    }
+
+    if (USE_API && API_SENHA) {
+      showLoading(true);
+      try {
+        const resp = await apiPost(body);
+        if (!resp.ok) {
+          mostrarErroPedido(resp.msg || 'Erro ao gerar pedido', resp.debug);
+          return;
+        }
+        document.getElementById('pvNum').textContent = resp.pedido;
+        const msgEl = document.getElementById('successMsg');
+        if (resp.revisar) {
+          msgEl.innerHTML = 'Pedido registrado com sucesso.<br><strong>A logística vai conferir saldo/serial antes de faturar.</strong>' +
+            (resp.avisos ? '<br><small style="opacity:0.85">' + escHtml(resp.avisos) + '</small>' : '');
+        } else {
+          msgEl.innerHTML = 'A logística já está vendo o pedido no painel.<br>Você receberá um aviso quando for atendido.';
+        }
+      } catch (e) {
+        mostrarErroPedido(e.message);
+        return;
+      } finally {
+        showLoading(false);
+      }
+    } else {
+      alert('Modo demonstração desativado. Faça login do vendedor para gerar pedido real.');
+      return;
+    }
+
+    document.querySelectorAll('#panel3 > *').forEach(el => {
+      if (el.id !== 'successScreen') el.style.display = 'none';
+    });
+    document.getElementById('successScreen').style.display = 'block';
+    document.getElementById('footer').style.display = 'none';
+  }
+
+  function restart() {
+    location.reload();
+  }
+
+  // ============================================================
+  // FOTOS DOCUMENTOS (Banco de Conhecimento Protheus)
+  // ============================================================
+  function abrirModalFotos() {
+    document.getElementById('modalFotos').classList.add('show');
+  }
+  function fecharModalFotos() {
+    document.getElementById('modalFotos').classList.remove('show');
+  }
+  function adicionarFotos(files) {
+    Array.from(files || []).forEach(file => {
+      if (fotosDocumentos.length >= 10) {
+        alert('Máximo 10 fotos por pedido.');
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX = 1200;
+          let w = img.width, h = img.height;
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = h * MAX / w; w = MAX; }
+            else { w = w * MAX / h; h = MAX; }
+          }
+          canvas.width = w;
+          canvas.height = h;
+          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+          fotosDocumentos.push({
+            base64: canvas.toDataURL('image/jpeg', 0.7),
+            nome: 'DOC_' + String(fotosDocumentos.length + 1).padStart(2, '0')
+          });
+          renderizarFotos();
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    });
+    const inp = document.querySelector('#btnAddFoto input');
+    if (inp) inp.value = '';
+  }
+  function removerFoto(idx) {
+    fotosDocumentos.splice(idx, 1);
+    renderizarFotos();
+  }
+  function renderizarFotos() {
+    const grid = document.getElementById('fotosGrid');
+    const counter = document.getElementById('fotoCounter');
+    const badge = document.getElementById('anexoBadge');
+    const btnAnexos = document.getElementById('btnAnexos');
+    grid.querySelectorAll('.foto-thumb').forEach(el => el.remove());
+    fotosDocumentos.forEach((foto, i) => {
+      const div = document.createElement('div');
+      div.className = 'foto-thumb';
+      div.innerHTML = `<img src="${foto.base64}" alt="${foto.nome}"><button type="button" class="foto-remove" onclick="removerFoto(${i})">&times;</button>`;
+      grid.insertBefore(div, document.getElementById('btnAddFoto'));
+    });
+    counter.textContent = fotosDocumentos.length ? fotosDocumentos.length + ' foto(s) anexada(s)' : 'Opcional — guias e termos da sala';
+    if (fotosDocumentos.length) {
+      badge.style.display = 'flex';
+      badge.textContent = fotosDocumentos.length;
+      btnAnexos.classList.add('tem-fotos');
+    } else {
+      badge.style.display = 'none';
+      btnAnexos.classList.remove('tem-fotos');
+    }
+    document.getElementById('btnAddFoto').style.display = fotosDocumentos.length >= 10 ? 'none' : '';
+  }
+
+  // ============================================================
+  // INIT + LOGIN VENDEDOR
+  // ============================================================
+  function updateLoginUI() {
+    const st = document.getElementById('loginStatus');
+    const hdr = document.getElementById('hdrVendedor');
+    if (API_SENHA || SESS_TIPO === 'U') {
+      st.textContent = SESS_TIPO === 'U' ? '✓ Usuário' : '✓ Logado';
+      st.className = 'ok';
+      hdr.classList.add('logado');
+    } else {
+      st.textContent = '🔒 Toque para login';
+      st.className = '';
+      hdr.classList.remove('logado');
+    }
+  }
+
+  function fecharEntry() {
+    document.getElementById('entryScreen').classList.add('hidden');
+  }
+
+  function abrirEntry() {
+    document.getElementById('entryScreen').classList.remove('hidden');
+    document.getElementById('entryPass').classList.remove('show');
+    pessoaSelecionada = null;
+  }
+
+  function aplicarSessao(o) {
+    SESS_TIPO = o.tipo || 'V';
+    if (o.tipo === 'V') {
+      API_VEND = o.vendedor || API_VEND;
+      API_SENHA = o.senha || '';
+      document.getElementById('vendCod').textContent = API_VEND;
+      document.getElementById('vendNome').textContent = o.nome || 'Vendedor';
+    } else {
+      API_SENHA = '';
+      document.getElementById('vendCod').textContent = o.userId || '';
+      document.getElementById('vendNome').textContent = o.nome || 'Usuário';
+    }
+    sessionStorage.setItem('solpv_sess', JSON.stringify(o));
+    updateLoginUI();
+    fecharEntry();
+  }
+
+  async function buscarPessoas(q) {
+    q = cleanVoiceText(q);
+    if (q.length < 2) {
+      document.getElementById('entryResults').innerHTML = '';
+      return;
+    }
+    document.getElementById('entryHeard').textContent = 'Buscando: ' + q;
+    try {
+      const r = await apiGet({ acao: 'identificar', q });
+      renderEntryResults(r.pessoas || []);
+    } catch (e) {
+      document.getElementById('entryHeard').textContent = e.message;
+    }
+  }
+
+  function renderEntryResults(lista) {
+    const el = document.getElementById('entryResults');
+    if (!lista.length) {
+      el.innerHTML = '<div style="opacity:0.85;font-size:13px;padding:8px;">Ninguém encontrado. Tente outro nome.</div>';
+      return;
+    }
+    el.innerHTML = lista.map((p, i) => `
+      <div class="entry-person" onclick="selecionarPessoa(${i})">
+        <div class="ep-nome">${escHtml(p.nome)}</div>
+        <div class="ep-info">${escHtml(p.info || '')}</div>
+        <span class="ep-tipo ${p.tipo === 'V' ? 'v' : 'u'}">${p.tipo === 'V' ? 'Vendedor' : 'Usuário interno'}</span>
+      </div>
+    `).join('');
+    window._entryLista = lista;
+    if (lista.length === 1) selecionarPessoa(0);
+  }
+
+  function abrirSenhaVendedor(p) {
+    const cod = String(p.codigo || '').trim().padStart(6, '0');
+    document.getElementById('entryPassNome').textContent = p.nome + ' — Vendedor ' + cod;
+    document.getElementById('entryPassHint').innerHTML =
+      'A senha <strong>não é seu nome</strong>. Use a senha do cadastro SA3.<br>Geralmente é igual ao código: <strong>' + cod + '</strong>.';
+    document.getElementById('entryPassSenha').value = '';
+    document.getElementById('entryPassQuick').textContent = 'Usar código ' + cod + ' como senha';
+    document.getElementById('entryPass').classList.add('show');
+    document.getElementById('entryPass').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    document.getElementById('entryPassSenha').focus();
+  }
+
+  function usarCodigoComoSenha() {
+    if (!pessoaSelecionada || pessoaSelecionada.tipo !== 'V') return;
+    const cod = String(pessoaSelecionada.codigo || '').trim().padStart(6, '0');
+    document.getElementById('entryPassSenha').value = cod;
+    confirmarEntradaVendedor();
+  }
+
+  function selecionarPessoa(idx) {
+    const p = (window._entryLista || [])[idx];
+    if (!p) return;
+    pessoaSelecionada = p;
+    if (p.tipo === 'U') {
+      aplicarSessao({ tipo: 'U', userId: p.codigo, nome: p.nome });
+      if (confirm('Olá, ' + p.nome + '!\n\nAbrir o Painel de Logística?')) {
+        window.location.href = 'painel-consignado.html';
+      }
+      return;
+    }
+    document.getElementById('entryPassNome').textContent = p.nome + ' — Vendedor ' + p.codigo;
+    abrirSenhaVendedor(p);
+  }
+
+  async function confirmarEntradaVendedor() {
+    if (!pessoaSelecionada || pessoaSelecionada.tipo !== 'V') return;
+    const senha = document.getElementById('entryPassSenha').value.trim();
+    if (!senha) { alert('Informe a senha do vendedor (ex.: 000119).'); return; }
+    showLoading(true);
+    try {
+      const cod = String(pessoaSelecionada.codigo || '').trim().padStart(6, '0');
+      const r = await apiGet({ acao: 'login', vendedor: cod, senha });
+      if (!r.ok) {
+        alert((r.msg || 'Senha inválida') + '\n\nDica: a senha é a do cadastro SA3, não seu nome.\nPara o vendedor ' + cod + ', tente ' + cod + '.');
+        return;
+      }
+      aplicarSessao({ tipo: 'V', vendedor: r.vendedor, senha, nome: r.nome });
+    } catch (e) {
+      alert(e.message);
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  let entryVoiceRec = null;
+  function falarMeuNome() {
+    if (!VOICE_SUPPORTED) {
+      document.getElementById('entrySearch').focus();
+      alert('Use o campo de texto ou Chrome no Android.');
+      return;
+    }
+    if (entryVoiceRec) { try { entryVoiceRec.abort(); } catch (e) {} }
+    const btn = document.getElementById('entryVoiceBtn');
+    btn.classList.add('listening');
+    document.getElementById('entryHeard').textContent = 'Ouvindo... diga seu nome';
+    entryVoiceRec = new SR();
+    entryVoiceRec.lang = 'pt-BR';
+    entryVoiceRec.interimResults = true;
+    entryVoiceRec.onresult = (e) => {
+      let txt = '';
+      for (let i = e.resultIndex; i < e.results.length; i++) txt += e.results[i][0].transcript;
+      document.getElementById('entryHeard').textContent = txt;
+      if (e.results[e.results.length - 1].isFinal) {
+        const q = cleanVoiceText(txt);
+        document.getElementById('entrySearch').value = q;
+        document.getElementById('entryHeard').textContent = q ? ('Buscando: ' + q) : 'Nome não reconhecido';
+        if (q) buscarPessoas(q);
+      }
+    };
+    entryVoiceRec.onerror = () => {
+      document.getElementById('entryHeard').textContent = 'Não ouvi. Tente de novo ou digite.';
+      btn.classList.remove('listening');
+    };
+    entryVoiceRec.onend = () => btn.classList.remove('listening');
+    entryVoiceRec.start();
+  }
+
+  function initEntryScreen() {
+    document.getElementById('entrySearch').addEventListener('input', () => {
+      clearTimeout(entrySearchTimer);
+      const raw = document.getElementById('entrySearch').value;
+      const q = cleanVoiceText(raw);
+      if (raw !== q) document.getElementById('entrySearch').value = q;
+      entrySearchTimer = setTimeout(() => buscarPessoas(q), 350);
+    });
+    document.getElementById('entryPassSenha').addEventListener('keydown', e => {
+      if (e.key === 'Enter') confirmarEntradaVendedor();
+    });
+  }
+
+  (function initLogin() {
+    const s = sessionStorage.getItem('solpv_sess');
+    if (!s) {
+      updateLoginUI();
+      initEntryScreen();
+      return;
+    }
+    try {
+      const o = JSON.parse(s);
+      SESS_TIPO = o.tipo || 'V';
+      if (o.tipo === 'V') {
+        API_VEND = o.vendedor || API_VEND;
+        API_SENHA = o.senha || '';
+      }
+      document.getElementById('vendCod').textContent = o.vendedor || o.userId || API_VEND;
+      document.getElementById('vendNome').textContent = o.nome || 'Vendedor';
+      updateLoginUI();
+      fecharEntry();
+    } catch (e) {
+      updateLoginUI();
+      initEntryScreen();
+    }
+    initEntryScreen();
+  })();
+  initProdutoSearch();
+
+  function abrirLogin(msg) {
+    abrirEntry();
+    if (msg) document.getElementById('entryHeard').textContent = msg;
+  }
+
+  function fecharLogin() {
+    document.getElementById('loginOverlay').classList.remove('show');
+  }
+
+  async function confirmarLogin() {
+    const cod = document.getElementById('loginCod').value.trim().padStart(6, '0');
+    const senha = document.getElementById('loginSenha').value.trim();
+    const err = document.getElementById('loginErr');
+    err.classList.remove('show');
+    if (!cod || !senha) {
+      err.textContent = 'Informe código e senha.';
+      err.classList.add('show');
+      return;
+    }
+    showLoading(true);
+    try {
+      const r = await apiGet({ acao: 'login', vendedor: cod, senha });
+      if (!r.ok) {
+        err.textContent = (r.msg || 'Senha inválida') + ' — tente o código ' + cod;
+        err.classList.add('show');
+        return;
+      }
+      fecharLogin();
+      aplicarSessao({ tipo: 'V', vendedor: r.vendedor, senha, nome: r.nome });
+    } catch (e) {
+      err.textContent = e.message;
+      err.classList.add('show');
+    } finally {
+      showLoading(false);
+    }
+  }
+
+  showStep(0);
+</script>
+
+</body>
+</html>
