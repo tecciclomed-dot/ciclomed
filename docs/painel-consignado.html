@@ -1,0 +1,464 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de Consignados — CicloMed</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --verde-principal: #1B5E3F;
+    --verde-escuro:    #0E3A24;
+    --verde-medio:     #2A7A4F;
+    --verde-claro:     #4CAF50;
+    --verde-fundo:     #E8F5EE;
+    --verde-sucesso:   #27AE60;
+    --vermelho:        #C0392B;
+    --amarelo:         #F39C12;
+    --cinza-fundo:     #F5F7F6;
+    --cinza-borda:     #E0E5E2;
+    --cinza-texto:     #5B6B61;
+    --branco:          #FFFFFF;
+  }
+
+  body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: var(--cinza-fundo);
+    min-height: 100vh;
+    color: #2C3E2D;
+  }
+
+  .header {
+    background: linear-gradient(135deg, var(--verde-escuro) 0%, var(--verde-principal) 100%);
+    color: var(--branco);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+  }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .header-logo {
+    width: 44px; height: 44px;
+    background: rgba(255,255,255,0.18);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 900; letter-spacing: -1px;
+    border: 1.5px solid rgba(255,255,255,0.3);
+  }
+  .header h1 { font-size: 18px; font-weight: 700; line-height: 1.2; }
+  .header h1 span { font-size: 12px; font-weight: 400; opacity: 0.85; display: block; margin-top: 1px; }
+  .header-right { display: flex; align-items: center; gap: 12px; }
+  .btn-refresh {
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .btn-refresh:hover { background: rgba(255,255,255,0.25); }
+  .last-update { font-size: 11px; opacity: 0.75; }
+
+  .filters {
+    background: #fff;
+    padding: 12px 24px;
+    border-bottom: 1.5px solid var(--cinza-borda);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .filter-search { flex: 1; min-width: 280px; }
+  .filter-search input {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .filter-chip {
+    padding: 7px 14px;
+    background: var(--cinza-fundo);
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--cinza-texto);
+  }
+  .filter-chip.on {
+    background: var(--verde-principal);
+    color: #fff;
+    border-color: var(--verde-principal);
+  }
+
+  .board {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    padding: 18px 24px 30px;
+    min-height: calc(100vh - 130px);
+  }
+  @media (max-width: 900px) { .board { grid-template-columns: 1fr; } }
+
+  .column { display: flex; flex-direction: column; min-width: 0; }
+  .col-header {
+    border-radius: 10px 10px 0 0;
+    padding: 13px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    color: #fff;
+  }
+  .col-header .col-title {
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .col-badge {
+    background: rgba(255,255,255,0.25);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 20px;
+    min-width: 28px;
+    text-align: center;
+  }
+  .col-body {
+    background: #EEF2EF;
+    border-radius: 0 0 10px 10px;
+    padding: 12px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 300px;
+  }
+  .col-atender .col-header { background: var(--amarelo); color: #623c00; }
+  .col-atender .col-header .col-title { color: #623c00; }
+  .col-atender .col-badge { background: rgba(0,0,0,0.12); color: #623c00; }
+  .col-atendido .col-header { background: var(--verde-sucesso); }
+
+  .card {
+    background: #fff;
+    border-radius: 10px;
+    padding: 14px 16px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    border-left: 4px solid var(--amarelo);
+    transition: all .15s;
+  }
+  .card.revisar { border-left-color: var(--vermelho); box-shadow: 0 0 0 1px rgba(192,57,43,0.15); }
+  .card-alerta {
+    background: #FDEDEC;
+    color: #922B21;
+    border: 1px solid #F5B7B1;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin: 8px 0;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .card-alerta strong { display: block; margin-bottom: 4px; }
+  .card:hover { box-shadow: 0 6px 18px rgba(0,0,0,0.13); transform: translateY(-1px); }
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+  .card-num { font-size: 15px; font-weight: 800; color: var(--verde-escuro); }
+  .card-tipo {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: var(--verde-fundo);
+    color: var(--verde-escuro);
+    text-transform: uppercase;
+  }
+  .card-tipo.tipo-C { background: #D6EAF8; color: #1A5276; }
+  .card-tipo.tipo-R { background: #FCF3CF; color: #B7770F; }
+  .card-tipo.tipo-M { background: #E8DAEF; color: #6C3483; }
+  .card-filial {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: #1B5E3F;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .card-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-start;
+    margin-bottom: 5px;
+    font-size: 13px;
+    color: #444;
+    line-height: 1.4;
+  }
+  .card-row .lbl { font-weight: 600; color: var(--verde-escuro); margin-right: 4px; }
+  .card-procedimento {
+    background: var(--verde-fundo);
+    padding: 8px 11px;
+    border-radius: 6px;
+    margin: 10px 0 8px;
+    font-size: 12px;
+    color: var(--verde-escuro);
+    border-left: 3px solid var(--verde-principal);
+  }
+  .card-procedimento .lbl {
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 10px;
+    opacity: 0.7;
+  }
+  .card-itens {
+    background: #FAFBFA;
+    border: 1px solid #ECF0ED;
+    border-radius: 6px;
+    padding: 8px 11px;
+    margin: 8px 0;
+    font-size: 12px;
+  }
+  .card-item-line { padding: 3px 0; line-height: 1.4; }
+  .card-item-line + .card-item-line { border-top: 1px dashed #E0E5E2; }
+  .card-item-line .prod { font-weight: 700; color: var(--verde-escuro); }
+  .card-footer {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--cinza-borda);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .card-prio {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .card-prio .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--vermelho);
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .card-actions { display: flex; gap: 6px; }
+  .btn-act {
+    padding: 6px 12px;
+    border: none;
+    border-radius: 5px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-conferir {
+    background: var(--verde-fundo);
+    color: var(--verde-escuro);
+    border: 1.5px solid var(--verde-medio);
+  }
+  .btn-faturar { background: var(--verde-sucesso); color: #fff; }
+  .badge-done {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: #D5F5E3;
+    color: #1E8449;
+  }
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: #B0B8B2;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="header-logo">CM</div>
+    <h1>
+      Painel de Consignados
+      <span>Pedidos de Venda — Logística CicloMed</span>
+    </h1>
+  </div>
+  <div class="header-right">
+    <span class="last-update" id="lastUpdate">Carregando...</span>
+    <button class="btn-refresh" onclick="carregarPainel()">Atualizar</button>
+  </div>
+</div>
+
+<div class="filters">
+  <div class="filter-search">
+    <input type="text" placeholder="Buscar por PV, cliente, paciente, produto...">
+  </div>
+  <span class="filter-chip on">Todos</span>
+  <span class="filter-chip">Consignação (C)</span>
+  <span class="filter-chip">Reserva (R)</span>
+  <span class="filter-chip">Solic. Material (M)</span>
+  <span class="filter-chip">Com alerta de saldo</span>
+</div>
+
+<div class="board">
+  <div class="column col-atender">
+    <div class="col-header">
+      <span class="col-title">Pedidos a Atender</span>
+      <span class="col-badge" id="badgePend">0</span>
+    </div>
+    <div class="col-body" id="colPendentes">
+      <div class="empty">Carregando pedidos...</div>
+    </div>
+  </div>
+
+  <div class="column col-atendido">
+    <div class="col-header">
+      <span class="col-title">Pedidos Atendidos</span>
+      <span class="col-badge" id="badgeAtend">0</span>
+    </div>
+    <div class="col-body" id="colAtendidos">
+      <div class="empty">Carregando...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
+const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
+
+const TIPO_NOME = {
+  C: 'Consignação',
+  R: 'Reserva',
+  P: 'Consig. Perm.',
+  N: 'Venda',
+  M: 'Solic. Material'
+};
+
+function esc(s) {
+  return (s == null ? '' : String(s))
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/"/g, '&quot;');
+}
+
+async function fetchComRetry(url, opts, maxTries = 3) {
+  const delays = [0, 3000, 6000];
+  let lastErr;
+  for (let i = 0; i < maxTries; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, delays[i]));
+    try {
+      const resp = await fetch(url, opts);
+      if ([502, 503, 504].includes(resp.status)) throw new Error('HTTP ' + resp.status);
+      return resp;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
+async function carregarPainel() {
+  document.getElementById('lastUpdate').textContent = 'Atualizando...';
+  try {
+    const r = await fetchComRetry(API_BASE + '?acao=painel', { headers: { Authorization: AUTH } });
+    const data = await r.json();
+    if (!data.ok) throw new Error(data.msg || 'Erro ao carregar painel');
+    renderColuna('colPendentes', 'badgePend', data.pendentes || [], false);
+    renderColuna('colAtendidos', 'badgeAtend', data.atendidos || [], true);
+    document.getElementById('lastUpdate').textContent =
+      'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+  } catch (e) {
+    document.getElementById('colPendentes').innerHTML =
+      '<div class="empty">⚠ ' + esc(e.message) +
+      '<br><small>Tentou 3 vezes. Recarregue em 30s ou verifique o AppServer rest03.</small></div>';
+    document.getElementById('colAtendidos').innerHTML = '';
+    document.getElementById('lastUpdate').textContent = 'Erro — clique Atualizar';
+  }
+}
+
+function renderColuna(elId, badgeId, lista, atendido) {
+  document.getElementById(badgeId).textContent = lista.length;
+  const el = document.getElementById(elId);
+  if (!lista.length) {
+    el.innerHTML = '<div class="empty">' +
+      (atendido ? 'Nenhum pedido atendido ainda.' : 'Nenhum pedido pendente.') +
+      '</div>';
+    return;
+  }
+  el.innerHTML = lista.map(p => renderCard(p, atendido)).join('');
+}
+
+function renderCard(p, atendido) {
+  const tipo = (p.tipo || 'C').trim();
+  const itensHtml = (p.itens || []).map(it =>
+    '<div class="card-item-line"><span class="prod">' + esc(it.produto) + '</span> — ' +
+    esc(it.qtd || 1) + ' un — ' + esc(it.descricao || '') +
+    (it.serial
+      ? '<div style="font-size:11px;color:#666;">Serial ' + esc(it.serial) +
+        (it.lote ? ' · Lote ' + esc(it.lote) : '') + '</div>'
+      : '') +
+    '</div>'
+  ).join('');
+
+  const proc = p.paciente
+    ? '<div class="card-procedimento"><span class="lbl">Procedimento</span><div>' +
+      esc(p.paciente) +
+      (p.medico ? ' · ' + esc(p.medico) : '') +
+      (p.dtUso ? ' · ' + esc(p.dtUso) : '') +
+      (p.convenio ? ' · ' + esc(p.convenio) : '') +
+      '</div></div>'
+    : '';
+
+  const alerta = p.revisar
+    ? '<div class="card-alerta"><strong>⚠ Revisar antes de faturar</strong>' +
+      esc(p.avisos || 'Pedido gerado pelo app — conferir saldo, P3 ou serial.') +
+      '</div>'
+    : '';
+
+  var filialLabel = (p.filial || '').trim();
+  filialLabel = filialLabel ? 'Filial ' + filialLabel : '';
+
+  return '<div class="card' + (atendido ? ' atendido' : '') + (p.revisar ? ' revisar' : '') + '">' +
+    '<div class="card-header">' +
+      '<span class="card-num">PV ' + esc(p.pedido) + '</span>' +
+      '<div style="display:flex;gap:6px;align-items:center;">' +
+        '<span class="card-tipo tipo-' + esc(tipo) + '">' + esc(TIPO_NOME[tipo] || tipo) + '</span>' +
+        (filialLabel ? '<span class="card-filial">' + esc(filialLabel) + '</span>' : '') +
+      '</div>' +
+    '</div>' +
+    '<div class="card-row"><span class="lbl">Vendedor:</span> ' + esc(p.vendedorNome || p.vendedor) + '</div>' +
+    '<div class="card-row"><span class="lbl">Hospital:</span> ' + esc(p.cliente) + '</div>' +
+    alerta +
+    proc +
+    '<div class="card-itens">' + itensHtml + '</div>' +
+    '<div class="card-footer">' +
+        (atendido
+        ? '<span class="badge-done">Faturado</span>'
+        : (p.revisar
+          ? '<span class="card-prio" style="color:#922B21"><span class="dot" style="background:#C0392B"></span>Revisar</span>'
+          : '<span class="card-prio"><span class="dot"></span>Aguardando</span>')) +
+      '<div class="card-actions">' +
+        '<button class="btn-act btn-conferir">Conferir</button>' +
+        (atendido ? '' : '<button class="btn-act btn-faturar">Faturar</button>') +
+      '</div></div></div>';
+}
+
+carregarPainel();
+setInterval(carregarPainel, 60000);
+</script>
+
+</body>
+</html>

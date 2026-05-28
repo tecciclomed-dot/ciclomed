@@ -84,7 +84,10 @@ WSMETHOD GET WSRECEIVE acao, serial, tipo, fil, vendedor, senha, q WSSERVICE WSS
             cJson := fSolBuscaProd(AllTrim(::q))
 
         Case cAcao == "VERSAO"
-            cJson := '{"ok":true,"servico":"WSSOLPV","versao":"1.1.0-debug-erro"}'
+            cJson := '{"ok":true,"servico":"WSSOLPV","versao":"1.2.0-insert-direto"}'
+
+        Case cAcao == "SALDO"
+            cJson := fSolSaldoLote(AllTrim(::q), AllTrim(::serial))
 
         Case cAcao == "PAINEL"
             cJson := fSolPainel(AllTrim(::fil))
@@ -323,6 +326,57 @@ Static Function fSolPrefixoPV(cTipo)
             Return "N"
     EndCase
 Return "N"
+
+//=====================================================================
+// fSolFilialSerial - detecta filial/armazem do serial via SBF ou SB6
+// Para tipo R: prioriza arm=57 (P3). Para outros: arm=50.
+// Retorna array {cFilial, cArmaz}
+//=====================================================================
+Static Function fSolFilialSerial(cSerial, cTipo)
+
+    Local cQry    := ""
+    Local cAlias  := GetNextAlias()
+    Local cFil    := ""
+    Local cArm    := ""
+    Local cArmEsp := fSolArmEsperado(cTipo)
+
+    If Empty(cSerial)
+        Return {"", ""}
+    EndIf
+
+    // --- SBF: serial com saldo, prioriza armazem esperado ---
+    cQry := " SELECT TOP 1 RTRIM(BF_FILIAL) AS FIL, RTRIM(BF_LOCAL) AS ARM "
+    cQry += " FROM " + RetSqlName("SBF") + " WITH (NOLOCK) "
+    cQry += " WHERE D_E_L_E_T_ = ' ' AND BF_QUANT > 0 "
+    cQry += "   AND RTRIM(BF_NUMSERI) = '" + fSolSqlEsc(cSerial) + "' "
+    cQry += " ORDER BY CASE WHEN RTRIM(BF_LOCAL) = '" + cArmEsp + "' THEN 0 ELSE 1 END "
+
+    dbUseArea(.T., "TOPCONN", TCGenQry(,, cQry), cAlias, .F., .T.)
+    If !(cAlias)->(Eof())
+        cFil := AllTrim((cAlias)->FIL)
+        cArm := AllTrim((cAlias)->ARM)
+    EndIf
+    (cAlias)->(dbCloseArea())
+
+    // --- Fallback SB6 (somente para Reserva - item em P3) ---
+    If Empty(cFil) .And. cTipo == "R"
+        cQry := " SELECT TOP 1 RTRIM(B6.B6_FILIAL) AS FIL "
+        cQry += " FROM " + RetSqlName("SB6") + " B6 WITH (NOLOCK) "
+        cQry += " INNER JOIN " + RetSqlName("SD2") + " D2 WITH (NOLOCK) "
+        cQry += "   ON D2.D_E_L_E_T_ = ' ' AND RTRIM(D2.D2_IDENTB6) = RTRIM(B6.B6_IDENT) "
+        cQry += "   AND RTRIM(D2.D2_NUMSERI) = '" + fSolSqlEsc(cSerial) + "' "
+        cQry += " WHERE B6.D_E_L_E_T_ = ' ' AND B6.B6_PODER3 = 'R' AND B6.B6_SALDO > 0 "
+        cQry += " ORDER BY B6.B6_EMISSAO DESC "
+
+        dbUseArea(.T., "TOPCONN", TCGenQry(,, cQry), cAlias, .F., .T.)
+        If !(cAlias)->(Eof())
+            cFil := AllTrim((cAlias)->FIL)
+            cArm := "57"
+        EndIf
+        (cAlias)->(dbCloseArea())
+    EndIf
+
+Return {cFil, cArm}
 
 //=====================================================================
 // Busca serial - SBF (saldo) + fallback SB6 (P3) para Reserva
@@ -984,6 +1038,7 @@ Static Function fSolCriarPedido(oJson)
     Local aOut     := {}
     Local nZ       := 0
     Local cDbgItem := ""
+    Local aFil     := {}
 
     Private lMsErroAuto    := .F.
     Private lMsHelpAuto    := .T.
@@ -1015,6 +1070,19 @@ Static Function fSolCriarPedido(oJson)
     If oItems == Nil .Or. Len(oItems) == 0
         RestArea(aArea)
         Return '{"ok":false,"msg":"Nenhum item informado"}'
+    EndIf
+
+    // Auto-detecta filial via SBF/SB6 se nao informada no POST
+    If Empty(cFil)
+        aFil := fSolFilialSerial(AllTrim(oItems[1]:GetJsonObject("serial")), cTipo)
+        If !Empty(aFil[1])
+            cFil := aFil[1]
+            ConOut("[WSSOLPV] Filial auto-detectada via SBF/SB6: " + cFil + " arm=" + aFil[2])
+        EndIf
+    EndIf
+    If Empty(cFil)
+        cFil := xFilial("SC5")
+        ConOut("[WSSOLPV] Filial padrao xFilial: " + cFil)
     EndIf
 
     cNumPed := U_ProxPV(cPref)
@@ -1136,72 +1204,19 @@ Static Function fSolCriarPedido(oJson)
         aAdd(aCabec, {"C5_MENNOTA", cMenFull, Nil})
     EndIf
 
-    Private M->C5_NUM     := cNumPed
-    Private M->C5_TPSAIDA := cTipo
-    Private M->C5_CLIENTE := cCliente
-    Private M->C5_LOJACLI := cLoja
-    If !Empty(cDtUso)
-        Private M->C5_DTUSO := CtoD(cDtUso)
-    EndIf
+    // --- INSERT direto SC5+SC6 via RecLock (bypassa MATA410) ---
+    ConOut("[WSSOLPV] Gerando PV " + cNumPed + " tipo=" + cTipo + " fil=" + cFil + ;
+           " cli=" + cCliente + "/" + cLoja + " " + AllTrim(Str(Len(aItens))) + " itens")
 
-    // --- Debug: loga aCabec e aItens antes do ExecAuto ---
-    ConOut("[WSSOLPV] aCabec (" + AllTrim(Str(Len(aCabec))) + "):")
-    For nY := 1 To Len(aCabec)
-        ConOut("  CAB[" + AllTrim(Str(nY)) + "] " + aCabec[nY,1] + "=" + cValToChar(aCabec[nY,2]))
-    Next
-    ConOut("[WSSOLPV] aItens (" + AllTrim(Str(Len(aItens))) + " linhas):")
-    For nY := 1 To Len(aItens)
-        cDbgItem := "  ITEM[" + AllTrim(Str(nY)) + "]"
-        For nZ := 1 To Len(aItens[nY])
-            cDbgItem += " " + aItens[nY][nZ][1] + "=" + cValToChar(aItens[nY][nZ][2])
-        Next
-        ConOut(cDbgItem)
-    Next
+    cJson := fSolInsertDireto(cNumPed, cFil, cTipo, aCabec, aItens, aAvisosGeral)
 
-    bErrAnt := ErrorBlock({|oE| (cErrDesc := "[EXC] " + AllTrim(oE:Description) + ;
-        IIF(!Empty(oE:FileName), " | " + AllTrim(oE:FileName) + " L" + AllTrim(Str(oE:Line)), ""), ;
-        lMsErroAuto := .T., ;
-        ConOut("[WSSOLPV] EXCEPTION ExecAuto: " + cErrDesc), ;
-        Break(oE))})
-
-    BEGIN SEQUENCE
-        BeginTran()
-        MsExecAuto({|x,y,z| MATA410(x,y,z)}, aCabec, aItens, 3, .F.)
-    END SEQUENCE
-
-    ErrorBlock(bErrAnt)
-
-    If lMsErroAuto
-        RollBackSX8()
-        DisarmTransaction()
-        aLogAuto := GetAutoGRLog()
-        For nY := 1 To Len(aLogAuto)
-            cErro += aLogAuto[nY] + Chr(13) + Chr(10)
-        Next
-        If Empty(AllTrim(cErro)) .And. !Empty(cErrDesc)
-            cErro := cErrDesc
-        ElseIf !Empty(cErrDesc)
-            cErro := AllTrim(cErro) + " | " + cErrDesc
-        EndIf
-        If Empty(AllTrim(cErro))
-            cErro := "ExecAuto MATA410 falhou sem mensagem - verifique dicionario, TES e campos obrigatorios"
-        EndIf
-        ConOut("[WSSOLPV] ERRO ExecAuto final: " + cErro)
-        cJson := '{"ok":false,"msg":"Erro ao gerar pedido: ' + fSolJsonEsc(AllTrim(cErro)) + '",'
-        cJson += '"debug":{"ped":"' + fSolJsonEsc(cNumPed) + '","tipo":"' + cTipo + '",'
-        cJson += '"cli":"' + fSolJsonEsc(cCliente) + '/' + fSolJsonEsc(cLoja) + '"}}'
-    Else
+    If Left(cJson, 10) == '{"ok":true'
         ConfirmSX8()
-        EndTran()
-
-        // Fotos da sala de operacao -> Banco de Conhecimento (ACB/AC9), igual MATA103
         fSolSalvarFotos(oJson, cNumPed, cTipo, IIF(!Empty(cFil), cFil, xFilial("SC5")))
-
-        ConOut("[WSSOLPV] Pedido " + cNumPed + " gerado com sucesso")
-        cJson := '{"ok":true,"pedido":"' + fSolJsonEsc(cNumPed) + '","tipo":"' + cTipo + '"'
-        cJson += ',"msg":"Pedido gerado com sucesso"'
-        cJson += ',"revisar":' + IIF(Len(aAvisosGeral) > 0, "true", "false")
-        cJson += ',"avisos":"' + fSolJsonEsc(fSolJuntaAvisos(aAvisosGeral)) + '"}'
+        ConOut("[WSSOLPV] Pedido " + cNumPed + " gerado com sucesso (INSERT direto)")
+    Else
+        RollBackSX8()
+        ConOut("[WSSOLPV] INSERT direto falhou: " + cJson)
     EndIf
 
     RestArea(aArea)
@@ -1317,6 +1332,202 @@ Static Function fSolSalvarFotos(oJson, cPedido, cTipo, cFil)
 
     ConOut("[WSSOLPV] " + Str(Len(aFotos)) + " foto(s) no Banco de Conhecimento - pedido " + AllTrim(cPedido))
 Return
+
+//=====================================================================
+// fSolInsertDireto - INSERT SC5 + SC6 via RecLock sem MATA410
+//
+// Regras por tipo:
+//   R (Reserva P3)  : valida SB6 B6_SALDO>0, pega B6_IDENT, define C6_BLQ='P'
+//                     e C6_IDENTB6=IDENT (necessario para fFechaCicloP3)
+//   C/P/N/M         : insercao direta sem restricao P3
+//
+// aCabec = array de {campo, valor, nil}  (formato ExecAuto - campos SC5)
+// aItens = array de arrays de {campo, valor, nil} (campos SC6 por linha)
+//=====================================================================
+Static Function fSolInsertDireto(cNumPed, cFil, cTipo, aCabec, aItens, aAvisosGeral)
+
+    Local aArea    := GetArea()
+    Local cJson    := ""
+    Local nX       := 0
+    Local nZ       := 0
+    Local nFld     := 0
+    Local cLocal   := fSolArmEsperado(cTipo)
+    Local cSQL     := ""
+    Local cAlias   := GetNextAlias()
+    Local cSerial  := ""
+    Local cIdent   := ""
+    Local nSaldo   := 0
+    Local aIdentB6 := {}  // {serial, ident} para tipo R
+
+    // ---------------------------------------------------------------
+    // PRE-VALIDACAO TIPO R: verifica SB6 saldo>0 e captura B6_IDENT
+    // Documentacao: B6_PODER3='R', B6_SALDO>0, SD2.D2_IDENTB6=B6_IDENT
+    // ---------------------------------------------------------------
+    If cTipo == "R"
+        For nX := 1 To Len(aItens)
+            cSerial := ""
+            For nZ := 1 To Len(aItens[nX])
+                If aItens[nX][nZ][1] == "C6_NUMSERI"
+                    cSerial := AllTrim(aItens[nX][nZ][2])
+                    Exit
+                EndIf
+            Next
+            If Empty(cSerial)
+                Loop
+            EndIf
+
+            // Busca B6_IDENT via SD2 (CFOP 5917 = remessa consignacao)
+            cIdent := ""
+            cSQL := " SELECT TOP 1 RTRIM(D2.D2_IDENTB6) AS IDENT "
+            cSQL += " FROM " + RetSqlName("SD2") + " D2 WITH (NOLOCK) "
+            cSQL += " WHERE D2.D_E_L_E_T_ = ' ' "
+            cSQL += "   AND RTRIM(D2.D2_NUMSERI) = '" + fSolSqlEsc(cSerial) + "' "
+            cSQL += "   AND D2.D2_CF LIKE '5917%' "
+            cSQL += "   AND RTRIM(ISNULL(D2.D2_IDENTB6,'')) <> '' "
+            cSQL += " ORDER BY D2.D2_EMISSAO DESC "
+
+            dbUseArea(.T., "TOPCONN", TCGenQry(,, cSQL), cAlias, .F., .T.)
+            If !(cAlias)->(Eof())
+                cIdent := AllTrim((cAlias)->IDENT)
+            EndIf
+            (cAlias)->(dbCloseArea())
+
+            If Empty(cIdent)
+                RestArea(aArea)
+                Return '{"ok":false,"msg":"Serial ' + fSolJsonEsc(cSerial) + ;
+                       ' sem remessa CFOP 5917 registrada na SD2. ' + ;
+                       'Verifique se a NF de consignacao foi lancada corretamente."}'
+            EndIf
+
+            // Valida SB6: B6_SALDO > 0 para este IDENT
+            nSaldo := 0
+            cSQL := " SELECT TOP 1 B6.B6_SALDO, RTRIM(B6.B6_FILIAL) AS FIL "
+            cSQL += " FROM " + RetSqlName("SB6") + " B6 WITH (NOLOCK) "
+            cSQL += " WHERE B6.D_E_L_E_T_ = ' ' AND B6.B6_PODER3 = 'R' "
+            cSQL += "   AND RTRIM(B6.B6_IDENT) = '" + fSolSqlEsc(cIdent) + "' "
+
+            dbUseArea(.T., "TOPCONN", TCGenQry(,, cSQL), cAlias, .F., .T.)
+            If !(cAlias)->(Eof())
+                nSaldo := (cAlias)->B6_SALDO
+                If Empty(cFil)
+                    cFil := AllTrim((cAlias)->FIL)
+                EndIf
+            EndIf
+            (cAlias)->(dbCloseArea())
+
+            If nSaldo <= 0
+                RestArea(aArea)
+                Return '{"ok":false,"msg":"Serial ' + fSolJsonEsc(cSerial) + ;
+                       ' sem saldo em Poder de Terceiros (SB6.B6_SALDO=0 para IDENT ' + ;
+                       fSolJsonEsc(cIdent) + '). ' + ;
+                       'Verifique se houve retorno antecipado ou inconsistencia na SB6."}'
+            EndIf
+
+            aAdd(aIdentB6, {cSerial, cIdent})
+            ConOut("[WSSOLPV] R serial=" + cSerial + " IDENT=" + cIdent + " B6_SALDO=" + AllTrim(Str(nSaldo)))
+        Next
+    EndIf
+
+    BeginTran()
+
+    // ---------------------------------------------------------------
+    // INSERT SC5 (cabecalho do pedido)
+    // ---------------------------------------------------------------
+    DbSelectArea("SC5")
+    SC5->(DbSetOrder(1))
+    If !RecLock("SC5", .T.)
+        DisarmTransaction()
+        RestArea(aArea)
+        Return '{"ok":false,"msg":"RecLock SC5 falhou para pedido ' + fSolJsonEsc(cNumPed) + ;
+               '. Tente novamente em instantes."}'
+    EndIf
+
+    SC5->C5_FILIAL := PadR(cFil,     TamSX3("C5_FILIAL")[1])
+    SC5->C5_NUM    := PadR(cNumPed,  TamSX3("C5_NUM")[1])
+    SC5->C5_TIPO   := "N"  // tipo fisico SC5 sempre N; tipo real codificado no prefixo do numero
+
+    For nZ := 1 To Len(aCabec)
+        nFld := FieldPos(aCabec[nZ][1])
+        If nFld > 0
+            FieldPut(nFld, aCabec[nZ][2])
+        Else
+            ConOut("[WSSOLPV] SC5 campo nao existe fisicamente (ignorado): " + aCabec[nZ][1])
+        EndIf
+    Next
+    MsUnlock()
+    ConOut("[WSSOLPV] SC5 inserido: " + cNumPed + " filial=" + cFil)
+
+    // ---------------------------------------------------------------
+    // INSERT SC6 (itens do pedido)
+    // ---------------------------------------------------------------
+    DbSelectArea("SC6")
+    For nX := 1 To Len(aItens)
+        If !RecLock("SC6", .T.)
+            DisarmTransaction()
+            RestArea(aArea)
+            Return '{"ok":false,"msg":"RecLock SC6 falhou item ' + AllTrim(Str(nX)) + ;
+                   ' do pedido ' + fSolJsonEsc(cNumPed) + '"}'
+        EndIf
+
+        SC6->C6_FILIAL := PadR(cFil,    TamSX3("C6_FILIAL")[1])
+        SC6->C6_NUM    := PadR(cNumPed, TamSX3("C6_NUM")[1])
+        SC6->C6_LOCAL  := PadR(cLocal,  TamSX3("C6_LOCAL")[1])
+        SC6->C6_QTDVEN := 1
+        SC6->C6_QTDENT := 0
+
+        // Tipo R: bloqueia para faturamento direto (item ainda em P3, aguarda NF retorno)
+        // C6_BLQ='P' e necessario para o processo normal de faturamento Protheus
+        If cTipo == "R"
+            SC6->C6_BLQ := "P"
+        EndIf
+
+        For nZ := 1 To Len(aItens[nX])
+            nFld := FieldPos(aItens[nX][nZ][1])
+            If nFld > 0
+                FieldPut(nFld, aItens[nX][nZ][2])
+            Else
+                ConOut("[WSSOLPV] SC6 campo nao existe (ignorado): " + aItens[nX][nZ][1])
+            EndIf
+        Next
+
+        // Tipo R: define C6_IDENTB6 = B6_IDENT (link com SB6, necessario para fFechaCicloP3)
+        If cTipo == "R"
+            cSerial := AllTrim(SC6->C6_NUMSERI)
+            cIdent  := ""
+            For nZ := 1 To Len(aIdentB6)
+                If AllTrim(aIdentB6[nZ][1]) == cSerial
+                    cIdent := aIdentB6[nZ][2]
+                    Exit
+                EndIf
+            Next
+            If !Empty(cIdent)
+                nFld := FieldPos("C6_IDENTB6")
+                If nFld > 0
+                    FieldPut(nFld, PadR(cIdent, TamSX3("C6_IDENTB6")[1]))
+                EndIf
+                ConOut("[WSSOLPV] SC6 C6_IDENTB6=" + cIdent + " serial=" + cSerial)
+            EndIf
+        EndIf
+
+        MsUnlock()
+        ConOut("[WSSOLPV] SC6 item " + AllTrim(Str(nX)) + " inserido: " + ;
+               AllTrim(SC6->C6_PRODUTO) + "/" + AllTrim(SC6->C6_NUMSERI))
+    Next
+
+    EndTran()
+
+    ConOut("[WSSOLPV] INSERT direto OK: " + cNumPed + " tipo=" + cTipo + ;
+           " filial=" + cFil + " " + AllTrim(Str(Len(aItens))) + " itens")
+
+    cJson := '{"ok":true,"pedido":"' + fSolJsonEsc(cNumPed) + '","tipo":"' + cTipo + '"'
+    cJson += ',"filial":"' + fSolJsonEsc(cFil) + '"'
+    cJson += ',"msg":"Pedido gerado com sucesso"'
+    cJson += ',"metodo":"INSERT-DIRETO"'
+    cJson += ',"revisar":' + IIF(Len(aAvisosGeral) > 0, "true", "false")
+    cJson += ',"avisos":"' + fSolJsonEsc(fSolJuntaAvisos(aAvisosGeral)) + '"}'
+
+    RestArea(aArea)
+Return cJson
 
 //=====================================================================
 // Utilitarios JSON / SQL
