@@ -140,6 +140,80 @@
   .step.done .num::after { content: '✓'; }
   .step.done .num span { display: none; }
 
+  /* ===== MODAL LOGIN ===== */
+  .login-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(14, 58, 36, 0.55);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .login-overlay.show { display: flex; }
+  .login-box {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 20px;
+    width: 100%;
+    max-width: 360px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.25);
+  }
+  .login-box h3 {
+    margin: 0 0 6px;
+    color: var(--verde-escuro);
+    font-size: 18px;
+  }
+  .login-box p {
+    margin: 0 0 16px;
+    font-size: 13px;
+    color: var(--cinza-texto);
+    line-height: 1.4;
+  }
+  .login-box label {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--verde-escuro);
+    margin: 10px 0 6px;
+  }
+  .login-box input {
+    width: 100%;
+    padding: 12px;
+    border: 1.5px solid var(--cinza-borda);
+    border-radius: 8px;
+    font-size: 16px;
+  }
+  .login-err {
+    display: none;
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--vermelho-fundo);
+    color: var(--vermelho);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .login-err.show { display: block; }
+  .login-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+  }
+  .login-actions button {
+    flex: 1;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .login-actions .btn-cancel { background: var(--cinza-fundo); color: #555; }
+  .login-actions .btn-enter { background: var(--verde-principal); color: #fff; }
+  .header-vendedor.logado { background: rgba(255,255,255,0.12); }
+  #loginStatus.ok { color: #a8f0c8; font-weight: 700; }
+
   /* ===== CONTEÚDO ===== */
   .content {
     flex: 1;
@@ -867,8 +941,8 @@
     </div>
     <div class="header-vendedor" id="hdrVendedor" onclick="abrirLogin()" style="cursor:pointer;" title="Toque para login">
       <span>👤</span>
-      <span><strong id="vendNome">Antônio Carlos</strong> — Vendedor <span id="vendCod">000119</span></span>
-      <span id="loginStatus" style="margin-left:8px;font-size:11px;opacity:0.85;">🔒 Login</span>
+      <span><strong id="vendNome">Vendedor</strong> — Cód. <span id="vendCod">000119</span></span>
+      <span id="loginStatus" style="margin-left:8px;font-size:11px;opacity:0.85;">🔒 Toque para login</span>
     </div>
     <div class="tipo-selecionado" id="tipoSelHdr">
       <span class="tipo-label" id="tipoSelLabel">⚡ RESERVA</span>
@@ -1093,6 +1167,23 @@
     <button class="btn btn-primary" id="btnSend" onclick="enviar()" style="display:none;">Enviar pedido</button>
   </div>
 
+</div>
+
+<!-- ============ LOGIN MODAL ============ -->
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h3>Login do vendedor</h3>
+    <p>Código e senha do cadastro SA3 no Protheus.<br>Ex.: código <strong>000119</strong>, senha <strong>000119</strong></p>
+    <label for="loginCod">Código</label>
+    <input type="text" id="loginCod" inputmode="numeric" autocomplete="username" value="000119">
+    <label for="loginSenha">Senha</label>
+    <input type="password" id="loginSenha" autocomplete="current-password" placeholder="Mesma do cadastro SA3">
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-actions">
+      <button type="button" class="btn-cancel" onclick="fecharLogin()">Cancelar</button>
+      <button type="button" class="btn-enter" onclick="confirmarLogin()">Entrar</button>
+    </div>
+  </div>
 </div>
 
 <!-- ============ CAMERA OVERLAY ============ -->
@@ -2098,7 +2189,7 @@
     };
 
     if (USE_API && !API_SENHA) {
-      alert('Informe a senha do vendedor para gerar o pedido no Protheus.\n\nToque no nome do vendedor no topo para fazer login.');
+      abrirLogin('Faça login para enviar o pedido ao Protheus.');
       return;
     }
 
@@ -2136,35 +2227,93 @@
   // ============================================================
   // INIT + LOGIN VENDEDOR
   // ============================================================
+  function updateLoginUI() {
+    const st = document.getElementById('loginStatus');
+    const hdr = document.getElementById('hdrVendedor');
+    if (API_SENHA) {
+      st.textContent = '✓ Logado';
+      st.className = 'ok';
+      hdr.classList.add('logado');
+    } else {
+      st.textContent = '🔒 Toque para login';
+      st.className = '';
+      hdr.classList.remove('logado');
+    }
+  }
+
   (function initLogin() {
     const s = sessionStorage.getItem('solpv_sess');
-    if (!s) return;
+    if (!s) {
+      updateLoginUI();
+      return;
+    }
     try {
       const o = JSON.parse(s);
       API_VEND = o.vendedor || API_VEND;
       API_SENHA = o.senha || '';
       document.getElementById('vendCod').textContent = API_VEND;
       document.getElementById('vendNome').textContent = o.nome || 'Vendedor';
-      document.getElementById('loginStatus').textContent = '✓ Logado';
-    } catch (e) {}
+      updateLoginUI();
+    } catch (e) {
+      updateLoginUI();
+    }
   })();
   initProdutoSearch();
 
-  function abrirLogin() {
-    const cod = prompt('Código do vendedor:', API_VEND);
-    if (!cod) return;
-    const senha = prompt('Senha do vendedor (SA3):');
-    if (!senha) return;
-    apiGet({ acao: 'login', vendedor: cod.trim().padStart(6, '0'), senha }).then(r => {
-      if (!r.ok) { alert(r.msg || 'Login inválido'); return; }
+  function abrirLogin(msg) {
+    document.getElementById('loginErr').classList.remove('show');
+    document.getElementById('loginErr').textContent = msg || '';
+    if (msg) document.getElementById('loginErr').classList.add('show');
+    document.getElementById('loginCod').value = API_VEND || '000119';
+    document.getElementById('loginSenha').value = '';
+    document.getElementById('loginOverlay').classList.add('show');
+    setTimeout(() => document.getElementById('loginSenha').focus(), 300);
+  }
+
+  function fecharLogin() {
+    document.getElementById('loginOverlay').classList.remove('show');
+  }
+
+  async function confirmarLogin() {
+    const cod = document.getElementById('loginCod').value.trim().padStart(6, '0');
+    const senha = document.getElementById('loginSenha').value;
+    const errEl = document.getElementById('loginErr');
+    errEl.classList.remove('show');
+    if (!cod || !senha) {
+      errEl.textContent = 'Informe código e senha.';
+      errEl.classList.add('show');
+      return;
+    }
+    showLoading(true);
+    try {
+      const r = await apiGet({ acao: 'login', vendedor: cod, senha });
+      if (!r.ok) {
+        errEl.textContent = r.msg || 'Código ou senha inválidos.';
+        errEl.classList.add('show');
+        return;
+      }
       API_VEND = r.vendedor;
       API_SENHA = senha;
-      sessionStorage.setItem('solpv_sess', JSON.stringify({ vendedor: r.vendedor, senha, nome: r.nome }));
+      sessionStorage.setItem('solpv_sess', JSON.stringify({
+        vendedor: r.vendedor,
+        senha,
+        nome: r.nome
+      }));
       document.getElementById('vendCod').textContent = r.vendedor;
       document.getElementById('vendNome').textContent = r.nome;
-      document.getElementById('loginStatus').textContent = '✓ Logado';
-    }).catch(e => alert(e.message));
+      updateLoginUI();
+      fecharLogin();
+    } catch (e) {
+      errEl.textContent = e.message || 'Erro ao conectar. Tente novamente.';
+      errEl.classList.add('show');
+    } finally {
+      showLoading(false);
+    }
   }
+
+  document.getElementById('loginSenha').addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmarLogin();
+  });
 
   showStep(0);
 </script>
