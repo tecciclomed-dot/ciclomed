@@ -407,16 +407,7 @@
 
 <!-- BOARD -->
 <div class="board">
-  <!-- Col 1: Pedidos em Aberto -->
-  <div class="column col-pc-ab">
-    <div class="col-header">
-      <span class="col-title">📋 Pedidos em Aberto</span>
-      <span class="col-badge" id="badge-pc-ab">0</span>
-    </div>
-    <div class="col-body" id="col-pc-ab"></div>
-  </div>
-
-  <!-- Col 2: Solicitações em Aberto -->
+  <!-- Col 1: Solicitações em Aberto -->
   <div class="column col-sc-ab">
     <div class="col-header">
       <span class="col-title">📝 Solicitações em Aberto</span>
@@ -425,22 +416,31 @@
     <div class="col-body" id="col-sc-ab"></div>
   </div>
 
-  <!-- Col 3: Pedidos Aprovados -->
-  <div class="column col-pc-ap">
-    <div class="col-header">
-      <span class="col-title">✅ Pedidos Aprovados</span>
-      <span class="col-badge" id="badge-pc-ap">0</span>
-    </div>
-    <div class="col-body" id="col-pc-ap"></div>
-  </div>
-
-  <!-- Col 4: Solicitações Aprovadas -->
+  <!-- Col 2: Solicitações Aprovadas -->
   <div class="column col-sc-ap">
     <div class="col-header">
       <span class="col-title">✅ Solicitações Aprovadas</span>
       <span class="col-badge" id="badge-sc-ap">0</span>
     </div>
     <div class="col-body" id="col-sc-ap"></div>
+  </div>
+
+  <!-- Col 3: Pedidos em Aberto -->
+  <div class="column col-pc-ab">
+    <div class="col-header">
+      <span class="col-title">📋 Pedidos em Aberto</span>
+      <span class="col-badge" id="badge-pc-ab">0</span>
+    </div>
+    <div class="col-body" id="col-pc-ab"></div>
+  </div>
+
+  <!-- Col 4: Pedidos Aprovados -->
+  <div class="column col-pc-ap">
+    <div class="col-header">
+      <span class="col-title">✅ Pedidos Aprovados</span>
+      <span class="col-badge" id="badge-pc-ap">0</span>
+    </div>
+    <div class="col-body" id="col-pc-ap"></div>
   </div>
 </div>
 
@@ -463,14 +463,14 @@
 // ============================================================
 // CONFIG
 // ============================================================
-const STORAGE_KEY_URL = 'cm_rest_url';
+const REST_URL   = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03';
+const REST_AUTH  = 'Basic ' + btoa('admin:v1v2v3v4');
 
 // Lê apr e token da URL (parâmetros obrigatórios)
 const _params = new URLSearchParams(location.search);
 const APR_ID  = _params.get('apr')   || '';
 const TOKEN   = _params.get('token') || '';
 
-let restUrl = localStorage.getItem(STORAGE_KEY_URL) || '';
 let pendingUrl  = null;
 let pendingAcao = null;
 let pendingNum  = null;
@@ -480,28 +480,22 @@ let pendingTipo = null;
 // INIT
 // ============================================================
 window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('config-banner').style.display = 'none';
+
   if (!APR_ID || !TOKEN) {
     mostrarErro(
-      'Link incompleto. Acesse o painel pelo link personalizado enviado ao seu e-mail ' +
+      'Link incompleto. Acesse o painel pelo link personalizado ' +
       '(deve conter <code>?apr=SEU_USUARIO&amp;token=HASH</code>).'
     );
-    document.getElementById('config-banner').style.display = 'none';
     return;
   }
 
-  if (restUrl) {
-    document.getElementById('config-banner').style.display = 'none';
-    document.getElementById('input-rest-url').value = restUrl;
-    carregarDados();
-    setInterval(carregarDados, 90000);
-  }
+  carregarDados();
+  setInterval(carregarDados, 90000);
 });
 
 function salvarConfig() {
-  const v = document.getElementById('input-rest-url').value.trim();
-  if (!v) return alert('Informe a URL do servidor REST');
-  restUrl = v.replace(/\/$/, '');
-  localStorage.setItem(STORAGE_KEY_URL, restUrl);
+  // URL já configurada — função mantida por compatibilidade
   document.getElementById('config-banner').style.display = 'none';
   if (APR_ID && TOKEN) carregarDados();
 }
@@ -510,10 +504,6 @@ function salvarConfig() {
 // CARREGAR DADOS
 // ============================================================
 async function carregarDados() {
-  if (!restUrl) {
-    document.getElementById('config-banner').style.display = 'flex';
-    return;
-  }
   if (!APR_ID || !TOKEN) {
     mostrarErro('Link incompleto. Use o link personalizado enviado ao seu e-mail.');
     return;
@@ -522,38 +512,46 @@ async function carregarDados() {
   document.getElementById('spinner').style.display = 'block';
   document.getElementById('error-msg').style.display = 'none';
 
-  try {
-    const url = `${restUrl}/WSPAINELCP?apr=${encodeURIComponent(APR_ID)}&token=${encodeURIComponent(TOKEN)}`;
-    const res = await fetch(url, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
+  const url = `${REST_URL}/WSPAINELCP?apr=${encodeURIComponent(APR_ID)}&token=${encodeURIComponent(TOKEN)}`;
+  const delays = [0, 3000, 6000];
+  let lastErr;
 
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+  for (let tentativa = 0; tentativa < 3; tentativa++) {
+    if (tentativa > 0) {
+      mostrarErro(`Aguardando Protheus... tentativa ${tentativa + 1} de 3`);
+      await new Promise(r => setTimeout(r, delays[tentativa]));
+      document.getElementById('error-msg').style.display = 'none';
     }
+    try {
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: { 'Accept': 'application/json', 'Authorization': REST_AUTH }
+      });
 
-    const data = await res.json();
+      if ([502, 503, 504].includes(res.status)) {
+        lastErr = new Error(`HTTP ${res.status} — Protheus não respondeu a tempo`);
+        continue;
+      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-    if (data.erro) {
-      mostrarErro('Erro do servidor: ' + data.erro);
+      const data = await res.json();
+      if (data.erro) { mostrarErro('Erro do servidor: ' + data.erro); return; }
+
+      if (data.nome_apr) document.getElementById('apr-nome').textContent = data.nome_apr;
+      renderizarPainel(data);
+      document.getElementById('last-update').textContent =
+        'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+      document.getElementById('spinner').style.display = 'none';
       return;
+
+    } catch (e) {
+      lastErr = e;
+      if (!e.message.includes('503') && !e.message.includes('502') && !e.message.includes('504')) break;
     }
-
-    // Exibe nome do aprovador no header
-    if (data.nome_apr) {
-      document.getElementById('apr-nome').textContent = data.nome_apr;
-    }
-
-    renderizarPainel(data);
-    document.getElementById('last-update').textContent =
-      'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
-
-  } catch (e) {
-    mostrarErro(`Não foi possível conectar ao servidor Protheus. Verifique a URL configurada.<br><small>${e.message}</small>`);
-  } finally {
-    document.getElementById('spinner').style.display = 'none';
   }
+
+  mostrarErro(`Não foi possível conectar ao Protheus após 3 tentativas.<br><small>${lastErr ? lastErr.message : ''}</small>`);
+  document.getElementById('spinner').style.display = 'none';
 }
 
 // ============================================================
@@ -699,17 +697,18 @@ function fecharModal() {
 }
 
 async function confirmarAcao() {
-  fecharModal();
-  if (!pendingUrl) return;
-
-  const url = pendingUrl;
-  const num = pendingNum;
+  // Salva antes de fecharModal() zerar as variaveis
+  const url  = pendingUrl;
+  const num  = pendingNum;
   const tipo = pendingTipo;
   const acao = pendingAcao;
 
+  fecharModal();
+  if (!url) return;
+
   document.getElementById('spinner').style.display = 'block';
   try {
-    const res = await fetch(url, { method: 'GET' });
+    const res = await fetch(url, { method: 'GET', headers: { 'Authorization': REST_AUTH } });
     const txt = await res.text();
 
     let ok = false;
