@@ -1550,43 +1550,72 @@
   const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
   const USE_API = true;
 
+  // Retry automático: tenta até 3x com espera crescente (2s, 5s)
+  // Necessário pois o Protheus pode demorar >10s e o Worker retorna 503 transitório
+  async function apiCallWithRetry(fn, maxTries = 3) {
+    const delays = [0, 2000, 5000];
+    let lastErr;
+    for (let i = 0; i < maxTries; i++) {
+      if (i > 0) {
+        const el = document.getElementById('apiLoading');
+        if (el) el.innerHTML = 'Aguardando Protheus... tentativa ' + (i + 1) + ' de ' + maxTries;
+        await new Promise(r => setTimeout(r, delays[i]));
+      }
+      try {
+        const result = await fn();
+        return result;
+      } catch (e) {
+        lastErr = e;
+        const msg = e.message || '';
+        // Só faz retry em 503/502/504/timeout — erros de negócio (login inválido etc.) não repetem
+        if (!msg.includes('503') && !msg.includes('502') && !msg.includes('504') && !msg.includes('indisponível') && !msg.includes('inválida')) throw e;
+        console.warn('[retry ' + (i+1) + '] ' + msg);
+      }
+    }
+    throw lastErr;
+  }
+
   async function apiGet(params) {
-    const url = API_BASE + '?' + new URLSearchParams(params).toString();
-    const resp = await fetch(url, { headers: { 'Authorization': AUTH } });
-    const text = await resp.text();
-    if (!resp.ok) {
-      if (resp.status === 503 || resp.status === 502 || resp.status === 504)
-        throw new Error('REST Protheus indisponível (HTTP ' + resp.status + '). Ligue o AppServer rest03 e o túnel.');
-      if (!text.trim())
-        throw new Error('Servidor sem resposta (HTTP ' + resp.status + '). Verifique rest03.');
-    }
-    try { return JSON.parse(text); }
-    catch (e) {
-      if (text.includes('<!DOCTYPE') || text.includes('<html'))
-        throw new Error('Servidor indisponível — compile WSSOLPV e reinicie o REST');
-      throw new Error('Resposta inválida do servidor' + (text.trim() ? ': ' + text.trim().substring(0, 120) : ''));
-    }
+    return apiCallWithRetry(async () => {
+      const url = API_BASE + '?' + new URLSearchParams(params).toString();
+      const resp = await fetch(url, { headers: { 'Authorization': AUTH } });
+      const text = await resp.text();
+      if (!resp.ok) {
+        if ([502, 503, 504].includes(resp.status))
+          throw new Error('REST ' + resp.status + ' — aguardando Protheus...');
+        if (!text.trim())
+          throw new Error('Servidor sem resposta (HTTP ' + resp.status + ')');
+      }
+      try { return JSON.parse(text); }
+      catch (e) {
+        if (text.includes('<!DOCTYPE') || text.includes('<html'))
+          throw new Error('REST indisponível — compile WSSOLPV e reinicie o rest03');
+        throw new Error('Resposta inválida: ' + text.trim().substring(0, 120));
+      }
+    });
   }
 
   async function apiPost(body) {
-    const resp = await fetch(API_BASE, {
-      method: 'POST',
-      headers: { 'Authorization': AUTH, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+    return apiCallWithRetry(async () => {
+      const resp = await fetch(API_BASE, {
+        method: 'POST',
+        headers: { 'Authorization': AUTH, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const text = await resp.text();
+      if (!resp.ok) {
+        if ([502, 503, 504].includes(resp.status))
+          throw new Error('REST ' + resp.status + ' — aguardando Protheus...');
+        if (!text.trim())
+          throw new Error('Servidor sem resposta (HTTP ' + resp.status + ')');
+      }
+      try { return JSON.parse(text); }
+      catch (e) {
+        if (text.includes('<!DOCTYPE') || text.includes('<html'))
+          throw new Error('REST indisponível — compile WSSOLPV e reinicie o rest03');
+        throw new Error('Resposta inválida: ' + text.trim().substring(0, 120));
+      }
     });
-    const text = await resp.text();
-    if (!resp.ok) {
-      if (resp.status === 503 || resp.status === 502 || resp.status === 504)
-        throw new Error('REST Protheus indisponível (HTTP ' + resp.status + '). Ligue o AppServer rest03 e o túnel.');
-      if (!text.trim())
-        throw new Error('Servidor sem resposta (HTTP ' + resp.status + '). Verifique rest03.');
-    }
-    try { return JSON.parse(text); }
-    catch (e) {
-      if (text.includes('<!DOCTYPE') || text.includes('<html'))
-        throw new Error('Servidor indisponível — compile WSSOLPV e reinicie o REST');
-      throw new Error('Resposta inválida do servidor' + (text.trim() ? ': ' + text.trim().substring(0, 120) : ''));
-    }
   }
 
   function showLoading(on) {
@@ -1594,10 +1623,10 @@
     if (!el) {
       el = document.createElement('div');
       el.id = 'apiLoading';
-      el.style.cssText = 'position:fixed;inset:0;background:rgba(14,58,36,0.35);z-index:9998;display:none;align-items:center;justify-content:center;color:#fff;font-weight:600;';
-      el.innerHTML = 'Consultando Protheus...';
+      el.style.cssText = 'position:fixed;inset:0;background:rgba(14,58,36,0.35);z-index:9998;display:none;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:15px;text-align:center;padding:20px;';
       document.body.appendChild(el);
     }
+    if (on) el.innerHTML = 'Consultando Protheus...';
     el.style.display = on ? 'flex' : 'none';
   }
 

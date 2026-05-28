@@ -344,10 +344,26 @@ function esc(s) {
     .replace(/"/g, '&quot;');
 }
 
+async function fetchComRetry(url, opts, maxTries = 3) {
+  const delays = [0, 3000, 6000];
+  let lastErr;
+  for (let i = 0; i < maxTries; i++) {
+    if (i > 0) await new Promise(r => setTimeout(r, delays[i]));
+    try {
+      const resp = await fetch(url, opts);
+      if ([502, 503, 504].includes(resp.status)) throw new Error('HTTP ' + resp.status);
+      return resp;
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr;
+}
+
 async function carregarPainel() {
   document.getElementById('lastUpdate').textContent = 'Atualizando...';
   try {
-    const r = await fetch(API_BASE + '?acao=painel', { headers: { Authorization: AUTH } });
+    const r = await fetchComRetry(API_BASE + '?acao=painel', { headers: { Authorization: AUTH } });
     const data = await r.json();
     if (!data.ok) throw new Error(data.msg || 'Erro ao carregar painel');
     renderColuna('colPendentes', 'badgePend', data.pendentes || [], false);
@@ -356,10 +372,10 @@ async function carregarPainel() {
       'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
   } catch (e) {
     document.getElementById('colPendentes').innerHTML =
-      '<div class="empty">Erro: ' + esc(e.message) +
-      '<br><br>Recompile WSSOLPV (acao=painel) e reinicie o REST.</div>';
+      '<div class="empty">⚠ ' + esc(e.message) +
+      '<br><small>Tentou 3 vezes. Recarregue em 30s ou verifique o AppServer rest03.</small></div>';
     document.getElementById('colAtendidos').innerHTML = '';
-    document.getElementById('lastUpdate').textContent = 'Erro';
+    document.getElementById('lastUpdate').textContent = 'Erro — clique Atualizar';
   }
 }
 
