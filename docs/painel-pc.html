@@ -485,8 +485,8 @@ function voltarPainel() {
                 }
                 if (json.erro) {
                     showError('Erro ao carregar PC', json.erro);
-                } else if (!json.itens) {
-                    showError('Resposta inválida', 'O REST não retornou itens do PC.');
+                } else if (!Array.isArray(json.itens)) {
+                    showError('Resposta inválida', 'O REST não retornou itens do PC. ' + (res.txt || '').substring(0, 200));
                 } else {
                     gData = json;
                     renderPanel();

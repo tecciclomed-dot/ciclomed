@@ -500,6 +500,31 @@ function salvarConfig() {
   if (APR_ID && TOKEN) carregarDados();
 }
 
+// Corrige URLs antigas (marcossrdg / gentle-dawn) vindas do Protheus
+function fixUrl(u) {
+  if (!u) return u;
+  return String(u)
+    .replace(/https?:\/\/marcossrdg\.github\.io\/rdmake_Ciclo(\/docs)?/gi,
+             'https://tecciclomed-dot.github.io/ciclomed')
+    .replace(/https?:\/\/gentle-dawn-f83d\.ciclomed\.workers\.dev/gi,
+             'https://ciclomed-rest.tec-ciclomed.workers.dev');
+}
+
+function normalizarDoc(d) {
+  if (!d) return d;
+  d.url_detalhe = fixUrl(d.url_detalhe);
+  d.url_aprov   = fixUrl(d.url_aprov);
+  d.url_rejeit  = fixUrl(d.url_rejeit);
+  return d;
+}
+
+function normalizarPainel(data) {
+  ['pc_aberto', 'sc_aberto', 'pc_aprovado', 'sc_aprovado'].forEach(function (k) {
+    if (Array.isArray(data[k])) data[k] = data[k].map(normalizarDoc);
+  });
+  return data;
+}
+
 // ============================================================
 // CARREGAR DADOS
 // ============================================================
@@ -534,7 +559,7 @@ async function carregarDados() {
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const data = await res.json();
+      const data = normalizarPainel(await res.json());
       if (data.erro) { mostrarErro('Erro do servidor: ' + data.erro); return; }
 
       if (data.nome_apr) document.getElementById('apr-nome').textContent = data.nome_apr;
