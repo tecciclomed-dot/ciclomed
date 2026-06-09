@@ -470,7 +470,7 @@
     var params = new URLSearchParams(window.location.search);
     var pSC    = (params.get('sc')    || '').trim();
     var pFil   = normFil(params.get('fil') || '');
-    var pToken = viewTokenSC(pFil, pSC);
+    var pToken = (params.get('token') || '').trim() || viewTokenSC(pFil, pSC);
 
     /* ── State ───────────────────────────────────────────────── */
     var gData        = null;   // last JSON from WSSCPAINEL
