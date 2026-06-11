@@ -438,7 +438,7 @@ function voltarPainel() {
     /* ── Config ───────────────────────────────────────────────── */
     var API_BASE  = 'https://ciclomed-rest.tec-ciclomed.workers.dev';
     var API_PANEL = API_BASE + '/rest03/WSPCPAINEL';
-    var API_APROV = API_BASE + '/rest01/WSAPROVPC';
+    var API_APROV = API_BASE + '/rest03/WSAPROVPC';
     var BASIC_AUTH = 'Basic ' + btoa('admin:a1a2a3a4');
 
     /* ── URL params ──────────────────────────────────────────── */
@@ -683,7 +683,11 @@ function voltarPainel() {
                         : (item === 'ALL' ? 'Todos os itens do PC rejeitados.' : 'Item ' + item + ' rejeitado.');
                     toast(msg, acao === 'A' ? 'ok' : 'err');
                 } else {
-                    toast('Não foi possível processar. Tente novamente.', 'err');
+                    var mErr = 'Não foi possível processar. Tente novamente.';
+                    var mTit = body.match(/<title>([^<]+)<\/title>/i);
+                    if (mTit && mTit[1]) mErr = mTit[1].trim();
+                    else if (body.indexOf('Acesso Negado') !== -1) mErr = 'Token inválido ou expirado.';
+                    toast(mErr, 'err');
                 }
                 // Recarrega dados do painel
                 loadData();
