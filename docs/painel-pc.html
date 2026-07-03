@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CicloMed - Painel de Aprovação SC</title>
+    <title>CicloMed - Painel de Aprovação PC</title>
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -398,7 +398,7 @@
     </svg>
     <div>
         <div class="top-title">Painel de Aprovação</div>
-        <div class="top-subtitle" id="topSubtitle">Solicitação de Compras</div>
+        <div class="top-subtitle" id="topSubtitle">Pedido de Compra</div>
     </div>
 </div>
 
@@ -406,7 +406,7 @@
     <!-- Estado inicial: carregando -->
     <div class="state-box" id="stateLoading">
         <div class="spinner"></div>
-        <p>Carregando dados da solicitação&hellip;</p>
+        <p>Carregando dados do pedido de compra&hellip;</p>
     </div>
 
     <!-- Estado: erro -->
@@ -421,7 +421,7 @@
 
         <!-- SC Info -->
         <div class="sc-card">
-            <div class="sc-card-title">Solicitação de Compras</div>
+            <div class="sc-card-title">Pedido de Compra</div>
             <div class="sc-grid" id="scInfoGrid"></div>
         </div>
 
@@ -449,11 +449,11 @@
 
     /* ── Config ───────────────────────────────────────────────── */
     var API_BASE  = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03';
-    var API_PANEL = API_BASE + '/WSSCPAINEL';
-    var API_APROV = API_BASE + '/WSAPROVSC';
+    var API_PANEL = API_BASE + '/WSPCPAINEL';
+    var API_APROV = API_BASE + '/WSAPROVPC';
     var BASIC_AUTH = 'Basic ' + btoa('admin:a1a2a3a4');
 
-    /* ── Token VIEW (mesma regra do WSSCPAINEL / U_CMAGTkSC) ─── */
+    /* ── Token VIEW (mesma regra do WSPCPAINEL / U_CMAGTkPC) ─── */
     function normFil(f) {
         var n = String(f || '').trim();
         if (/^\d+$/.test(n)) {
@@ -462,34 +462,34 @@
         return n;
     }
 
-    function viewTokenSC(fil, sc) {
-        return md5('CICLO2026SC#' + normFil(fil) + '#' + String(sc || '').trim() + '#VIEW#V');
+    function viewTokenPC(fil, pc) {
+        return md5('CICLO2026PC#' + normFil(fil) + '#' + String(pc || '').trim() + '#VIEW#V');
     }
 
     /* ── URL params ──────────────────────────────────────────── */
     var params = new URLSearchParams(window.location.search);
-    var pSC    = (params.get('sc')    || '').trim();
+    var pPC    = (params.get('pc')    || '').trim();
     var pFil   = normFil(params.get('fil') || '');
-    var pToken = (params.get('token') || '').trim() || viewTokenSC(pFil, pSC);
+    var pToken = (params.get('token') || '').trim() || viewTokenPC(pFil, pPC);
 
     /* ── State ───────────────────────────────────────────────── */
-    var gData        = null;   // last JSON from WSSCPAINEL
+    var gData        = null;   // last JSON from WSPCPAINEL
     var gActiveTab   = 'pend'; // 'pend' | 'aprov' | 'rej'
     var gBusy        = false;  // true while a request is in-flight
 
     /* ── Boot ────────────────────────────────────────────────── */
-    if (!pSC || !pFil) {
-        showError('Parâmetros inválidos', 'A URL deve conter sc e fil (ex.: ?sc=000295&fil=02). Abra o link pelo e-mail ou pela caixa de aprovações.');
+    if (!pPC || !pFil) {
+        showError('Parâmetros inválidos', 'A URL deve conter pc e fil (ex.: ?pc=000295&fil=02). Abra o link pelo painel de compras.');
         return;
     }
 
-    document.getElementById('topSubtitle').textContent = 'SC ' + pSC + '  •  Filial ' + pFil;
+    document.getElementById('topSubtitle').textContent = 'PC ' + pPC + '  •  Filial ' + pFil;
     loadData();
 
     /* ── Load data ───────────────────────────────────────────── */
     function loadData() {
         var url = API_PANEL +
-            '?sc='    + encodeURIComponent(pSC)    +
+            '?pc='    + encodeURIComponent(pPC)    +
             '&fil='   + encodeURIComponent(pFil)   +
             '&token=' + encodeURIComponent(pToken);
 
@@ -505,13 +505,13 @@
                     json = JSON.parse(res.txt);
                 } catch (e) {
                     showError('Erro no servidor REST (' + res.status + ')',
-                        'Recompile CMAPROVUTIL + WSSCPAINEL no AppServer e reinicie o REST. Detalhe: ' + res.txt.substring(0, 200));
+                        'Recompile CMAPROVUTIL + WSPCPAINEL no AppServer e reinicie o REST. Detalhe: ' + res.txt.substring(0, 200));
                     return;
                 }
                 if (!res.ok || (json.code && json.code >= 400)) {
                     showError('Erro REST (' + res.status + ')',
                         (json.erro || json.message || json.detailedMessage || '') +
-                        ' — Recompile WSSCPAINEL.prw (versao SQL) e reinicie o AppServer REST.');
+                        ' — Recompile WSPCPAINEL.prw e reinicie o AppServer REST.');
                     return;
                 }
                 if (json.erro) {
@@ -536,21 +536,26 @@
         show('panelMain');
         hide('stateLoading');
 
-        // ── SC Info
+        // ── PC Info
+        var comprador = esc(d.nome_comprador || d.comprador || '');
         var forn = d.fornecedor
             ? ('<strong>' + esc(d.fornecedor) + (d.loja ? '/' + esc(d.loja) : '') + '</strong>' +
                (d.nome_fornecedor ? ' &ndash; ' + esc(d.nome_fornecedor) : ''))
             : '&ndash;';
 
         el('scInfoGrid').innerHTML =
-            field('SC Nº', '<strong>' + esc(d.sc) + '</strong>') +
+            field('PC Nº', '<strong>' + esc(d.pc) + '</strong>') +
             field('Emissão', esc(d.emissao)) +
-            field('Solicitante', esc(d.solicitante) || '&ndash;') +
-            field('Total SC', '<strong>R$ ' + fmtMoeda(calcValorTotal(d)) + '</strong>') +
+            field('Comprador', comprador || '&ndash;') +
+            field('Total PC', '<strong>' + fmtMoeda(calcValorTotal(d)) + '</strong>') +
             '<div class="sc-field wide">' +
                 '<label>Fornecedor</label>' +
                 '<span>' + forn + '</span>' +
             '</div>';
+        if (d.justificativa) {
+            el('scInfoGrid').innerHTML +=
+                '<div class="sc-field wide"><label>Justificativa</label><span>' + esc(d.justificativa) + '</span></div>';
+        }
 
         // ── Stats chips
         var r = d.resumo || {};
@@ -637,7 +642,7 @@
         if (btnAA) {
             btnAA.onclick = function() {
                 if (gBusy) return;
-                if (!confirm('Aprovar TODOS os itens pendentes da SC ' + d.sc + '?')) return;
+                if (!confirm('Aprovar TODOS os itens pendentes do PC ' + d.pc + '?')) return;
                 doAction('ALL', 'A', d.token_all_a);
             };
         }
@@ -647,7 +652,7 @@
         if (btnRA) {
             btnRA.onclick = function() {
                 if (gBusy) return;
-                if (!confirm('Rejeitar TODOS os itens pendentes da SC ' + d.sc + '?')) return;
+                if (!confirm('Rejeitar TODOS os itens pendentes do PC ' + d.pc + '?')) return;
                 doAction('ALL', 'R', d.token_all_r);
             };
         }
@@ -682,7 +687,7 @@
         toast('Processando...', 'inf');
 
         var url = API_APROV +
-            '?sc='    + encodeURIComponent(gData.sc)     +
+            '?pc='    + encodeURIComponent(gData.pc)     +
             '&item='  + encodeURIComponent(item)         +
             '&acao='  + encodeURIComponent(acao)         +
             '&fil='   + encodeURIComponent(gData.filial) +

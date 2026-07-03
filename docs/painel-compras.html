@@ -225,6 +225,56 @@
       text-align: right;
     }
     .card-value.est { color: #888; font-size: 13px; }
+    .card-value-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #666;
+      margin-bottom: 2px;
+      text-align: right;
+    }
+
+    .card-itens {
+      margin: 8px 0;
+      border: 1px solid #e8ecf0;
+      border-radius: 6px;
+      overflow: hidden;
+      font-size: 11px;
+    }
+    .card-itens-head {
+      display: grid;
+      grid-template-columns: 1fr 52px 72px 72px;
+      gap: 4px;
+      padding: 5px 8px;
+      background: #eef2f7;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      font-size: 9px;
+      letter-spacing: 0.3px;
+    }
+    .card-item-row {
+      display: grid;
+      grid-template-columns: 1fr 52px 72px 72px;
+      gap: 4px;
+      padding: 5px 8px;
+      border-top: 1px solid #eef2f7;
+      align-items: start;
+      color: #333;
+    }
+    .card-item-row .item-desc {
+      min-width: 0;
+      line-height: 1.35;
+    }
+    .card-item-row .item-desc small {
+      display: block;
+      color: #777;
+      font-size: 10px;
+    }
+    .card-item-row .num { text-align: right; white-space: nowrap; font-weight: 600; }
+    .card-item-row .num.unit { color: #555; font-weight: 500; }
 
     .card-justif {
       background: #fffde7;
@@ -669,6 +719,40 @@ function renderizarColuna(colId, badgeId, docs, mostrarBotoes) {
   col.innerHTML = docs.map(d => montarCard(d, mostrarBotoes)).join('');
 }
 
+function docTotal(d) {
+  const v = parseFloat(d.total_documento != null ? d.total_documento : d.valor);
+  return isNaN(v) ? 0 : v;
+}
+
+function itemTotal(it) {
+  const v = parseFloat(it.total_item != null ? it.total_item : it.total);
+  if (!isNaN(v) && v > 0) return v;
+  return (parseFloat(it.quantidade) || 0) * (parseFloat(it.preco_unitario) || 0);
+}
+
+function renderItensDetalhe(d) {
+  const arr = Array.isArray(d.itens_detalhe) ? d.itens_detalhe : [];
+  if (!arr.length) return '';
+
+  let html = '<div class="card-itens">';
+  html += '<div class="card-itens-head"><span>Item</span><span>Qtd</span><span>V. Unit.</span><span>Total</span></div>';
+  arr.forEach(function (it) {
+    const qtd = formatValor(it.quantidade);
+    const unit = formatValor(it.preco_unitario);
+    const tot = formatValor(itemTotal(it));
+    html += '<div class="card-item-row">';
+    html += '<div class="item-desc"><strong>' + esc(it.produto || '') + '</strong>';
+    if (it.descricao) html += '<small>' + esc(it.descricao) + '</small>';
+    html += '</div>';
+    html += '<span class="num unit">' + esc(qtd) + ' ' + esc(it.unidade || '') + '</span>';
+    html += '<span class="num">R$ ' + esc(unit) + '</span>';
+    html += '<span class="num">R$ ' + esc(tot) + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 function montarCard(d, mostrarBotoes) {
   const isPC    = d.tipo === 'PC';
   const isAprov = d.status === 'L';
@@ -686,9 +770,12 @@ function montarCard(d, mostrarBotoes) {
     statusHtml = `<div class="card-status status-rej"><span class="status-dot"></span>Rejeitado</div>`;
   }
 
-  const valorFmt = isPC
-    ? `<div class="card-value">R$ ${formatValor(d.valor)}</div>`
-    : (d.valor > 0 ? `<div class="card-value est">≈ R$ ${formatValor(d.valor)} (est.)</div>` : '');
+  const totDoc = docTotal(d);
+  const valorFmt = totDoc > 0
+    ? `<div class="card-value${isPC ? '' : ' est'}"><span class="card-value-label">Total do ${isPC ? 'Pedido' : 'Solicitação'}${isPC ? '' : ' (est.)'}</span>R$ ${formatValor(totDoc)}</div>`
+    : '';
+
+  const itensHtml = renderItensDetalhe(d);
 
   const justifHtml = d.justificativa
     ? `<div class="card-justif">${esc(d.justificativa)}</div>`
@@ -748,6 +835,7 @@ function montarCard(d, mostrarBotoes) {
         <span class="card-row-text"><span class="card-row-label">Fornecedor:</span> ${esc(fornecedor || '—')}</span>
       </div>
       ${valorFmt}
+      ${itensHtml}
       ${justifHtml}
       ${statusHtml}
       ${botoesHtml}
