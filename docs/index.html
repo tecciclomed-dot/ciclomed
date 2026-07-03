@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CicloMed — Paineis Web</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(160deg, #1a3a4a 0%, #0d1f2d 100%);
+      min-height: 100vh;
+      color: #2c3e50;
+      padding: 32px 16px 48px;
+    }
+    .wrap { max-width: 640px; margin: 0 auto; }
+    .header {
+      text-align: center;
+      color: #fff;
+      margin-bottom: 28px;
+    }
+    .logo {
+      width: 56px; height: 56px; margin: 0 auto 12px;
+      background: rgba(255,255,255,0.12);
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px; font-weight: 900;
+    }
+    .header h1 { font-size: 22px; font-weight: 700; }
+    .header p { margin-top: 8px; font-size: 14px; opacity: 0.85; line-height: 1.5; }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.25);
+      overflow: hidden;
+    }
+    .card h2 {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: #7f8c8d;
+      padding: 16px 20px 8px;
+    }
+    a.link {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      text-decoration: none;
+      color: #1a5276;
+      border-top: 1px solid #eef2f6;
+      transition: background 0.15s;
+    }
+    a.link:hover { background: #f0f4f8; }
+    a.link strong { font-size: 15px; color: #2c3e50; }
+    a.link span { font-size: 12px; color: #7f8c8d; margin-top: 2px; display: block; }
+    .note {
+      margin-top: 20px;
+      padding: 14px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      color: rgba(255,255,255,0.9);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="header">
+      <div class="logo">CM</div>
+      <h1>CicloMed — Paineis Web</h1>
+      <p>Integracao Protheus + GitHub Pages</p>
+    </div>
+
+    <div class="card">
+      <h2>Compras</h2>
+      <a class="link" href="painel-compras.html">
+        <div><strong>Painel de Compras</strong><span>PC e SC pendentes do aprovador (requer link com apr + token)</span></div>
+        <div>→</div>
+      </a>
+      <a class="link" href="painel-sc.html">
+        <div><strong>Detalhe SC</strong><span>Solicitacao de compras — abrir pelo link do painel ou e-mail</span></div>
+        <div>→</div>
+      </a>
+      <a class="link" href="painel-pc.html">
+        <div><strong>Detalhe PC</strong><span>Pedido de compra — abrir pelo link do painel ou e-mail</span></div>
+        <div>→</div>
+      </a>
+
+      <h2>Outros</h2>
+      <a class="link" href="reserva.html">
+        <div><strong>Reserva de materiais</strong><span>App de reserva</span></div>
+        <div>→</div>
+      </a>
+      <a class="link" href="logistica.html">
+        <div><strong>Logistica</strong><span>Painel logistico</span></div>
+        <div>→</div>
+      </a>
+    </div>
+
+    <p class="note">
+      O endereco <strong>/ciclomed/</strong> so abre esta pagina inicial.
+      O <strong>Painel de Compras</strong> do aprovador vem por link exclusivo gerado no Protheus
+      (<code style="opacity:0.9">?apr=...&amp;token=...</code>), normalmente enviado por e-mail.
+    </p>
+  </div>
+</body>
+</html>
