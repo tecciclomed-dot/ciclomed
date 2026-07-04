@@ -1547,7 +1547,7 @@
   let SESS_TIPO = '';       // 'V' vendedor | 'U' usuario interno
   let pessoaSelecionada = null;
   let entrySearchTimer = null;
-  const AUTH = 'Basic ' + btoa('admin:a1a2a3a4');
+  const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
   const USE_API = true;
 
   // Retry automático: tenta até 3x com espera crescente (2s, 5s)
@@ -2117,6 +2117,45 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  function mostrarErroPedido(msg, debug) {
+    let el = document.getElementById('modalErroPedido');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'modalErroPedido';
+      el.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;padding:16px;';
+      el.innerHTML = `
+        <div style="background:#fff;border-radius:12px;max-width:480px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 8px 32px rgba(0,0,0,0.3);">
+          <div style="background:#c0392b;color:#fff;padding:14px 18px;border-radius:12px 12px 0 0;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:20px;">&#9888;</span>
+            <strong style="flex:1;font-size:15px;">Erro ao gerar pedido</strong>
+            <button onclick="document.getElementById('modalErroPedido').style.display='none'" style="background:none;border:none;color:#fff;font-size:20px;cursor:pointer;padding:0 4px;">&#10005;</button>
+          </div>
+          <div style="padding:16px;">
+            <div id="erroMsgTexto" style="font-size:13px;color:#333;background:#fdf0ef;border:1px solid #f5c6cb;border-radius:8px;padding:12px;white-space:pre-wrap;word-break:break-word;max-height:200px;overflow-y:auto;line-height:1.5;"></div>
+            <div id="erroDebugTexto" style="font-size:11px;color:#888;margin-top:10px;display:none;background:#f8f8f8;border-radius:6px;padding:8px;white-space:pre-wrap;word-break:break-word;"></div>
+            <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+              <button onclick="navigator.clipboard.writeText(document.getElementById('erroMsgTexto').innerText).then(()=>alert('Copiado!'))" style="flex:1;min-width:120px;background:#e74c3c;color:#fff;border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">&#128203; Copiar erro</button>
+              <button onclick="document.getElementById('modalErroPedido').style.display='none'" style="flex:1;min-width:120px;background:#eee;color:#333;border:none;border-radius:8px;padding:10px;font-size:13px;cursor:pointer;">Fechar</button>
+            </div>
+            <p style="font-size:11px;color:#999;margin-top:10px;text-align:center;">Copie o texto acima e envie para o suporte</p>
+          </div>
+        </div>`;
+      document.body.appendChild(el);
+    }
+    const txt = document.getElementById('erroMsgTexto');
+    const dbg = document.getElementById('erroDebugTexto');
+    if (txt) txt.textContent = msg || 'Erro desconhecido';
+    if (dbg) {
+      if (debug) {
+        dbg.style.display = 'block';
+        dbg.textContent = 'Debug: ' + JSON.stringify(debug, null, 2);
+      } else {
+        dbg.style.display = 'none';
+      }
+    }
+    el.style.display = 'flex';
+  }
+
   // ============================================================
   // BUSCA PRODUTO (SOLICITACAO MATERIAL)
   // ============================================================
@@ -2566,7 +2605,7 @@
       try {
         const resp = await apiPost(body);
         if (!resp.ok) {
-          alert(resp.msg || 'Erro ao gerar pedido');
+          mostrarErroPedido(resp.msg || 'Erro ao gerar pedido', resp.debug);
           return;
         }
         document.getElementById('pvNum').textContent = resp.pedido;
@@ -2578,7 +2617,7 @@
           msgEl.innerHTML = 'A logística já está vendo o pedido no painel.<br>Você receberá um aviso quando for atendido.';
         }
       } catch (e) {
-        alert(e.message);
+        mostrarErroPedido(e.message);
         return;
       } finally {
         showLoading(false);

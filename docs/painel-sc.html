@@ -451,7 +451,7 @@
     var API_BASE  = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03';
     var API_PANEL = API_BASE + '/WSSCPAINEL';
     var API_APROV = API_BASE + '/WSAPROVSC';
-    var BASIC_AUTH = 'Basic ' + btoa('admin:a1a2a3a4');
+    var BASIC_AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
 
     /* ── Token VIEW (mesma regra do WSSCPAINEL / U_CMAGTkSC) ─── */
     function normFil(f) {
@@ -546,6 +546,7 @@
             field('SC Nº', '<strong>' + esc(d.sc) + '</strong>') +
             field('Emissão', esc(d.emissao)) +
             field('Solicitante', esc(d.solicitante) || '&ndash;') +
+            field('Total SC', '<strong>R$ ' + fmtMoeda(calcValorTotal(d)) + '</strong>') +
             '<div class="sc-field wide">' +
                 '<label>Fornecedor</label>' +
                 '<span>' + forn + '</span>' +
@@ -728,8 +729,8 @@
     function itemCard(it, showActions) {
         var statusLabel = it.status === 'L' ? 'Aprovado' : it.status === 'R' ? 'Rejeitado' : 'Pendente';
         var qtdFmt  = fmtNum(it.quantidade, 0);
-        var precoFmt = 'R$ ' + fmtNum(it.preco_unitario, 2);
-        var totFmt   = 'R$ ' + fmtNum(it.total, 2);
+        var precoFmt = fmtMoeda(it.preco_unitario);
+        var totFmt   = fmtMoeda(itemTotal(it));
 
         var html = '<div class="item-card">';
 
@@ -761,7 +762,7 @@
         html += '<div class="item-details">';
         html += detailField('Qtd.',      qtdFmt  + ' ' + esc(it.unidade));
         html += detailField('Preço Unit.', precoFmt);
-        html += detailField('Total',     totFmt);
+        html += detailField('Total Item', totFmt);
         if (it.necessidade) {
             html += detailField('Necessidade', esc(it.necessidade));
         }
@@ -834,6 +835,30 @@
     function fmtNum(n, dec) {
         var num = parseFloat(n) || 0;
         return num.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    }
+
+    function fmtMoeda(n) {
+        return 'R$ ' + fmtNum(n, 2);
+    }
+
+    function itemTotal(it) {
+        var v = parseFloat(it.total_item != null ? it.total_item : it.total);
+        if (!isNaN(v) && v > 0) return v;
+        return (parseFloat(it.quantidade) || 0) * (parseFloat(it.preco_unitario) || 0);
+    }
+
+    function calcValorTotal(d) {
+        if (d.total_documento != null && !isNaN(parseFloat(d.total_documento))) {
+            return parseFloat(d.total_documento);
+        }
+        if (d.valor_total != null && !isNaN(parseFloat(d.valor_total))) {
+            return parseFloat(d.valor_total);
+        }
+        var tot = 0;
+        (d.itens || []).forEach(function (it) {
+            tot += itemTotal(it);
+        });
+        return tot;
     }
 
     function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }

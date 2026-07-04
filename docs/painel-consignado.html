@@ -185,6 +185,16 @@
   .card-tipo.tipo-C { background: #D6EAF8; color: #1A5276; }
   .card-tipo.tipo-R { background: #FCF3CF; color: #B7770F; }
   .card-tipo.tipo-M { background: #E8DAEF; color: #6C3483; }
+  .card-filial {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 9px;
+    border-radius: 4px;
+    background: #1B5E3F;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
   .card-row {
     display: flex;
     gap: 8px;
@@ -327,7 +337,7 @@
 
 <script>
 const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
-const AUTH = 'Basic ' + btoa('admin:a1a2a3a4');
+const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
 
 const TIPO_NOME = {
   C: 'Consignação',
@@ -418,10 +428,16 @@ function renderCard(p, atendido) {
       '</div>'
     : '';
 
+  var filialLabel = (p.filial || '').trim();
+  filialLabel = filialLabel ? 'Filial ' + filialLabel : '';
+
   return '<div class="card' + (atendido ? ' atendido' : '') + (p.revisar ? ' revisar' : '') + '">' +
     '<div class="card-header">' +
       '<span class="card-num">PV ' + esc(p.pedido) + '</span>' +
-      '<span class="card-tipo tipo-' + esc(tipo) + '">' + esc(TIPO_NOME[tipo] || tipo) + '</span>' +
+      '<div style="display:flex;gap:6px;align-items:center;">' +
+        '<span class="card-tipo tipo-' + esc(tipo) + '">' + esc(TIPO_NOME[tipo] || tipo) + '</span>' +
+        (filialLabel ? '<span class="card-filial">' + esc(filialLabel) + '</span>' : '') +
+      '</div>' +
     '</div>' +
     '<div class="card-row"><span class="lbl">Vendedor:</span> ' + esc(p.vendedorNome || p.vendedor) + '</div>' +
     '<div class="card-row"><span class="lbl">Hospital:</span> ' + esc(p.cliente) + '</div>' +

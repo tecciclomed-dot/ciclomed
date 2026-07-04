@@ -47,6 +47,11 @@
       transition: background 0.2s;
     }
     .btn-refresh:hover { background: rgba(255,255,255,0.25); }
+    .btn-refresh:disabled {
+      opacity: 0.55;
+      cursor: wait;
+      pointer-events: none;
+    }
     .btn-refresh svg { width: 14px; height: 14px; }
     .last-update { font-size: 11px; opacity: 0.7; }
     .spinner { display: none; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
@@ -220,6 +225,56 @@
       text-align: right;
     }
     .card-value.est { color: #888; font-size: 13px; }
+    .card-value-label {
+      display: block;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: #666;
+      margin-bottom: 2px;
+      text-align: right;
+    }
+
+    .card-itens {
+      margin: 8px 0;
+      border: 1px solid #e8ecf0;
+      border-radius: 6px;
+      overflow: hidden;
+      font-size: 11px;
+    }
+    .card-itens-head {
+      display: grid;
+      grid-template-columns: 1fr 52px 72px 72px;
+      gap: 4px;
+      padding: 5px 8px;
+      background: #eef2f7;
+      font-weight: 700;
+      color: #555;
+      text-transform: uppercase;
+      font-size: 9px;
+      letter-spacing: 0.3px;
+    }
+    .card-item-row {
+      display: grid;
+      grid-template-columns: 1fr 52px 72px 72px;
+      gap: 4px;
+      padding: 5px 8px;
+      border-top: 1px solid #eef2f7;
+      align-items: start;
+      color: #333;
+    }
+    .card-item-row .item-desc {
+      min-width: 0;
+      line-height: 1.35;
+    }
+    .card-item-row .item-desc small {
+      display: block;
+      color: #777;
+      font-size: 10px;
+    }
+    .card-item-row .num { text-align: right; white-space: nowrap; font-weight: 600; }
+    .card-item-row .num.unit { color: #555; font-weight: 500; }
 
     .card-justif {
       background: #fffde7;
@@ -331,6 +386,7 @@
     #toast.show { transform: translateY(0); opacity: 1; }
     #toast.ok   { background: #27ae60; }
     #toast.err  { background: #c0392b; }
+    #toast.warn { background: #e67e22; }
 
     /* ===== MODAL ===== */
     .modal-overlay {
@@ -385,7 +441,7 @@
   <div class="header-right">
     <div class="spinner" id="spinner"></div>
     <span class="last-update" id="last-update"></span>
-    <button class="btn-refresh" onclick="carregarDados()">
+    <button class="btn-refresh" id="btn-refresh" type="button" onclick="carregarDados(true)">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
         <path d="M1 4v6h6M23 20v-6h-6"/>
         <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
@@ -464,7 +520,7 @@
 // CONFIG
 // ============================================================
 const REST_URL   = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03';
-const REST_AUTH  = 'Basic ' + btoa('admin:a1a2a3a4');
+const REST_AUTH  = 'Basic ' + btoa('admin:Ciclo@!9751!');
 
 // Lê apr e token da URL (parâmetros obrigatórios)
 const _params = new URLSearchParams(location.search);
@@ -475,6 +531,8 @@ let pendingUrl  = null;
 let pendingAcao = null;
 let pendingNum  = null;
 let pendingTipo = null;
+let gBusy       = false;
+const FETCH_TIMEOUT_MS = 45000;
 
 // ============================================================
 // INIT
@@ -528,55 +586,107 @@ function normalizarPainel(data) {
 // ============================================================
 // CARREGAR DADOS
 // ============================================================
-async function carregarDados() {
+function setCarregando(ativo, msg) {
+  const btn = document.getElementById('btn-refresh');
+  const spin = document.getElementById('spinner');
+  const last = document.getElementById('last-update');
+  if (btn) btn.disabled = !!ativo;
+  if (spin) spin.style.display = ativo ? 'block' : 'none';
+  if (last && msg) last.textContent = msg;
+}
+
+async function fetchComTimeout(url, opts, timeoutMs) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(function () { ctrl.abort(); }, timeoutMs);
+  try {
+    return await fetch(url, Object.assign({}, opts, { signal: ctrl.signal }));
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function carregarDados(manual) {
   if (!APR_ID || !TOKEN) {
     mostrarErro('Link incompleto. Use o link personalizado enviado ao seu e-mail.');
     return;
   }
 
-  document.getElementById('spinner').style.display = 'block';
+  if (gBusy) {
+    if (manual) {
+      mostrarToast('Atualização já em andamento...', 'warn');
+    }
+    return;
+  }
+
+  gBusy = true;
+  setCarregando(true, 'Atualizando...');
   document.getElementById('error-msg').style.display = 'none';
 
   const url = `${REST_URL}/WSPAINELCP?apr=${encodeURIComponent(APR_ID)}&token=${encodeURIComponent(TOKEN)}`;
   const delays = [0, 3000, 6000];
   let lastErr;
+  let ok = false;
 
-  for (let tentativa = 0; tentativa < 3; tentativa++) {
-    if (tentativa > 0) {
-      mostrarErro(`Aguardando Protheus... tentativa ${tentativa + 1} de 3`);
-      await new Promise(r => setTimeout(r, delays[tentativa]));
-      document.getElementById('error-msg').style.display = 'none';
-    }
-    try {
-      const res = await fetch(url, {
-        method: 'GET',
-        headers: { 'Accept': 'application/json', 'Authorization': REST_AUTH }
-      });
-
-      if ([502, 503, 504].includes(res.status)) {
-        lastErr = new Error(`HTTP ${res.status} — Protheus não respondeu a tempo`);
-        continue;
+  try {
+    for (let tentativa = 0; tentativa < 3; tentativa++) {
+      if (tentativa > 0) {
+        setCarregando(true, `Tentativa ${tentativa + 1} de 3...`);
+        mostrarErro(`Aguardando Protheus... tentativa ${tentativa + 1} de 3`);
+        await new Promise(r => setTimeout(r, delays[tentativa]));
+        document.getElementById('error-msg').style.display = 'none';
       }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const data = normalizarPainel(await res.json());
-      if (data.erro) { mostrarErro('Erro do servidor: ' + data.erro); return; }
+      try {
+        const res = await fetchComTimeout(url, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json', 'Authorization': REST_AUTH }
+        }, FETCH_TIMEOUT_MS);
 
-      if (data.nome_apr) document.getElementById('apr-nome').textContent = data.nome_apr;
-      renderizarPainel(data);
-      document.getElementById('last-update').textContent =
-        'Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
+        if ([502, 503, 504].includes(res.status)) {
+          lastErr = new Error(`HTTP ${res.status} — Protheus não respondeu a tempo`);
+          continue;
+        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+        const data = normalizarPainel(await res.json());
+        if (data.erro) {
+          mostrarErro('Erro do servidor: ' + data.erro);
+          setCarregando(false, 'Erro — clique Atualizar');
+          return;
+        }
+
+        if (data.nome_apr) document.getElementById('apr-nome').textContent = data.nome_apr;
+        renderizarPainel(data);
+        setCarregando(false, 'Atualizado: ' + new Date().toLocaleTimeString('pt-BR'));
+        if (manual) mostrarToast('Painel atualizado', 'ok');
+        ok = true;
+        return;
+
+      } catch (e) {
+        lastErr = e;
+        if (e.name === 'AbortError') {
+          lastErr = new Error('Timeout — Protheus demorou mais de ' + (FETCH_TIMEOUT_MS / 1000) + 's');
+        }
+        const msg = lastErr.message || '';
+        if (!msg.includes('503') && !msg.includes('502') && !msg.includes('504') && e.name !== 'AbortError') {
+          break;
+        }
+      }
+    }
+
+    mostrarErro(
+      'Não foi possível conectar ao Protheus após 3 tentativas.<br>' +
+      '<small>' + (lastErr ? esc(lastErr.message) : '') + '</small>'
+    );
+    setCarregando(false, 'Erro — clique Atualizar');
+  } finally {
+    gBusy = false;
+    if (!ok) {
       document.getElementById('spinner').style.display = 'none';
-      return;
-
-    } catch (e) {
-      lastErr = e;
-      if (!e.message.includes('503') && !e.message.includes('502') && !e.message.includes('504')) break;
+      const btn = document.getElementById('btn-refresh');
+      if (btn) btn.disabled = false;
     }
   }
-
-  mostrarErro(`Não foi possível conectar ao Protheus após 3 tentativas.<br><small>${lastErr ? lastErr.message : ''}</small>`);
-  document.getElementById('spinner').style.display = 'none';
 }
 
 // ============================================================
@@ -609,6 +719,40 @@ function renderizarColuna(colId, badgeId, docs, mostrarBotoes) {
   col.innerHTML = docs.map(d => montarCard(d, mostrarBotoes)).join('');
 }
 
+function docTotal(d) {
+  const v = parseFloat(d.total_documento != null ? d.total_documento : d.valor);
+  return isNaN(v) ? 0 : v;
+}
+
+function itemTotal(it) {
+  const v = parseFloat(it.total_item != null ? it.total_item : it.total);
+  if (!isNaN(v) && v > 0) return v;
+  return (parseFloat(it.quantidade) || 0) * (parseFloat(it.preco_unitario) || 0);
+}
+
+function renderItensDetalhe(d) {
+  const arr = Array.isArray(d.itens_detalhe) ? d.itens_detalhe : [];
+  if (!arr.length) return '';
+
+  let html = '<div class="card-itens">';
+  html += '<div class="card-itens-head"><span>Item</span><span>Qtd</span><span>V. Unit.</span><span>Total</span></div>';
+  arr.forEach(function (it) {
+    const qtd = formatValor(it.quantidade);
+    const unit = formatValor(it.preco_unitario);
+    const tot = formatValor(itemTotal(it));
+    html += '<div class="card-item-row">';
+    html += '<div class="item-desc"><strong>' + esc(it.produto || '') + '</strong>';
+    if (it.descricao) html += '<small>' + esc(it.descricao) + '</small>';
+    html += '</div>';
+    html += '<span class="num unit">' + esc(qtd) + ' ' + esc(it.unidade || '') + '</span>';
+    html += '<span class="num">R$ ' + esc(unit) + '</span>';
+    html += '<span class="num">R$ ' + esc(tot) + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+
 function montarCard(d, mostrarBotoes) {
   const isPC    = d.tipo === 'PC';
   const isAprov = d.status === 'L';
@@ -626,9 +770,12 @@ function montarCard(d, mostrarBotoes) {
     statusHtml = `<div class="card-status status-rej"><span class="status-dot"></span>Rejeitado</div>`;
   }
 
-  const valorFmt = isPC
-    ? `<div class="card-value">R$ ${formatValor(d.valor)}</div>`
-    : (d.valor > 0 ? `<div class="card-value est">≈ R$ ${formatValor(d.valor)} (est.)</div>` : '');
+  const totDoc = docTotal(d);
+  const valorFmt = totDoc > 0
+    ? `<div class="card-value${isPC ? '' : ' est'}"><span class="card-value-label">Total do ${isPC ? 'Pedido' : 'Solicitação'}${isPC ? '' : ' (est.)'}</span>R$ ${formatValor(totDoc)}</div>`
+    : '';
+
+  const itensHtml = renderItensDetalhe(d);
 
   const justifHtml = d.justificativa
     ? `<div class="card-justif">${esc(d.justificativa)}</div>`
@@ -688,6 +835,7 @@ function montarCard(d, mostrarBotoes) {
         <span class="card-row-text"><span class="card-row-label">Fornecedor:</span> ${esc(fornecedor || '—')}</span>
       </div>
       ${valorFmt}
+      ${itensHtml}
       ${justifHtml}
       ${statusHtml}
       ${botoesHtml}
@@ -722,13 +870,14 @@ function fecharModal() {
 }
 
 async function confirmarAcao() {
-  fecharModal();
-  if (!pendingUrl) return;
-
-  const url = pendingUrl;
-  const num = pendingNum;
+  // Salva antes de fecharModal() zerar as variaveis
+  const url  = pendingUrl;
+  const num  = pendingNum;
   const tipo = pendingTipo;
   const acao = pendingAcao;
+
+  fecharModal();
+  if (!url) return;
 
   document.getElementById('spinner').style.display = 'block';
   try {
@@ -784,7 +933,7 @@ function mostrarToast(msg, tipo) {
   const t = document.getElementById('toast');
   t.textContent = msg;
   t.className = 'show ' + (tipo || '');
-  setTimeout(() => { t.className = ''; }, 3500);
+  setTimeout(function () { t.className = ''; }, 3500);
 }
 </script>
 </body>

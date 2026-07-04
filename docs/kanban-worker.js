@@ -27,7 +27,7 @@ export default {
 
   async scheduled(event, env, ctx) {
     const BACKEND = "http://ciclomed161112.protheus.cloudtotvs.com.br:1557";
-    const BASIC_AUTH = "Basic " + btoa("admin:a1a2a3a4");
+    const BASIC_AUTH = "Basic " + btoa("admin:Ciclo@!9751!");
     try {
       await fetch(BACKEND + "/rest03/WSSOLPV?acao=versao", {
         headers: { Authorization: BASIC_AUTH },
@@ -39,7 +39,7 @@ export default {
 
 async function proxyProtheus(request, url) {
   const BACKEND = "http://ciclomed161112.protheus.cloudtotvs.com.br:1557";
-  const BASIC_AUTH = "Basic " + btoa("admin:a1a2a3a4");
+  const BASIC_AUTH = "Basic " + btoa("admin:Ciclo@!9751!");
 
   if (request.method === "OPTIONS") {
     return new Response(null, { headers: CORS });
@@ -125,14 +125,14 @@ async function handleKanban(request, env, url) {
       return json({ ok: true, card, board });
     }
 
-    if (parts[0] === "cards" && parts.length === 2) {
+    if (parts[0] === "cards" && parts.length >= 2) {
       const cardId = parts[1];
       const board = await loadBoard(env);
       const idx = board.cards.findIndex((c) => c.id === cardId);
       if (idx < 0) return json({ ok: false, erro: "Card nao encontrado" }, 404);
       const card = board.cards[idx];
 
-      if (request.method === "PUT") {
+      if (request.method === "PUT" && parts.length === 2) {
         const body = await request.json();
         const user = str(body.user) || "Anonimo";
         const now = isoNow();
@@ -183,7 +183,7 @@ async function handleKanban(request, env, url) {
         return json({ ok: true, card, board });
       }
 
-      if (request.method === "DELETE") {
+      if (request.method === "DELETE" && parts.length === 2) {
         const user = url.searchParams.get("user") || "Anonimo";
         const now = isoNow();
         board.cards.splice(idx, 1);

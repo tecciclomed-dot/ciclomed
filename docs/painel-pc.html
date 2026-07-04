@@ -272,7 +272,30 @@
         }
 
         .item-prod { font-size: 15px; font-weight: 700; color: var(--primary); }
-        .item-desc { font-size: 13px; color: var(--muted); margin-top: 1px; }
+        .item-text-block { margin-top: 6px; }
+        .item-text-line {
+            font-size: 12px;
+            color: var(--text);
+            line-height: 1.45;
+            margin-top: 4px;
+            word-break: break-word;
+        }
+        .item-text-line .lbl {
+            font-weight: 700;
+            color: var(--muted);
+            text-transform: uppercase;
+            font-size: 10px;
+            letter-spacing: .4px;
+            display: block;
+            margin-bottom: 2px;
+        }
+        .item-text-line.motivo {
+            background: #f8f9fb;
+            border-left: 3px solid var(--pending);
+            padding: 8px 10px;
+            border-radius: 0 6px 6px 0;
+            white-space: pre-wrap;
+        }
 
         .status-pill {
             padding: 4px 12px;
@@ -373,29 +396,17 @@
         <text x="110" y="48" text-anchor="middle" font-family="'Segoe UI',Arial,sans-serif"
               font-size="28" font-weight="300" fill="#fff" letter-spacing="1">CicloMed</text>
     </svg>
-    <div style="flex:1;">
+    <div>
         <div class="top-title">Painel de Aprovação</div>
         <div class="top-subtitle" id="topSubtitle">Pedido de Compra</div>
     </div>
-    <button onclick="voltarPainel()" style="background:rgba(255,255,255,0.15);color:#fff;border:1px solid rgba(255,255,255,0.3);padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;">
-        &larr; Voltar ao Painel
-    </button>
 </div>
-<script>
-function voltarPainel() {
-    if (window.history.length > 1) {
-        window.history.back();
-    } else {
-        window.close();
-    }
-}
-</script>
 
 <div class="container" id="app">
     <!-- Estado inicial: carregando -->
     <div class="state-box" id="stateLoading">
         <div class="spinner"></div>
-        <p>Carregando dados da solicitação&hellip;</p>
+        <p>Carregando dados do pedido de compra&hellip;</p>
     </div>
 
     <!-- Estado: erro -->
@@ -410,7 +421,7 @@ function voltarPainel() {
 
         <!-- SC Info -->
         <div class="sc-card">
-            <div class="sc-card-title">Solicitação de Compras</div>
+            <div class="sc-card-title">Pedido de Compra</div>
             <div class="sc-grid" id="scInfoGrid"></div>
         </div>
 
@@ -431,40 +442,54 @@ function voltarPainel() {
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
 <script>
 (function () {
     'use strict';
 
     /* ── Config ───────────────────────────────────────────────── */
-    var API_BASE  = 'https://ciclomed-rest.tec-ciclomed.workers.dev';
-    var API_PANEL = API_BASE + '/rest03/WSPCPAINEL';
-    var API_APROV = API_BASE + '/rest03/WSAPROVPC';
-    var BASIC_AUTH = 'Basic ' + btoa('admin:a1a2a3a4');
+    var API_BASE  = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03';
+    var API_PANEL = API_BASE + '/WSPCPAINEL';
+    var API_APROV = API_BASE + '/WSAPROVPC';
+    var BASIC_AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
+
+    /* ── Token VIEW (mesma regra do WSPCPAINEL / U_CMAGTkPC) ─── */
+    function normFil(f) {
+        var n = String(f || '').trim();
+        if (/^\d+$/.test(n)) {
+            return ('0' + n).slice(-2);
+        }
+        return n;
+    }
+
+    function viewTokenPC(fil, pc) {
+        return md5('CICLO2026PC#' + normFil(fil) + '#' + String(pc || '').trim() + '#VIEW#V');
+    }
 
     /* ── URL params ──────────────────────────────────────────── */
     var params = new URLSearchParams(window.location.search);
-    var pSC    = (params.get('pc')    || '').trim();
-    var pFil   = (params.get('fil')   || '').trim();
-    var pToken = (params.get('token') || '').trim();
+    var pPC    = (params.get('pc')    || '').trim();
+    var pFil   = normFil(params.get('fil') || '');
+    var pToken = (params.get('token') || '').trim() || viewTokenPC(pFil, pPC);
 
     /* ── State ───────────────────────────────────────────────── */
-    var gData        = null;   // last JSON from WSSCPAINEL
+    var gData        = null;   // last JSON from WSPCPAINEL
     var gActiveTab   = 'pend'; // 'pend' | 'aprov' | 'rej'
     var gBusy        = false;  // true while a request is in-flight
 
     /* ── Boot ────────────────────────────────────────────────── */
-    if (!pSC || !pFil || !pToken) {
-        showError('Parâmetros inválidos', 'A URL deve conter sc, fil e token. Verifique o link no email.');
+    if (!pPC || !pFil) {
+        showError('Parâmetros inválidos', 'A URL deve conter pc e fil (ex.: ?pc=000295&fil=02). Abra o link pelo painel de compras.');
         return;
     }
 
-    document.getElementById('topSubtitle').textContent = 'PC ' + pSC + '  •  Filial ' + pFil;
+    document.getElementById('topSubtitle').textContent = 'PC ' + pPC + '  •  Filial ' + pFil;
     loadData();
 
     /* ── Load data ───────────────────────────────────────────── */
     function loadData() {
         var url = API_PANEL +
-            '?pc='    + encodeURIComponent(pSC)    +
+            '?pc='    + encodeURIComponent(pPC)    +
             '&fil='   + encodeURIComponent(pFil)   +
             '&token=' + encodeURIComponent(pToken);
 
@@ -480,13 +505,20 @@ function voltarPainel() {
                     json = JSON.parse(res.txt);
                 } catch (e) {
                     showError('Erro no servidor REST (' + res.status + ')',
-                        'Recompile CMAPROVUTIL + WSPCPAINEL e reinicie o REST.');
+                        'Recompile CMAPROVUTIL + WSPCPAINEL no AppServer e reinicie o REST. Detalhe: ' + res.txt.substring(0, 200));
+                    return;
+                }
+                if (!res.ok || (json.code && json.code >= 400)) {
+                    showError('Erro REST (' + res.status + ')',
+                        (json.erro || json.message || json.detailedMessage || '') +
+                        ' — Recompile WSPCPAINEL.prw e reinicie o AppServer REST.');
                     return;
                 }
                 if (json.erro) {
-                    showError('Erro ao carregar PC', json.erro);
+                    showError('Erro ao carregar SC', json.erro);
                 } else if (!Array.isArray(json.itens)) {
-                    showError('Resposta inválida', 'O REST não retornou itens do PC. ' + (res.txt || '').substring(0, 200));
+                    showError('Resposta inválida',
+                        'HTTP ' + res.status + ': ' + res.txt.substring(0, 250));
                 } else {
                     gData = json;
                     renderPanel();
@@ -504,29 +536,26 @@ function voltarPainel() {
         show('panelMain');
         hide('stateLoading');
 
-        // ── SC Info
+        // ── PC Info
+        var comprador = esc(d.nome_comprador || d.comprador || '');
         var forn = d.fornecedor
             ? ('<strong>' + esc(d.fornecedor) + (d.loja ? '/' + esc(d.loja) : '') + '</strong>' +
                (d.nome_fornecedor ? ' &ndash; ' + esc(d.nome_fornecedor) : ''))
             : '&ndash;';
 
-        var vlrTotal = d.total_pc ? 'R$ ' + fmtNum(d.total_pc, 2) : '';
-
         el('scInfoGrid').innerHTML =
             field('PC Nº', '<strong>' + esc(d.pc) + '</strong>') +
             field('Emissão', esc(d.emissao)) +
-            field('Comprador', esc(d.comprador) || '&ndash;') +
-            (vlrTotal ? field('Valor Total', vlrTotal) : '') +
+            field('Comprador', comprador || '&ndash;') +
+            field('Total PC', '<strong>' + fmtMoeda(calcValorTotal(d)) + '</strong>') +
             '<div class="sc-field wide">' +
                 '<label>Fornecedor</label>' +
                 '<span>' + forn + '</span>' +
-            '</div>' +
-            (d.justificativa ? (
-                '<div class="sc-field wide">' +
-                    '<label>Justificativa</label>' +
-                    '<span>' + esc(d.justificativa) + '</span>' +
-                '</div>'
-            ) : '');
+            '</div>';
+        if (d.justificativa) {
+            el('scInfoGrid').innerHTML +=
+                '<div class="sc-field wide"><label>Justificativa</label><span>' + esc(d.justificativa) + '</span></div>';
+        }
 
         // ── Stats chips
         var r = d.resumo || {};
@@ -597,12 +626,7 @@ function voltarPainel() {
         }
         el('tabRejeitados').innerHTML = htmlRej;
 
-        // ── Auto-selecionar aba com conteudo (se pendentes vazia)
-        if (iPend.length === 0 && iAprov.length > 0) {
-            gActiveTab = 'aprov';
-        } else if (iPend.length === 0 && iRej.length > 0) {
-            gActiveTab = 'rej';
-        }
+        // ── Re-apply active tab
         switchTab(gActiveTab);
 
         // ── Bind action buttons (after DOM insert)
@@ -618,7 +642,7 @@ function voltarPainel() {
         if (btnAA) {
             btnAA.onclick = function() {
                 if (gBusy) return;
-                if (!confirm('Aprovar TODOS os itens pendentes da SC ' + d.sc + '?')) return;
+                if (!confirm('Aprovar TODOS os itens pendentes do PC ' + d.pc + '?')) return;
                 doAction('ALL', 'A', d.token_all_a);
             };
         }
@@ -628,7 +652,7 @@ function voltarPainel() {
         if (btnRA) {
             btnRA.onclick = function() {
                 if (gBusy) return;
-                if (!confirm('Rejeitar TODOS os itens pendentes da SC ' + d.sc + '?')) return;
+                if (!confirm('Rejeitar TODOS os itens pendentes do PC ' + d.pc + '?')) return;
                 doAction('ALL', 'R', d.token_all_r);
             };
         }
@@ -679,15 +703,11 @@ function voltarPainel() {
                     toast('Item já havia sido processado anteriormente.', 'inf');
                 } else if (ok) {
                     var msg = acao === 'A'
-                        ? (item === 'ALL' ? 'Todos os itens do PC aprovados!' : 'Item ' + item + ' aprovado!')
-                        : (item === 'ALL' ? 'Todos os itens do PC rejeitados.' : 'Item ' + item + ' rejeitado.');
+                        ? (item === 'ALL' ? 'Todos os itens aprovados!' : 'Item ' + item + ' aprovado!')
+                        : (item === 'ALL' ? 'Todos os itens rejeitados.' : 'Item ' + item + ' rejeitado.');
                     toast(msg, acao === 'A' ? 'ok' : 'err');
                 } else {
-                    var mErr = 'Não foi possível processar. Tente novamente.';
-                    var mTit = body.match(/<title>([^<]+)<\/title>/i);
-                    if (mTit && mTit[1]) mErr = mTit[1].trim();
-                    else if (body.indexOf('Acesso Negado') !== -1) mErr = 'Token inválido ou expirado.';
-                    toast(mErr, 'err');
+                    toast('Não foi possível processar. Tente novamente.', 'err');
                 }
                 // Recarrega dados do painel
                 loadData();
@@ -714,8 +734,8 @@ function voltarPainel() {
     function itemCard(it, showActions) {
         var statusLabel = it.status === 'L' ? 'Aprovado' : it.status === 'R' ? 'Rejeitado' : 'Pendente';
         var qtdFmt  = fmtNum(it.quantidade, 0);
-        var precoFmt = 'R$ ' + fmtNum(it.preco_unitario, 2);
-        var totFmt   = 'R$ ' + fmtNum(it.total, 2);
+        var precoFmt = fmtMoeda(it.preco_unitario);
+        var totFmt   = fmtMoeda(itemTotal(it));
 
         var html = '<div class="item-card">';
 
@@ -724,12 +744,20 @@ function voltarPainel() {
         html += '<div>';
         html +=   '<div class="item-num">Item ' + esc(it.item) + '</div>';
         html +=   '<div class="item-prod">' + esc(it.produto) + '</div>';
-        if (it.descricao) {
-            html += '<div class="item-desc">' + esc(it.descricao) + '</div>';
+        html += '<div class="item-text-block">';
+        var descProd = it.descricao_produto || it.descricao || '';
+        var descItem = it.descricao_item || '';
+        var motivo   = it.motivo || '';
+        if (descProd) {
+            html += '<div class="item-text-line"><span class="lbl">Produto (cadastro)</span>' + esc(descProd) + '</div>';
         }
-        if (it.justificativa) {
-            html += '<div class="item-desc" style="color:#e67e22;font-size:11px;">&#128196; ' + esc(it.justificativa) + '</div>';
+        if (descItem) {
+            html += '<div class="item-text-line"><span class="lbl">Descrição do item (até 100)</span>' + esc(descItem) + '</div>';
         }
+        if (motivo) {
+            html += '<div class="item-text-line motivo"><span class="lbl">Motivo da solicitação (até 500)</span>' + esc(motivo) + '</div>';
+        }
+        html += '</div>';
         html += '</div>';
         html += '<span class="status-pill status-' + it.status + '">' + statusLabel + '</span>';
         html += '</div>';
@@ -739,7 +767,7 @@ function voltarPainel() {
         html += '<div class="item-details">';
         html += detailField('Qtd.',      qtdFmt  + ' ' + esc(it.unidade));
         html += detailField('Preço Unit.', precoFmt);
-        html += detailField('Total',     totFmt);
+        html += detailField('Total Item', totFmt);
         if (it.necessidade) {
             html += detailField('Necessidade', esc(it.necessidade));
         }
@@ -812,6 +840,30 @@ function voltarPainel() {
     function fmtNum(n, dec) {
         var num = parseFloat(n) || 0;
         return num.toLocaleString('pt-BR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+    }
+
+    function fmtMoeda(n) {
+        return 'R$ ' + fmtNum(n, 2);
+    }
+
+    function itemTotal(it) {
+        var v = parseFloat(it.total_item != null ? it.total_item : it.total);
+        if (!isNaN(v) && v > 0) return v;
+        return (parseFloat(it.quantidade) || 0) * (parseFloat(it.preco_unitario) || 0);
+    }
+
+    function calcValorTotal(d) {
+        if (d.total_documento != null && !isNaN(parseFloat(d.total_documento))) {
+            return parseFloat(d.total_documento);
+        }
+        if (d.valor_total != null && !isNaN(parseFloat(d.valor_total))) {
+            return parseFloat(d.valor_total);
+        }
+        var tot = 0;
+        (d.itens || []).forEach(function (it) {
+            tot += itemTotal(it);
+        });
+        return tot;
     }
 
     function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
