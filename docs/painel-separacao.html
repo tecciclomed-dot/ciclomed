@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1b7a3d">
+<title>CicloMed — Separação</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%231b7a3d'/%3E%3Ctext x='50' y='62' font-size='42' text-anchor='middle'%3E%F0%9F%A7%BA%3C/text%3E%3C/svg%3E">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --verde:#1b7a3d; --verde-esc:#145c2e; --verde-luz:#e8f5ec;
+    --cinza:#6b7280; --cinza-cl:#9ca3af; --borda:#e5e7eb; --fundo:#f3f4f6;
+    --amarelo:#b7791f; --amarelo-luz:#fef7e6; --azul:#1a5276; --sombra:0 1px 3px rgba(0,0,0,.12);
+  }
+  body{font-family:-apple-system,'Segoe UI',Roboto,sans-serif;background:var(--fundo);color:#1f2937;padding-bottom:40px}
+  .top{background:var(--verde);color:#fff;padding:14px 16px;position:sticky;top:0;z-index:10;box-shadow:var(--sombra)}
+  .top h1{font-size:18px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .top .sub{font-size:12px;opacity:.85;margin-top:2px}
+  .ctrls{max-width:1100px;margin:12px auto 0;padding:0 16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .ctrls label{font-size:12px;color:var(--cinza);font-weight:600}
+  .ctrls input{padding:9px 12px;border:1px solid var(--borda);border-radius:9px;font-size:14px;min-width:180px}
+  .ctrls input:focus{outline:none;border-color:var(--verde)}
+  .btn{padding:9px 14px;border:none;border-radius:9px;background:var(--verde);color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+  .btn.ghost{background:#fff;color:var(--verde);border:1px solid var(--verde)}
+  .board{max-width:1100px;margin:16px auto 0;padding:0 16px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:720px){.board{grid-template-columns:1fr}}
+  .col{background:#fff;border-radius:14px;box-shadow:var(--sombra);min-height:200px;display:flex;flex-direction:column;overflow:hidden}
+  .col-h{padding:12px 16px;font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;display:flex;justify-content:space-between;align-items:center}
+  .col.pend .col-h{background:var(--amarelo-luz);color:var(--amarelo);border-bottom:2px solid #f0d9a8}
+  .col.done .col-h{background:var(--verde-luz);color:var(--verde-esc);border-bottom:2px solid #bfe5cb}
+  .col-h .cnt{background:rgba(0,0,0,.08);border-radius:20px;padding:2px 10px;font-size:12px}
+  .col-body{padding:12px;display:flex;flex-direction:column;gap:10px;flex:1;min-height:80px}
+  .col-body.dragover{background:#f0fdf4;outline:2px dashed var(--verde);outline-offset:-6px;border-radius:10px}
+  .card{border:1px solid var(--borda);border-left:4px solid var(--verde);border-radius:10px;padding:12px;background:#fff;cursor:grab;transition:box-shadow .15s}
+  .card:active{cursor:grabbing}
+  .card.dragging{opacity:.5}
+  .card .ped{font-size:15px;font-weight:700;color:var(--verde-esc)}
+  .card .cli{font-size:13px;color:#374151;margin-top:2px}
+  .card .meta{font-size:12px;color:var(--cinza);margin-top:4px;display:flex;flex-wrap:wrap;gap:4px 12px}
+  .card ul{margin:8px 0 0;padding:0;list-style:none;border-top:1px dashed var(--borda);padding-top:8px}
+  .card ul li{font-size:12.5px;color:#374151;padding:2px 0;display:flex;gap:6px}
+  .card ul li .q{color:var(--cinza);font-weight:600;flex-shrink:0}
+  .card .aten{margin-top:8px;font-size:12px;color:var(--verde-esc);background:var(--verde-luz);border-radius:6px;padding:5px 8px;font-weight:600}
+  .card .acts{margin-top:10px;display:flex;gap:8px}
+  .card .acts button{flex:1;padding:8px;border-radius:8px;border:none;font-size:12.5px;font-weight:700;cursor:pointer}
+  .b-ok{background:var(--verde);color:#fff}
+  .b-undo{background:#fff;color:var(--cinza);border:1px solid var(--borda) !important}
+  .empty{color:var(--cinza-cl);font-size:13px;text-align:center;padding:24px 8px}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1f2937;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .2s;z-index:50;pointer-events:none}
+  .toast.show{opacity:1}
+  .toast.err{background:#b91c1c}
+  .status{max-width:1100px;margin:8px auto 0;padding:0 16px;font-size:12px;color:var(--cinza)}
+</style>
+</head>
+<body>
+  <div class="top">
+    <h1>🧺 Separação de Pedidos</h1>
+    <div class="sub">Arraste o card para "Atendido" quando separar os itens. Somente pedidos de separação.</div>
+  </div>
+
+  <div class="ctrls">
+    <label for="nome">Seu nome:</label>
+    <input type="text" id="nome" placeholder="Nome do atendente" autocomplete="off">
+    <button class="btn ghost" onclick="carregar()">↻ Atualizar</button>
+  </div>
+  <div class="status" id="status">Carregando…</div>
+
+  <div class="board">
+    <div class="col pend">
+      <div class="col-h">Não atendido <span class="cnt" id="cntP">0</span></div>
+      <div class="col-body" id="colP" data-col="pend"></div>
+    </div>
+    <div class="col done">
+      <div class="col-h">Atendido <span class="cnt" id="cntA">0</span></div>
+      <div class="col-body" id="colA" data-col="done"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+<script>
+  const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
+  const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
+  const FIL  = '';   // vazio = todas as filiais
+  let dados = [];    // pedidos de separacao
+  let dragPed = null;
+
+  const nomeInput = document.getElementById('nome');
+  nomeInput.value = localStorage.getItem('sep_atendente') || '';
+  nomeInput.addEventListener('input', () => localStorage.setItem('sep_atendente', nomeInput.value.trim()));
+
+  function esc(s){return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+
+  function toast(msg, err){
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast show' + (err?' err':'');
+    setTimeout(()=>t.className='toast',2200);
+  }
+
+  async function carregar(){
+    document.getElementById('status').textContent = 'Carregando…';
+    try{
+      const r = await fetch(API_BASE + '?acao=painel&fil=' + encodeURIComponent(FIL), { headers:{ 'Authorization': AUTH } });
+      const j = await r.json();
+      if(!j.ok){ throw new Error(j.msg || 'Falha no painel'); }
+      const todos = [].concat(j.pendentes||[], j.atendidos||[]);
+      dados = todos.filter(p => p.separacao === true);
+      render();
+      document.getElementById('status').textContent =
+        dados.length + ' pedido(s) de separação · atualizado ' + new Date().toLocaleTimeString('pt-BR');
+    }catch(e){
+      document.getElementById('status').textContent = 'Erro ao carregar: ' + e.message;
+      toast('Erro ao carregar o painel', true);
+    }
+  }
+
+  function render(){
+    const pend = dados.filter(p => !p.atendidoSep);
+    const done = dados.filter(p =>  p.atendidoSep);
+    document.getElementById('cntP').textContent = pend.length;
+    document.getElementById('cntA').textContent = done.length;
+    document.getElementById('colP').innerHTML = pend.length ? pend.map(cardHTML).join('') : '<div class="empty">Nenhum pedido pendente</div>';
+    document.getElementById('colA').innerHTML = done.length ? done.map(cardHTML).join('') : '<div class="empty">Nada atendido ainda</div>';
+    ligarDnD();
+  }
+
+  function cardHTML(p){
+    const key = p.filial + '|' + p.pedido;
+    const itens = (p.itens||[]).map(it =>
+      `<li><span class="q">${esc(it.qtd||1)}×</span><span>${esc(it.descricao || it.produto || '—')}</span></li>`).join('');
+    const aten = p.atendidoSep
+      ? `<div class="aten">✓ Atendido por ${esc(p.atendente || '—')}</div>` : '';
+    const acts = p.atendidoSep
+      ? `<div class="acts"><button class="b-undo" onclick="mover('${esc(key)}',false)">↩ Reabrir</button></div>`
+      : `<div class="acts"><button class="b-ok" onclick="mover('${esc(key)}',true)">✓ Atender</button></div>`;
+    return `<div class="card" draggable="true" data-key="${esc(key)}">
+      <div class="ped">Pedido ${esc(p.pedido)}</div>
+      <div class="cli">${esc(p.cliente || 'Cliente não informado')}</div>
+      <div class="meta">
+        <span>👤 ${esc(p.vendedorNome || p.vendedor || '—')}</span>
+        ${p.paciente ? `<span>🩺 ${esc(p.paciente)}</span>` : ''}
+        ${p.dtUso ? `<span>📅 ${esc(p.dtUso)}</span>` : ''}
+      </div>
+      ${itens ? `<ul>${itens}</ul>` : ''}
+      ${aten}
+      ${acts}
+    </div>`;
+  }
+
+  // Drag and drop (desktop)
+  function ligarDnD(){
+    document.querySelectorAll('.card').forEach(c => {
+      c.addEventListener('dragstart', e => { dragPed = c.dataset.key; c.classList.add('dragging'); });
+      c.addEventListener('dragend',   e => { c.classList.remove('dragging'); dragPed = null; });
+    });
+    document.querySelectorAll('.col-body').forEach(b => {
+      b.addEventListener('dragover', e => { e.preventDefault(); b.classList.add('dragover'); });
+      b.addEventListener('dragleave', e => b.classList.remove('dragover'));
+      b.addEventListener('drop', e => {
+        e.preventDefault(); b.classList.remove('dragover');
+        if(!dragPed) return;
+        mover(dragPed, b.dataset.col === 'done');
+      });
+    });
+  }
+
+  async function mover(key, atender){
+    const [fil, pedido] = key.split('|');
+    const nome = nomeInput.value.trim();
+    if(atender && !nome){
+      toast('Preencha "Seu nome" antes de atender', true);
+      nomeInput.focus();
+      return;
+    }
+    // otimista: atualiza local antes da resposta
+    const p = dados.find(x => (x.filial + '|' + x.pedido) === key);
+    if(p){ p.atendidoSep = atender; p.atendente = atender ? nome : ''; render(); }
+
+    try{
+      const params = new URLSearchParams({ acao:'sepatend', fil:fil, pedido:pedido });
+      if(atender) params.set('atendente', nome); else params.set('desfazer','1');
+      const r = await fetch(API_BASE + '?' + params.toString(), { headers:{ 'Authorization': AUTH } });
+      const j = await r.json();
+      if(!j.ok){ throw new Error(j.msg || 'Falha ao gravar'); }
+      toast(atender ? 'Pedido ' + pedido + ' atendido' : 'Pedido ' + pedido + ' reaberto');
+    }catch(e){
+      toast('Erro: ' + e.message, true);
+      carregar(); // reverte para o estado real
+    }
+  }
+
+  carregar();
+  setInterval(carregar, 30000);
+</script>
+</body>
+</html>

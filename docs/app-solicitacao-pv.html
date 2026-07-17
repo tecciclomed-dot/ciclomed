@@ -1279,6 +1279,12 @@
           <div class="tipo-nome">SOLICITAÇÃO DE MATERIAL</div>
           <div class="tipo-desc">Reserva estoque sem serial — procedimento ainda não confirmado.<br>Logística converte depois em consignação com serial.</div>
         </div>
+
+        <div class="tipo-card tipo-wide" onclick="escolherTipo('S')">
+          <div class="tipo-icon" style="background:#E8F6F0;color:#148F77;">🧺</div>
+          <div class="tipo-nome">SEPARAÇÃO</div>
+          <div class="tipo-desc">Vendedor pede a separação de itens (sem serial).<br>Estoque separa e valida depois no Protheus.</div>
+        </div>
       </div>
 
       <div class="tipo-hint">
@@ -1524,7 +1530,8 @@
     'C': { label: '📦 CONSIGNAÇÃO',         nome: 'CONSIGNAÇÃO',        cor: 'var(--verde-principal)',  armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Remessa em consignação. Escaneie os seriais do estoque (Arm 50).' },
     'P': { label: '🏥 CONSIG. PERMANENTE',  nome: 'CONSIG. PERMANENTE', cor: 'var(--amarelo)',          armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Material em consignação permanente. Escaneie os seriais do estoque (Arm 50).' },
     'N': { label: '🩺 VENDA / ELETIVO',     nome: 'VENDA',              cor: 'var(--azul)',             armazem: '50', deduzCliente: false, modo: 'serial', sub: 'Venda direta do estoque. Escaneie os seriais (Arm 50).' },
-    'M': { label: '📋 SOLIC. MATERIAL',     nome: 'SOLIC. MATERIAL',    cor: '#6C3483',                 armazem: '50', deduzCliente: false, modo: 'material', sub: 'Reserva estoque sem serial. Informe hospital e produtos — logística converte depois em consignação.' }
+    'M': { label: '📋 SOLIC. MATERIAL',     nome: 'SOLIC. MATERIAL',    cor: '#6C3483',                 armazem: '50', deduzCliente: false, modo: 'material', sub: 'Reserva estoque sem serial. Informe hospital e produtos — logística converte depois em consignação.' },
+    'S': { label: '🧺 SEPARAÇÃO',           nome: 'SEPARAÇÃO',          cor: '#148F77',                 armazem: '50', deduzCliente: false, modo: 'material', sub: 'Chamado de separação: informe o hospital e os produtos (busca por nome). Sem serial — o estoque separa e valida depois no Protheus.' }
   };
 
   let tipoPedido = null;
@@ -1547,7 +1554,7 @@
   let SESS_TIPO = '';       // 'V' vendedor | 'U' usuario interno
   let pessoaSelecionada = null;
   let entrySearchTimer = null;
-  const AUTH = 'Basic ' + btoa('admin:v1v2v3v4');
+  const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
   const USE_API = true;
 
   // Retry automático: tenta até 3x com espera crescente (2s, 5s)
