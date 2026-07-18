@@ -1842,6 +1842,7 @@
       var el = document.getElementById(id);
       if (el) el.style.display = (t.modo === 'material') ? 'none' : '';
     });
+    if (t.modo === 'material') warmUp();   // pre-aquece o REST antes de buscar produtos
     document.getElementById('emptySeriais').innerHTML = t.modo === 'material'
       ? '<div class="es-icon">📋</div>Nenhum produto adicionado ainda.<br>Busque e adicione os materiais acima.'
       : '<div class="es-icon">📋</div>Nenhum serial escaneado ainda.<br>Use o botão acima para começar.';
@@ -2233,6 +2234,20 @@
   // ============================================================
   // AUTOCOMPLETE
   // ============================================================
+  // Pre-aquece o REST: o Protheus tem cold start (~10-20s na 1a chamada apos ocioso, abrindo tabelas).
+  // Dispara em background ao abrir o app e ao escolher o tipo -> a busca de produto ja fica rapida.
+  let _lastWarm = 0;
+  function warmUp() {
+    const now = Date.now();
+    if (now - _lastWarm < 30000) return;   // no maximo 1x a cada 30s
+    _lastWarm = now;
+    const h = { 'Authorization': AUTH };
+    fetch(API_BASE + '?acao=versao', { headers: h }).catch(function(){});
+    fetch(API_BASE + '?acao=produtos&q=zz',  { headers: h }).catch(function(){});  // abre a SB1 (produto)
+    fetch(API_BASE + '?acao=hospitais&q=zz', { headers: h }).catch(function(){});  // abre a SA1 (hospital) - o "BN" lento
+    fetch(API_BASE + '?acao=pacientes&q=zz', { headers: h }).catch(function(){});  // abre a SC5 (paciente)
+  }
+
   // Busca autocomplete na API real (hospitais = SA1). Retorna [{id,nome,info,loja}].
   async function acFetch(acao, q) {
     try {
@@ -2348,6 +2363,7 @@
     });
   }
   document.querySelectorAll('input[data-ac]').forEach(bindAutocomplete);
+  warmUp();   // aquece o REST ja na abertura do app
 
   // ============================================================
   // VOZ — Web Speech API (pt-BR)
