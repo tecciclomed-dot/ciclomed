@@ -55,8 +55,8 @@
 </head>
 <body>
   <div class="top">
-    <h1>🧺 Separação de Pedidos</h1>
-    <div class="sub">Arraste o card para "Atendido" quando separar os itens. Somente pedidos de separação.</div>
+    <h1>🧺 Pedidos do App</h1>
+    <div class="sub">Reservas e Separações pendentes. Arraste o card para "Atendido" quando concluir.</div>
   </div>
 
   <div class="ctrls">
@@ -105,10 +105,12 @@
       const j = await r.json();
       if(!j.ok){ throw new Error(j.msg || 'Falha no painel'); }
       const todos = [].concat(j.pendentes||[], j.atendidos||[]);
-      dados = todos.filter(p => p.separacao === true);
+      // so pedidos do app (integracao). Usa o flag 'app' quando o backend ja o envia;
+      // enquanto o WSSOLPV nao for recompilado, cai no fallback (separacao + reserva).
+      dados = todos.filter(p => ('app' in p) ? (p.app === true) : (p.separacao === true || p.tipo === 'R'));
       render();
       document.getElementById('status').textContent =
-        dados.length + ' pedido(s) de separação · atualizado ' + new Date().toLocaleTimeString('pt-BR');
+        dados.length + ' pedido(s) · atualizado ' + new Date().toLocaleTimeString('pt-BR');
     }catch(e){
       document.getElementById('status').textContent = 'Erro ao carregar: ' + e.message;
       toast('Erro ao carregar o painel', true);
@@ -135,7 +137,9 @@
       ? `<div class="acts"><button class="b-undo" onclick="mover('${esc(key)}',false)">↩ Reabrir</button></div>`
       : `<div class="acts"><button class="b-ok" onclick="mover('${esc(key)}',true)">✓ Atender</button></div>`;
     return `<div class="card" draggable="true" data-key="${esc(key)}">
-      <div class="ped">Pedido ${esc(p.pedido)}</div>
+      <div class="ped">Pedido ${esc(p.pedido)} ${p.tipo === 'R'
+        ? '<span style="font-size:11px;background:#fde8e8;color:#c0392b;padding:2px 8px;border-radius:6px;font-weight:700;vertical-align:middle;">RESERVA</span>'
+        : '<span style="font-size:11px;background:var(--verde-luz);color:var(--verde-esc);padding:2px 8px;border-radius:6px;font-weight:700;vertical-align:middle;">SEPARAÇÃO</span>'}</div>
       <div class="cli">${esc(p.cliente || 'Cliente não informado')}</div>
       <div class="meta">
         <span>👤 ${esc(p.vendedorNome || p.vendedor || '—')}</span>
