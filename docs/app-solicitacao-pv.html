@@ -1226,6 +1226,13 @@
       <span><strong id="vendNome">Vendedor</strong> — Cód. <span id="vendCod">000119</span></span>
       <span id="loginStatus" style="margin-left:8px;font-size:11px;opacity:0.85;">🔒 Toque para login</span>
     </div>
+    <div id="hdrFilial" style="display:flex;align-items:center;gap:8px;padding:7px 14px;background:rgba(255,255,255,0.08);font-size:13px;color:#fff;">
+      <span>🏢 Filial:</span>
+      <select id="selFilial" onchange="filialPedido=this.value" style="flex:1;max-width:220px;padding:7px 8px;border-radius:6px;border:none;font-size:13px;font-weight:600;color:#1f2937;">
+        <option value="01">01 — Curitiba</option>
+        <option value="02">02 — SP</option>
+      </select>
+    </div>
     <div class="tipo-selecionado" id="tipoSelHdr">
       <span class="tipo-label" id="tipoSelLabel">⚡ RESERVA</span>
       <button onclick="trocarTipo()">trocar</button>
@@ -1360,7 +1367,7 @@
         <div class="field-hint">Se o paciente não estiver na lista, digite o nome completo</div>
       </div>
 
-      <div class="row">
+      <div class="row" id="rowDataHora">
         <div class="field">
           <label>Data <span class="req">*</span></label>
           <input type="date" id="inpData">
@@ -1371,7 +1378,7 @@
         </div>
       </div>
 
-      <div class="row">
+      <div class="row" id="rowMedico">
         <div class="field autocomplete" style="flex: 1;">
           <label>Médico <span class="req">*</span></label>
           <input type="text" id="inpMedico" placeholder="Digite o nome do médico..." autocomplete="off"
@@ -1385,14 +1392,14 @@
       </div>
       <div class="field-hint" id="medInfo" style="margin-top: -10px; margin-bottom: 14px;"></div>
 
-      <div class="field autocomplete">
+      <div class="field autocomplete" id="fldConvenio">
         <label>Convênio</label>
         <input type="text" id="inpConvenio" placeholder="Digite o nome do convênio..." autocomplete="off"
                data-ac="convenios" data-allow-new="true">
         <div class="suggestions" id="sugConvenio"></div>
       </div>
 
-      <div class="field autocomplete">
+      <div class="field autocomplete" id="fldCirurgia">
         <label>Cirurgia / Procedimento</label>
         <input type="text" id="inpCirurgia" placeholder="Ex: Embolização cerebral" autocomplete="off"
                data-ac="cirurgias" data-allow-new="true">
@@ -1830,6 +1837,11 @@
     document.getElementById('productCard').style.display = t.modo === 'material' ? 'block' : 'none';
     document.getElementById('procOpcional').style.display = t.modo === 'material' ? 'block' : 'none';
     document.getElementById('fldCliente').style.display = t.deduzCliente ? 'none' : 'block';
+    // Separacao (material): forma minima -> so Hospital + Paciente. Esconde Data/Hora/Medico/Convenio/Cirurgia.
+    ['rowDataHora','rowMedico','fldConvenio','fldCirurgia'].forEach(function(id){
+      var el = document.getElementById(id);
+      if (el) el.style.display = (t.modo === 'material') ? 'none' : '';
+    });
     document.getElementById('emptySeriais').innerHTML = t.modo === 'material'
       ? '<div class="es-icon">📋</div>Nenhum produto adicionado ainda.<br>Busque e adicione os materiais acima.'
       : '<div class="es-icon">📋</div>Nenhum serial escaneado ainda.<br>Use o botão acima para começar.';
@@ -2221,6 +2233,19 @@
   // ============================================================
   // AUTOCOMPLETE
   // ============================================================
+  // Busca autocomplete na API real (hospitais = SA1). Retorna [{id,nome,info,loja}].
+  async function acFetch(acao, q) {
+    try {
+      const url = API_BASE + '?acao=' + acao + '&q=' + encodeURIComponent(q) + '&vendedor=' + (API_VEND || '');
+      const r = await fetch(url, { headers: { 'Authorization': AUTH } });
+      const j = await r.json();
+      if (j && j.ok && Array.isArray(j.itens)) {
+        return j.itens.map(function (h) { return { id: h.id || '', nome: h.nome || '', info: h.info || '', loja: h.loja || '01' }; });
+      }
+    } catch (e) { console.error('acFetch', e); }
+    return [];
+  }
+
   function bindAutocomplete(input) {
     const baseName = input.dataset.ac;
     const base = BASES[baseName] || [];
@@ -2288,15 +2313,18 @@
       }
     }
 
-    input.addEventListener('input', () => {
+    input.addEventListener('input', async () => {
+      // ao digitar, zera o codigo alvo -> so um pick do dropdown seta de novo (evita codigo velho/errado)
+      if (input.dataset.targetId) { const h = document.getElementById(input.dataset.targetId); if (h) h.value = ''; }
       const q = input.value.trim();
       if (q.length < 2) { sug.classList.remove('open'); return; }
-      renderItems(searchBase(base, q), q);
+      const items = (baseName === 'hospitais') ? await acFetch('hospitais', q) : searchBase(base, q);
+      renderItems(items, q);
     });
     input.addEventListener('blur', () => setTimeout(() => sug.classList.remove('open'), 180));
-    input.addEventListener('focus', () => {
+    input.addEventListener('focus', async () => {
       const q = input.value.trim();
-      if (q.length >= 2) renderItems(searchBase(base, q), q);
+      if (q.length >= 2) renderItems((baseName === 'hospitais') ? await acFetch('hospitais', q) : searchBase(base, q), q);
     });
     input.addEventListener('keydown', e => {
       if (!sug.classList.contains('open')) return;
@@ -2534,7 +2562,11 @@
       cliLoja = document.getElementById('hidCliLoja').value.trim() || '01';
     }
 
-    if (!cliId) {
+    const hospNome = document.getElementById('inpCliente').value.trim();
+    if (tipo.modo === 'material') {
+      // Separacao: o hospital pode nao existir na SA1. Exige o NOME; o codigo (cliId) e opcional.
+      if (!hospNome) { alert('Informe o hospital.'); return; }
+    } else if (!cliId) {
       alert('Cliente não informado.');
       return;
     }
@@ -2542,10 +2574,11 @@
     const body = {
       vendedor: API_VEND,
       senha: API_SENHA,
-      fil: filialPedido || API_FIL,
+      fil: (tipo.modo === 'material' ? (document.getElementById('selFilial').value || '') : filialPedido) || API_FIL,
       tipo: tipoPedido,
       cliente: cliId,
       loja: cliLoja,
+      hospNome: hospNome,
       paciente: document.getElementById('inpPaciente').value.trim(),
       nomeMedico: document.getElementById('inpMedico').value.trim(),
       medico: document.getElementById('inpCRM').value.trim(),
