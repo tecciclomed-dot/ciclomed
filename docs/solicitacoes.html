@@ -224,10 +224,11 @@
 
 <script>
   const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
+  const WORKER_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev';
   const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
 
   let SESS = { vendedor:'', senha:'', nome:'', fil:'01' };
-  const state = { prioridade:'', tipoSolic:'', anexoNome:'' };
+  const state = { prioridade:'', tipoSolic:'', anexoNome:'', anexoFiles:[] };
 
   // Config de campos por tipo (fiel ao modelo Microsoft Forms)
   const CAMPOS = {
@@ -366,10 +367,16 @@
     box.parentElement.querySelector('input[type=hidden]').value=el.dataset.v;
   }
   function selArquivo(inp){
-    const nomes=[...inp.files].map(f=>f.name);
-    state.anexoNome = nomes.join(', ');
-    const fb=inp.closest('.filebox'); fb.classList.add('has');
-    document.getElementById('fbtxt').textContent = '✓ '+nomes.length+' arquivo(s): '+state.anexoNome;
+    const MAXMB=20;
+    const files=[...inp.files].filter(f=>{
+      if(f.size > MAXMB*1024*1024){ toast('"'+f.name+'" passa de '+MAXMB+'MB e foi ignorado.'); return false; }
+      return true;
+    });
+    state.anexoFiles = files;
+    state.anexoNome = files.map(f=>f.name).join(', ');
+    const fb=inp.closest('.filebox');
+    if(files.length){ fb.classList.add('has'); document.getElementById('fbtxt').textContent='✓ '+files.length+' arquivo(s): '+state.anexoNome; }
+    else { fb.classList.remove('has'); document.getElementById('fbtxt').textContent='📎 Toque para anexar foto/PDF (opcional)'; }
   }
 
   function coletar(){
@@ -411,14 +418,31 @@
       const r=await fetch(API_BASE,{method:'POST',headers:{Authorization:AUTH,'Content-Type':'application/json'},body:JSON.stringify(payload)});
       const o=await r.json();
       if(!o.ok){ toast(o.msg||'Erro ao enviar'); return; }
+      // sobe os anexos pro R2 (se houver)
+      if(state.anexoFiles.length && o.protocolo){
+        btn.innerHTML='<span class="loading"></span> Enviando anexos...';
+        await enviarAnexos(o.protocolo);
+      }
       document.getElementById('okProto').textContent=o.protocolo||'OK';
       show('scOk');
     }catch(e){ toast('Falha de conexão. Tente de novo.'); }
     finally{ btn.disabled=false; btn.textContent='Enviar'; }
   }
 
+  async function enviarAnexos(protocolo){
+    for(const f of state.anexoFiles){
+      try{
+        await fetch(WORKER_BASE+'/anexo/up?protocolo='+encodeURIComponent(protocolo)+'&nome='+encodeURIComponent(f.name),{
+          method:'POST',
+          headers:{ Authorization:AUTH, 'Content-Type': f.type||'application/octet-stream' },
+          body:f
+        });
+      }catch(e){ /* um anexo que falha nao impede os demais */ }
+    }
+  }
+
   function novaSolic(){
-    state.prioridade=''; state.tipoSolic=''; state.anexoNome='';
+    state.prioridade=''; state.tipoSolic=''; state.anexoNome=''; state.anexoFiles=[];
     document.querySelectorAll('#optPrior .opt,#optTipo .opt').forEach(o=>o.classList.remove('sel'));
     document.getElementById('btnPrior').disabled=true;
     document.getElementById('btnTipo').disabled=true;

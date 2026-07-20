@@ -50,6 +50,7 @@
   .badge{font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;color:#fff}
   .b-URGENTE{background:var(--urgente)} .b-MEDIA{background:var(--media)} .b-BAIXA{background:var(--baixa)}
   .b-ELETIVO{background:var(--t-eletivo)} .b-RESERVA{background:var(--t-reserva)} .b-REPOSICAO{background:var(--t-repos)}
+  .b-serial{background:#7d3c98}
   .proto{margin-left:auto;font-family:'Consolas',monospace;font-size:11px;color:var(--cinza)}
   .hosp{font-size:15px;font-weight:700;color:var(--verde-escuro);margin:1px 0 7px}
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:3px 12px;font-size:12.5px;margin-bottom:7px}
@@ -57,6 +58,14 @@
   .blk{background:#f6f9f7;border:1px solid var(--borda);border-radius:7px;padding:7px 9px;font-size:12.5px;margin:5px 0;white-space:pre-wrap}
   .blk .lb{color:var(--cinza);font-size:10.5px;display:block;margin-bottom:2px}
   .blk.mono{font-family:'Consolas',monospace}
+  .anx-btn{margin-left:8px;background:var(--verde);color:#fff;border:0;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer}
+  .anx-btn:hover{background:var(--verde-escuro)}
+  .anx-list{margin-top:7px;display:flex;flex-direction:column;gap:5px}
+  .anx-item{display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--verde-escuro);text-decoration:underline;cursor:pointer}
+  .anx-item:hover{color:var(--verde)}
+  .anx-sz{color:var(--cinza);font-size:10.5px;text-decoration:none}
+  .anx-load,.anx-none,.anx-err{font-size:11px;color:var(--cinza)}
+  .anx-err{color:var(--urgente)}
   .rep{display:inline-block;font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:6px;margin:2px 0}
   .rep.sim{background:#fdecea;color:var(--urgente)} .rep.nao{background:#eafaf1;color:#1e8449}
   .emat-chip{display:inline-block;background:#fef3d7;color:#9a6b06;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:20px;margin-bottom:6px}
@@ -91,13 +100,14 @@
       <span class="live"><span class="dot-live"></span>ao vivo</span>
     </div>
   </div>
-  <div class="hint">Arraste os cards entre as colunas para mudar a prioridade. Para concluir: <b>Atender</b> → informe <b>quem está atendendo</b> e a NF (eletivo/reposição) ou o nº da reserva → <b>Salvar</b>.</div>
+  <div class="hint">Arraste entre <b>Urgente/Média/Baixa</b> para mudar a prioridade. Para <b>atender</b>, arraste o card (ou clique Atender) para <b>Atendidas</b> → informe <b>quem atendeu</b> + a <b>NF</b> (ou nº da reserva) → <b>Salvar</b>.</div>
 
   <div class="board" id="board"></div>
   <div class="toast" id="toast"></div>
 
 <script>
   const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
+  const WORKER_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev';
   const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
   const COLS = [
     {k:'URGENTE', nome:'🔴 Urgente'},
@@ -108,6 +118,7 @@
   const TIPO_LB = {ELETIVO:'ELETIVO', RESERVA:'RESERVA', REPOSICAO:'REPOSIÇÃO'};
 
   let ITENS = [];
+  const anexosCache = {};
   let dragging = false, dragId = null;
   const docDraft = {};   // texto da NF/reserva digitado (preserva entre refreshes na sessao)
   const nomeDraft = {};  // nome do atendente digitado no card
@@ -138,7 +149,8 @@
   function distribui(){
     const g = {URGENTE:[],MEDIA:[],BAIXA:[],ATEND:[]};
     ITENS.forEach(p=>{
-      if(p.status==='ATENDIDO') g.ATEND.push(p);
+      // ATENDIDO (concluido) e EMATEND (movido p/ Atendidas, aguardando NF) ficam na coluna Atendidas
+      if(p.status==='ATENDIDO' || p.status==='EMATEND') g.ATEND.push(p);
       else { const pr=(p.prioridade||'BAIXA').toUpperCase(); (g[pr]||g.BAIXA).push(p); }
     });
     return g;
@@ -202,6 +214,7 @@
       <div class="chd">
         <span class="badge b-${esc(p.prioridade)}">${esc(p.prioridade)}</span>
         <span class="badge ${tipoCls}">${esc(TIPO_LB[p.tipo]||p.tipo)}</span>
+        ${p.origem==='PEDIDOR'?'<span class="badge b-serial">🔖 SERIAL</span>':''}
         <span class="proto">${esc(p.protocolo)}</span>
       </div>
       <div class="hosp">${esc(p.hospital)||'(sem hospital)'}</div>
@@ -210,7 +223,9 @@
       ${blk('Seriais utilizados', p.seriais, true)}
       ${rep}
       ${blk('Observação', p.obs)}
-      ${p.anexo?`<div class="blk">📎 <span class="lb">Anexo</span>${esc(p.anexo)}</div>`:''}
+      ${p.anexo?`<div class="blk"><span class="lb">📎 Anexos</span>
+        <button class="anx-btn" onclick="verAnexos('${esc(p.protocolo)}','${p.id}')">Ver anexos</button>
+        <div class="anx-list" id="anxl_${p.id}"></div></div>`:''}
       <div class="cft">${foot}</div>
     </div>`;
   }
@@ -228,13 +243,15 @@
     dragging=false;
     const p = ITENS.find(x=>x.id===id);
     if(!p) return;
+    const pedR = (p.origem==='PEDIDOR');
+    const fil = encodeURIComponent(p.filial||'');
 
     if(colK==='ATEND'){
       if(p.status==='ATENDIDO') return;
       p.status='EMATEND'; render();
-      toast('Informe quem está atendendo e a '+docLabel(p.tipo)+', e clique Salvar.');
+      toast('Informe quem atendeu e a '+docLabel(p.tipo)+', e clique Salvar.');
       const inp=document.getElementById('nom_'+id); if(inp) inp.focus();
-      try{ await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=EMATEND'); }catch(err){}
+      if(!pedR){ try{ await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=EMATEND'); }catch(err){} }
       return;
     }
     const novaPr = colK;
@@ -243,8 +260,13 @@
     if(reabrindo){ p.status='PENDENTE'; p.atendente=''; p.docAtend=''; }
     render();
     try{
-      if(reabrindo) await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=PENDENTE');
-      await api('acao=solprior&pedido='+encodeURIComponent(id)+'&prio='+encodeURIComponent(novaPr));
+      if(pedR){
+        if(reabrindo) await api('acao=predatend&fil='+fil+'&pedido='+encodeURIComponent(id)+'&desfazer=1');
+        await api('acao=predprior&fil='+fil+'&pedido='+encodeURIComponent(id)+'&prio='+encodeURIComponent(novaPr));
+      } else {
+        if(reabrindo) await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=PENDENTE');
+        await api('acao=solprior&pedido='+encodeURIComponent(id)+'&prio='+encodeURIComponent(novaPr));
+      }
     }catch(err){ carregar(); }
   }
 
@@ -254,7 +276,10 @@
     if(nomeDraft[id]==null) nomeDraft[id] = ultimoAtend();
     p.status='EMATEND'; render();
     const inp=document.getElementById('nom_'+id); if(inp){ inp.focus(); inp.select(); }
-    try{ await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=EMATEND'); }catch(e){ carregar(); }
+    // pedido R: EMATEND e transiente (so persiste no Salvar). Solicitacao: grava EMATEND.
+    if(p.origem!=='PEDIDOR'){
+      try{ await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=EMATEND'); }catch(e){ carregar(); }
+    }
   }
 
   async function salvar(id, tipo){
@@ -266,20 +291,59 @@
     localStorage.setItem('sol_atendente', nome);
     const p = ITENS.find(x=>x.id===id); if(!p) return;
     p.status='ATENDIDO'; p.docAtend=doc; p.atendente=nome; delete docDraft[id]; delete nomeDraft[id]; render();
-    try{ await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=ATENDIDO&atendente='+encodeURIComponent(nome)+'&doc='+encodeURIComponent(doc)); }
-    catch(e){ carregar(); }
+    try{
+      if(p.origem==='PEDIDOR'){
+        await api('acao=predatend&fil='+encodeURIComponent(p.filial||'')+'&pedido='+encodeURIComponent(id)+'&atendente='+encodeURIComponent(nome)+'&doc='+encodeURIComponent(doc));
+      } else {
+        await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=ATENDIDO&atendente='+encodeURIComponent(nome)+'&doc='+encodeURIComponent(doc));
+      }
+    }catch(e){ carregar(); }
   }
 
   async function cancelar(id){
     const p = ITENS.find(x=>x.id===id); if(!p) return;
     p.status='PENDENTE'; p.atendente=''; delete docDraft[id]; delete nomeDraft[id]; render();
-    try{ await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=PENDENTE'); }catch(e){ carregar(); }
+    // pedido R: nada persistido (EMATEND era transiente). Solicitacao: volta p/ PENDENTE.
+    if(p.origem!=='PEDIDOR'){ try{ await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=PENDENTE'); }catch(e){ carregar(); } }
   }
 
   async function reabrir(id){
     const p = ITENS.find(x=>x.id===id); if(!p) return;
     p.status='PENDENTE'; p.atendente=''; p.docAtend=''; render();
-    try{ await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=PENDENTE'); }catch(e){ carregar(); }
+    try{
+      if(p.origem==='PEDIDOR'){ await api('acao=predatend&fil='+encodeURIComponent(p.filial||'')+'&pedido='+encodeURIComponent(id)+'&desfazer=1'); }
+      else { await api('acao=solstatus&pedido='+encodeURIComponent(id)+'&novo=PENDENTE'); }
+    }catch(e){ carregar(); }
+  }
+
+  // ---------- Anexos (R2 via Worker) ----------
+  function fmtSize(b){ b=b||0; if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(0)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+  function nomeAnexo(n){ return (n||'').replace(/^\d{10,}-/, ''); }  // tira o timestamp do fallback
+
+  async function verAnexos(protocolo, id){
+    const box=document.getElementById('anxl_'+id); if(!box) return;
+    box.innerHTML='<span class="anx-load">carregando…</span>';
+    try{
+      const r=await fetch(WORKER_BASE+'/anexo/list?protocolo='+encodeURIComponent(protocolo),{headers:{Authorization:AUTH}});
+      const o=await r.json();
+      if(!o.ok){ box.innerHTML='<span class="anx-err">'+esc(o.erro||'erro')+'</span>'; return; }
+      if(!o.files || !o.files.length){ box.innerHTML='<span class="anx-none">Nenhum arquivo (solicitação antiga ou sem anexo real).</span>'; return; }
+      anexosCache[protocolo]=o.files;
+      box.innerHTML=o.files.map((f,i)=>`<a class="anx-item" onclick="abrirAnexo('${esc(protocolo)}',${i})">📄 ${esc(nomeAnexo(f.nome))} <span class="anx-sz">${fmtSize(f.size)}</span></a>`).join('');
+    }catch(e){ box.innerHTML='<span class="anx-err">falha ao listar</span>'; }
+  }
+
+  async function abrirAnexo(protocolo, i){
+    const f=(anexosCache[protocolo]||[])[i]; if(!f) return;
+    const w=window.open('about:blank','_blank');   // abre a aba ja no clique (evita bloqueio de popup)
+    try{
+      const r=await fetch(WORKER_BASE+'/anexo/file?key='+encodeURIComponent(f.key),{headers:{Authorization:AUTH}});
+      if(!r.ok){ if(w)w.close(); toast('Erro ao abrir anexo'); return; }
+      const blob=await r.blob();
+      const url=URL.createObjectURL(blob);
+      if(w){ w.location=url; } else { window.open(url,'_blank'); }
+      setTimeout(()=>URL.revokeObjectURL(url),120000);
+    }catch(e){ if(w)w.close(); toast('Falha ao abrir anexo'); }
   }
 
   carregar();
