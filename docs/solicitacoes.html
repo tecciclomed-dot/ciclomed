@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0E3A24">
+<title>Solicitações · Logística CicloMed</title>
+<style>
+  :root{
+    --verde:#1B5E3F; --verde-escuro:#0E3A24; --verde-medio:#2A7A4F;
+    --verde-fundo:#E8F5EE; --sucesso:#27AE60;
+    --urgente:#C0392B; --media:#D68910; --baixa:#2874A6;
+    --cinza:#6b7280; --borda:#dfe5e1; --fundo:#f4f6f5;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:'Segoe UI',system-ui,-apple-system,Roboto,Arial,sans-serif;
+    background:var(--fundo); color:#1f2a24; line-height:1.45;
+    min-height:100vh;
+  }
+  .wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+
+  /* Cabecalho */
+  .top{
+    background:linear-gradient(135deg,var(--verde-escuro) 0%,var(--verde) 100%);
+    color:#fff;padding:16px 20px;display:flex;align-items:center;gap:12px;
+    position:sticky;top:0;z-index:10;box-shadow:0 2px 10px rgba(0,0,0,.12)
+  }
+  .top .logo{font-weight:800;font-size:15px;letter-spacing:.5px;line-height:1.15}
+  .top .logo small{display:block;font-weight:400;font-size:11px;opacity:.8;letter-spacing:1px}
+  .top .who{margin-left:auto;text-align:right;font-size:11px;opacity:.9}
+  .top .who b{display:block;font-size:12px}
+
+  .screen{flex:1;padding:20px;display:none;animation:fade .25s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .card{background:#fff;border:1px solid var(--borda);border-radius:14px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+
+  /* Boas-vindas */
+  .hero{
+    background:linear-gradient(150deg,var(--verde-escuro),var(--verde) 90%);
+    color:#fff;border-radius:16px;padding:26px 22px;margin-bottom:6px;
+    box-shadow:0 8px 24px rgba(14,58,36,.22);position:relative;overflow:hidden
+  }
+  .hero::after{content:"";position:absolute;right:-40px;bottom:-60px;width:200px;height:200px;
+    background:radial-gradient(circle,rgba(255,255,255,.08),transparent 70%);border-radius:50%}
+  .hero h1{margin:0;font-size:22px;font-weight:300;letter-spacing:.5px}
+  .hero h1 b{display:block;font-weight:800}
+  .hero .data{margin-top:16px;font-weight:700;font-size:14px}
+  .hero p{margin:14px 0 0;font-size:14px;opacity:.92}
+  .hero a{color:#bfe9cf;font-weight:600}
+
+  h2.q{font-size:16px;color:var(--verde-escuro);margin:0 0 4px;font-weight:700}
+  .sub{font-size:12.5px;color:var(--cinza);margin:0 0 18px}
+  .req{color:var(--urgente)}
+  .secao{font-size:12px;letter-spacing:1px;color:var(--verde-medio);font-weight:700;text-transform:uppercase;margin:0 0 14px}
+
+  /* Opcoes (radio grande) */
+  .opts{display:flex;flex-direction:column;gap:10px;margin-bottom:8px}
+  .opt{
+    display:flex;align-items:center;gap:12px;padding:15px 16px;border:2px solid var(--borda);
+    border-radius:12px;cursor:pointer;transition:all .15s;background:#fff;font-weight:600;font-size:15px
+  }
+  .opt:active{transform:scale(.99)}
+  .opt .dot{width:22px;height:22px;border-radius:50%;border:2px solid #c2ccc6;flex:none;position:relative}
+  .opt.sel{border-color:var(--verde);background:var(--verde-fundo);color:var(--verde-escuro)}
+  .opt.sel .dot{border-color:var(--verde)}
+  .opt.sel .dot::after{content:"";position:absolute;inset:3px;border-radius:50%;background:var(--verde)}
+  .opt .tag{margin-left:auto;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;color:#fff}
+  .opt .tag.u{background:var(--urgente)} .opt .tag.m{background:var(--media)} .opt .tag.b{background:var(--baixa)}
+
+  /* Campos */
+  .field{margin-bottom:16px}
+  .field label{display:block;font-size:13.5px;font-weight:700;color:var(--verde-escuro);margin-bottom:6px}
+  .field input,.field textarea,.field select{
+    width:100%;padding:12px 13px;border:1.5px solid var(--borda);border-radius:10px;font-size:15px;
+    font-family:inherit;background:#fff;color:#1f2a24;transition:border-color .15s
+  }
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--verde)}
+  .field textarea{resize:vertical;min-height:70px}
+  .field .hint{font-size:11.5px;color:var(--cinza);margin-top:4px}
+  .field.err input,.field.err textarea{border-color:var(--urgente);background:#fdf3f2}
+  .nota{background:#fff8e6;border:1px solid #f0d98a;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#7a5c12;margin-bottom:18px}
+
+  .simnao{display:flex;gap:10px}
+  .simnao .opt{flex:1;justify-content:center;font-size:15px}
+
+  .filebox{border:2px dashed var(--borda);border-radius:10px;padding:14px;text-align:center;color:var(--cinza);font-size:13px;cursor:pointer}
+  .filebox input{display:none}
+  .filebox.has{border-color:var(--verde);background:var(--verde-fundo);color:var(--verde-escuro)}
+
+  /* Botoes */
+  .acts{display:flex;gap:10px;margin-top:22px}
+  .btn{flex:1;padding:14px;border-radius:11px;border:0;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s}
+  .btn:active{transform:scale(.98)}
+  .btn.pri{background:var(--verde);color:#fff}
+  .btn.pri:disabled{opacity:.45}
+  .btn.sec{background:#fff;color:var(--verde-escuro);border:1.5px solid var(--borda);flex:0 0 34%}
+  .btn.block{width:100%}
+  .btn.big{padding:16px;font-size:16px}
+
+  /* Login */
+  .login-logo{text-align:center;margin-bottom:22px}
+  .login-logo .l1{font-size:13px;color:var(--verde-medio);letter-spacing:2px;font-weight:600}
+  .login-logo .l2{font-size:22px;color:var(--verde-escuro);font-weight:800}
+
+  /* Sucesso */
+  .sucesso{text-align:center;padding:14px 0}
+  .sucesso .ic{width:82px;height:82px;border-radius:50%;background:var(--verde-fundo);color:var(--sucesso);
+    display:flex;align-items:center;justify-content:center;font-size:44px;margin:6px auto 18px;border:3px solid var(--sucesso)}
+  .sucesso h2{color:var(--verde-escuro);margin:0 0 6px;font-size:20px}
+  .sucesso .proto{display:inline-block;background:var(--verde-escuro);color:#fff;padding:8px 18px;border-radius:10px;
+    font-family:'Consolas',monospace;font-size:16px;letter-spacing:1px;margin:14px 0}
+  .sucesso p{color:var(--cinza);font-size:14px;margin:6px 0}
+
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#26303a;color:#fff;
+    padding:12px 20px;border-radius:24px;font-size:13.5px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;
+    transition:opacity .25s;z-index:99;max-width:90%;text-align:center}
+  .toast.show{opacity:1}
+  .loading{display:inline-block;width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;
+    border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="logo">LOGÍSTICA<small>CICLOMED DO BRASIL</small></div>
+    <div class="who" id="who" style="display:none"></div>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="screen" id="scLogin">
+    <div class="card">
+      <div class="login-logo">
+        <div class="l1">PORTAL DE</div>
+        <div class="l2">Solicitações</div>
+      </div>
+      <div class="field"><label>Vendedor (código)</label><input id="inVend" inputmode="numeric" placeholder="Ex: 000119" autocomplete="off"></div>
+      <div class="field"><label>Senha</label><input id="inSenha" type="password" placeholder="Sua senha" autocomplete="off"></div>
+      <div class="field"><label>Filial</label>
+        <select id="inFil"><option value="01">01 · Curitiba (PR)</option><option value="02">02 · São Paulo (SP)</option></select>
+      </div>
+      <button class="btn pri block big" id="btnLogin" onclick="fazerLogin()">Entrar</button>
+    </div>
+  </div>
+
+  <!-- BOAS-VINDAS -->
+  <div class="screen" id="scWelcome">
+    <div class="hero">
+      <h1>LOGÍSTICA <b>CICLOMED DO BRASIL</b></h1>
+      <div class="data" id="hojeData"></div>
+      <p>Olá! Seja bem-vindo ao portal de solicitações de pedidos.<br><br>
+      Caso o assunto a ser tratado seja diferente de solicitação de pedidos, entre em contato pelo e-mail
+      <a href="mailto:logistica@ciclomed.com.br">logistica@ciclomed.com.br</a>.</p>
+    </div>
+    <button class="btn pri block big" style="margin-top:16px" onclick="show('scPrior')">Iniciar agora →</button>
+  </div>
+
+  <!-- PRIORIDADE -->
+  <div class="screen" id="scPrior">
+    <div class="card">
+      <div class="secao">Prioridade da solicitação</div>
+      <h2 class="q">1. Selecione a prioridade do pedido <span class="req">*</span></h2>
+      <p class="sub">Isso ajuda a logística a organizar o atendimento.</p>
+      <div class="opts" id="optPrior">
+        <div class="opt" data-v="URGENTE" onclick="selPrior(this)"><span class="dot"></span>URGENTE<span class="tag u">URGENTE</span></div>
+        <div class="opt" data-v="MEDIA"   onclick="selPrior(this)"><span class="dot"></span>MÉDIA<span class="tag m">MÉDIA</span></div>
+        <div class="opt" data-v="BAIXA"   onclick="selPrior(this)"><span class="dot"></span>BAIXA<span class="tag b">BAIXA</span></div>
+      </div>
+      <div class="acts">
+        <button class="btn sec" onclick="show('scWelcome')">Voltar</button>
+        <button class="btn pri" id="btnPrior" disabled onclick="show('scTipo')">Avançar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TIPO -->
+  <div class="screen" id="scTipo">
+    <div class="card">
+      <div class="secao">Tipo de solicitação</div>
+      <h2 class="q">2. Tipo de solicitação <span class="req">*</span></h2>
+      <p class="sub">Cada tipo pede informações diferentes.</p>
+      <div class="opts" id="optTipo">
+        <div class="opt" data-v="ELETIVO"   onclick="selTipo(this)"><span class="dot"></span>ELETIVO</div>
+        <div class="opt" data-v="RESERVA"   onclick="selTipo(this)"><span class="dot"></span>RESERVA</div>
+        <div class="opt" data-v="REPOSICAO" onclick="selTipo(this)"><span class="dot"></span>REPOSIÇÃO</div>
+      </div>
+      <div class="acts">
+        <button class="btn sec" onclick="show('scPrior')">Voltar</button>
+        <button class="btn pri" id="btnTipo" disabled onclick="abrirForm()">Avançar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FORMULARIO -->
+  <div class="screen" id="scForm">
+    <div class="card">
+      <div class="secao" id="formTitulo">ELETIVO</div>
+      <div id="formFields"></div>
+      <div class="acts">
+        <button class="btn sec" onclick="show('scTipo')">Voltar</button>
+        <button class="btn pri" id="btnEnviar" onclick="enviar()">Enviar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUCESSO -->
+  <div class="screen" id="scOk">
+    <div class="card sucesso">
+      <div class="ic">✓</div>
+      <h2>Solicitação enviada!</h2>
+      <p>A logística foi notificada e vai atender.</p>
+      <div class="proto" id="okProto">SOL...</div>
+      <p>Guarde este protocolo para acompanhamento.</p>
+      <button class="btn pri block big" style="margin-top:16px" onclick="novaSolic()">Nova solicitação</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
+  const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
+
+  let SESS = { vendedor:'', senha:'', nome:'', fil:'01' };
+  const state = { prioridade:'', tipoSolic:'', anexoNome:'' };
+
+  // Config de campos por tipo (fiel ao modelo Microsoft Forms)
+  const CAMPOS = {
+    ELETIVO: [
+      {k:'hospital',  lb:'Hospital', tp:'text', req:true},
+      {k:'paciente',  lb:'Nome do Paciente', tp:'text', req:true},
+      {k:'dtProc',    lb:'Data do Procedimento', tp:'date', req:true},
+      {k:'hrProc',    lb:'Hora do Procedimento', tp:'time', req:true},
+      {k:'convenio',  lb:'Convênio', tp:'text', req:true},
+      {k:'medico',    lb:'Médico', tp:'text', req:true},
+      {k:'materiais', lb:'Materiais Solicitados e Qtde', tp:'textarea', req:true, ph:'Ex: 01 NEURON MAX 090'},
+      {k:'obs',       lb:'Observação', tp:'textarea', req:false, ph:'Opcional'},
+      {k:'anexo',     lb:'Anexo (não obrigatório)', tp:'file', req:false},
+    ],
+    RESERVA: [
+      {k:'_nota', tp:'nota', txt:'OBS 1: Caso a reposição seja diferente do que foi utilizado, responda o formulário de REPOSIÇÃO. OBS 2: Caso queira anexar somente a foto/PDF dos seriais, não é necessário digitar os números no campo abaixo.'},
+      {k:'hospital', lb:'Hospital', tp:'text', req:true},
+      {k:'paciente', lb:'Nome do Paciente', tp:'text', req:true},
+      {k:'dtProc',   lb:'Data do Procedimento', tp:'date', req:true},
+      {k:'convenio', lb:'Convênio', tp:'text', req:true},
+      {k:'medico',   lb:'Médico', tp:'text', req:true},
+      {k:'seriais',  lb:'Inserir os seriais utilizados (caso não tenha a folha de gasto)', tp:'textarea', req:false, ph:'878787\n545454\n212121'},
+      {k:'reposicao',lb:'Necessário Reposição?', tp:'simnao', req:true},
+      {k:'anexo',    lb:'Anexo (não obrigatório)', tp:'file', req:false},
+    ],
+    REPOSICAO: [
+      {k:'hospital',  lb:'Hospital', tp:'text', req:true},
+      {k:'materiais', lb:'Materiais Solicitados e Qtde', tp:'textarea', req:true, ph:'Ex: 02 NEURON 080'},
+      {k:'obs',       lb:'Observação', tp:'textarea', req:false, ph:'Opcional'},
+    ],
+  };
+
+  function show(id){
+    document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0,0);
+  }
+  function toast(msg){
+    const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2600);
+  }
+
+  // ---------- Sessao ----------
+  function carregarSessao(){
+    try{
+      const raw = sessionStorage.getItem('solpv_sess') || localStorage.getItem('solpv_sess');
+      if(raw){
+        const o = JSON.parse(raw);
+        if(o && o.vendedor && o.senha){
+          SESS.vendedor=o.vendedor; SESS.senha=o.senha; SESS.nome=o.nome||o.nreduz||'';
+          SESS.fil = o.fil || SESS.fil;
+          return true;
+        }
+      }
+    }catch(e){}
+    return false;
+  }
+  function marcarLogado(){
+    document.getElementById('who').style.display='block';
+    document.getElementById('who').innerHTML = '<b>'+ (SESS.nome||SESS.vendedor) +'</b>Filial '+SESS.fil;
+  }
+
+  async function fazerLogin(){
+    const v=document.getElementById('inVend').value.trim();
+    const s=document.getElementById('inSenha').value;
+    const f=document.getElementById('inFil').value;
+    if(!v||!s){ toast('Informe vendedor e senha'); return; }
+    const btn=document.getElementById('btnLogin');
+    btn.disabled=true; btn.innerHTML='<span class="loading"></span> Entrando...';
+    try{
+      const r=await fetch(API_BASE+'?acao=login&vendedor='+encodeURIComponent(v)+'&senha='+encodeURIComponent(s),{headers:{Authorization:AUTH}});
+      const o=await r.json();
+      if(!o.ok){ toast(o.msg||'Login inválido'); return; }
+      SESS.vendedor=o.vendedor; SESS.senha=s; SESS.nome=o.nome||o.nreduz||''; SESS.fil=f;
+      const sav=JSON.stringify({vendedor:o.vendedor,senha:s,nome:SESS.nome,fil:f});
+      sessionStorage.setItem('solpv_sess',sav);
+      marcarLogado(); iniciarWelcome();
+    }catch(e){ toast('Falha de conexão. Tente de novo.'); }
+    finally{ btn.disabled=false; btn.textContent='Entrar'; }
+  }
+
+  function iniciarWelcome(){
+    document.getElementById('hojeData').textContent =
+      new Date().toLocaleDateString('pt-BR',{day:'numeric',month:'short',year:'numeric'});
+    show('scWelcome');
+  }
+
+  // ---------- Passos ----------
+  function selPrior(el){
+    document.querySelectorAll('#optPrior .opt').forEach(o=>o.classList.remove('sel'));
+    el.classList.add('sel'); state.prioridade=el.dataset.v;
+    document.getElementById('btnPrior').disabled=false;
+  }
+  function selTipo(el){
+    document.querySelectorAll('#optTipo .opt').forEach(o=>o.classList.remove('sel'));
+    el.classList.add('sel'); state.tipoSolic=el.dataset.v;
+    document.getElementById('btnTipo').disabled=false;
+  }
+
+  function abrirForm(){
+    const tipo=state.tipoSolic;
+    document.getElementById('formTitulo').textContent =
+      (tipo==='REPOSICAO'?'REPOSIÇÃO':tipo);
+    const box=document.getElementById('formFields');
+    box.innerHTML = CAMPOS[tipo].map(campoHtml).join('');
+    state.anexoNome='';
+    show('scForm');
+  }
+
+  function campoHtml(c){
+    const rq = c.req ? ' <span class="req">*</span>' : '';
+    if(c.tp==='nota') return '<div class="nota">'+c.txt+'</div>';
+    if(c.tp==='textarea')
+      return '<div class="field" data-k="'+c.k+'"><label>'+c.lb+rq+'</label>'+
+             '<textarea id="f_'+c.k+'" placeholder="'+(c.ph||'')+'"></textarea></div>';
+    if(c.tp==='simnao')
+      return '<div class="field" data-k="'+c.k+'"><label>'+c.lb+rq+'</label>'+
+             '<div class="simnao">'+
+             '<div class="opt" data-v="SIM" onclick="selSimNao(this)"><span class="dot"></span>SIM</div>'+
+             '<div class="opt" data-v="NAO" onclick="selSimNao(this)"><span class="dot"></span>NÃO</div>'+
+             '</div><input type="hidden" id="f_'+c.k+'"></div>';
+    if(c.tp==='file')
+      return '<div class="field" data-k="'+c.k+'"><label>'+c.lb+'</label>'+
+             '<label class="filebox" id="fb_'+c.k+'"><input type="file" multiple onchange="selArquivo(this)">'+
+             '<span id="fbtxt">📎 Toque para anexar foto/PDF (opcional)</span></label></div>';
+    const it = c.tp==='date' ? 'date' : (c.tp==='time'?'text':'text');
+    const ph = c.tp==='time' ? 'placeholder="Ex: 16:00"' : (c.ph?'placeholder="'+c.ph+'"':'');
+    return '<div class="field" data-k="'+c.k+'"><label>'+c.lb+rq+'</label>'+
+           '<input type="'+it+'" id="f_'+c.k+'" '+ph+' autocomplete="off"></div>';
+  }
+
+  function selSimNao(el){
+    const box=el.parentElement;
+    box.querySelectorAll('.opt').forEach(o=>o.classList.remove('sel'));
+    el.classList.add('sel');
+    box.parentElement.querySelector('input[type=hidden]').value=el.dataset.v;
+  }
+  function selArquivo(inp){
+    const nomes=[...inp.files].map(f=>f.name);
+    state.anexoNome = nomes.join(', ');
+    const fb=inp.closest('.filebox'); fb.classList.add('has');
+    document.getElementById('fbtxt').textContent = '✓ '+nomes.length+' arquivo(s): '+state.anexoNome;
+  }
+
+  function coletar(){
+    const tipo=state.tipoSolic, dados={}, faltas=[];
+    document.querySelectorAll('#formFields .field').forEach(f=>f.classList.remove('err'));
+    CAMPOS[tipo].forEach(c=>{
+      if(c.tp==='nota'||c.tp==='file') return;
+      const el=document.getElementById('f_'+c.k);
+      const val=(el?el.value:'').trim();
+      dados[c.k]=val;
+      if(c.req && !val){
+        faltas.push(c.k);
+        const fld=document.querySelector('#formFields .field[data-k="'+c.k+'"]');
+        if(fld) fld.classList.add('err');
+      }
+    });
+    return {dados,faltas};
+  }
+
+  async function enviar(){
+    const {dados,faltas}=coletar();
+    if(faltas.length){ toast('Preencha os campos obrigatórios (*)'); return; }
+    // data ISO (AAAA-MM-DD) -> DD/MM/AAAA
+    if(dados.dtProc && /^\d{4}-\d{2}-\d{2}$/.test(dados.dtProc)){
+      const p=dados.dtProc.split('-'); dados.dtProc=p[2]+'/'+p[1]+'/'+p[0];
+    }
+    const btn=document.getElementById('btnEnviar');
+    btn.disabled=true; btn.innerHTML='<span class="loading"></span> Enviando...';
+
+    const payload = Object.assign({
+      op:'SOLICITAR',
+      vendedor:SESS.vendedor, senha:SESS.senha, fil:SESS.fil,
+      prioridade:state.prioridade, tipoSolic:state.tipoSolic,
+      hospital:'', paciente:'', dtProc:'', hrProc:'', convenio:'', medico:'',
+      materiais:'', seriais:'', reposicao:'', obs:'', anexo:state.anexoNome
+    }, dados);
+
+    try{
+      const r=await fetch(API_BASE,{method:'POST',headers:{Authorization:AUTH,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+      const o=await r.json();
+      if(!o.ok){ toast(o.msg||'Erro ao enviar'); return; }
+      document.getElementById('okProto').textContent=o.protocolo||'OK';
+      show('scOk');
+    }catch(e){ toast('Falha de conexão. Tente de novo.'); }
+    finally{ btn.disabled=false; btn.textContent='Enviar'; }
+  }
+
+  function novaSolic(){
+    state.prioridade=''; state.tipoSolic=''; state.anexoNome='';
+    document.querySelectorAll('#optPrior .opt,#optTipo .opt').forEach(o=>o.classList.remove('sel'));
+    document.getElementById('btnPrior').disabled=true;
+    document.getElementById('btnTipo').disabled=true;
+    iniciarWelcome();
+  }
+
+  // ---------- Init ----------
+  (function init(){
+    // pre-aquece o REST (cold start)
+    fetch(API_BASE+'?acao=versao',{headers:{Authorization:AUTH}}).catch(()=>{});
+    if(carregarSessao()){ marcarLogado(); iniciarWelcome(); }
+    else { show('scLogin'); }
+  })();
+</script>
+</body>
+</html>

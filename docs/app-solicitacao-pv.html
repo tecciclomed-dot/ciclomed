@@ -1263,10 +1263,10 @@
           <div class="tipo-desc">Item já em poder do cliente (Arm 57). Escaneie o serial da etiqueta.</div>
         </div>
 
-        <div class="tipo-card tipo-wide" onclick="escolherTipo('S')">
+        <div class="tipo-card tipo-wide" onclick="abrirSolicitacoes()">
           <div class="tipo-icon" style="background:#E8F6F0;color:#148F77;">🧺</div>
           <div class="tipo-nome">SEPARAÇÃO</div>
-          <div class="tipo-desc">Vendedor pede a separação de itens (sem serial).<br>Estoque separa e valida depois no Protheus.</div>
+          <div class="tipo-desc">Portal de solicitações (Eletivo / Reserva / Reposição).<br>Notifica a logística — não gera pedido de venda.</div>
         </div>
       </div>
 
@@ -1812,6 +1812,23 @@
   }
 
   // ============================================================
+  // ABRE O PORTAL DE SOLICITACOES (Separacao) - nao gera pedido de venda
+  // ============================================================
+  function abrirSolicitacoes() {
+    // Repassa a sessao do vendedor pro portal (mesma aba -> sessionStorage carrega)
+    try {
+      if (API_VEND && API_SENHA) {
+        const sav = JSON.stringify({
+          vendedor: API_VEND, senha: API_SENHA,
+          nome: (document.getElementById('vendCod') ? document.getElementById('vendCod').textContent : '') || API_VEND,
+          fil: (document.getElementById('selFilial') ? document.getElementById('selFilial').value : '01') || '01'
+        });
+        sessionStorage.setItem('solpv_sess', sav);
+      }
+    } catch (e) {}
+    window.location.href = 'solicitacoes.html';
+  }
+
   // ESCOLHA DO TIPO
   // ============================================================
   function escolherTipo(tipo) {

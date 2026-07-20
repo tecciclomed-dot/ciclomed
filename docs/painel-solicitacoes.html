@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0E3A24">
+<title>Painel de Solicitações · Logística CicloMed</title>
+<style>
+  :root{
+    --verde:#1B5E3F; --verde-escuro:#0E3A24; --verde-fundo:#E8F5EE;
+    --urgente:#C0392B; --media:#D68910; --baixa:#2874A6;
+    --t-eletivo:#6C3483; --t-reserva:#148F77; --t-repos:#1F618D;
+    --cinza:#6b7280; --borda:#e2e8e4; --fundo:#eef2f0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:var(--fundo);color:#1f2a24}
+  .top{
+    background:linear-gradient(135deg,var(--verde-escuro),var(--verde));color:#fff;
+    padding:14px 22px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+    position:sticky;top:0;z-index:20;box-shadow:0 2px 12px rgba(0,0,0,.15)
+  }
+  .top .logo{font-weight:800;font-size:15px;letter-spacing:.5px;line-height:1.1}
+  .top .logo small{display:block;font-weight:400;font-size:11px;opacity:.8}
+  .top .title{font-size:17px;font-weight:700}
+  .top .tools{margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .top select,.top input{padding:8px 11px;border-radius:8px;border:0;font-size:13px;font-family:inherit}
+  .top input{width:180px}
+  .top .btn{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600}
+  .top .btn:hover{background:rgba(255,255,255,.28)}
+  .top .live{font-size:11px;opacity:.85;display:flex;align-items:center;gap:5px}
+  .dot-live{width:8px;height:8px;border-radius:50%;background:#7CFC9A;animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  .board{display:grid;grid-template-columns:1fr 1fr;gap:18px;padding:20px;max-width:1400px;margin:0 auto}
+  @media(max-width:820px){.board{grid-template-columns:1fr}}
+  .col h3{margin:0 0 12px;font-size:14px;letter-spacing:.5px;color:var(--verde-escuro);display:flex;align-items:center;gap:8px}
+  .col h3 .cnt{background:var(--verde);color:#fff;border-radius:20px;padding:1px 10px;font-size:12px}
+  .col.done h3 .cnt{background:#95a5a6}
+
+  .cards{display:flex;flex-direction:column;gap:12px;min-height:60px}
+  .empty{color:var(--cinza);font-size:13px;text-align:center;padding:24px;border:2px dashed var(--borda);border-radius:12px;background:#fff}
+
+  .card{background:#fff;border:1px solid var(--borda);border-radius:12px;padding:14px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);border-left:5px solid var(--baixa)}
+  .card.p-URGENTE{border-left-color:var(--urgente)}
+  .card.p-MEDIA{border-left-color:var(--media)}
+  .card.p-BAIXA{border-left-color:var(--baixa)}
+  .card.done{opacity:.72}
+  .chd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+  .badge{font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;color:#fff}
+  .b-URGENTE{background:var(--urgente)} .b-MEDIA{background:var(--media)} .b-BAIXA{background:var(--baixa)}
+  .b-ELETIVO{background:var(--t-eletivo)} .b-RESERVA{background:var(--t-reserva)} .b-REPOSICAO{background:var(--t-repos)}
+  .proto{margin-left:auto;font-family:'Consolas',monospace;font-size:12px;color:var(--cinza)}
+  .hosp{font-size:16px;font-weight:700;color:var(--verde-escuro);margin:2px 0 8px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;font-size:13px;margin-bottom:8px}
+  .grid .lb{color:var(--cinza);font-size:11px}
+  .block{background:#f7faf8;border:1px solid var(--borda);border-radius:8px;padding:8px 10px;font-size:13px;margin:6px 0;white-space:pre-wrap}
+  .block .lb{color:var(--cinza);font-size:11px;display:block;margin-bottom:2px}
+  .block.mono{font-family:'Consolas',monospace}
+  .rep{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:6px}
+  .rep.sim{background:#fdecea;color:var(--urgente)} .rep.nao{background:#eafaf1;color:#1e8449}
+  .cft{display:flex;align-items:center;gap:10px;margin-top:10px;padding-top:10px;border-top:1px solid #f0f3f1;flex-wrap:wrap}
+  .vend{font-size:12px;color:var(--cinza)}
+  .cft .when{font-size:11px;color:#9aa4a0}
+  .act{margin-left:auto;padding:8px 16px;border-radius:8px;border:0;font-size:13px;font-weight:700;cursor:pointer}
+  .act.at{background:var(--verde);color:#fff}
+  .act.re{background:#fff;color:var(--cinza);border:1px solid var(--borda)}
+  .aten{font-size:12px;color:#1e8449;font-weight:600}
+  .loading{padding:40px;text-align:center;color:var(--cinza)}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="logo">LOGÍSTICA<small>CICLOMED DO BRASIL</small></div>
+    <div class="title">📋 Painel de Solicitações</div>
+    <div class="tools">
+      <input type="text" id="nome" placeholder="Nome do atendente" autocomplete="off">
+      <select id="fil" onchange="carregar()">
+        <option value="">Todas as filiais</option>
+        <option value="01">01 · Curitiba</option>
+        <option value="02">02 · São Paulo</option>
+      </select>
+      <button class="btn" onclick="carregar()">↻ Atualizar</button>
+      <span class="live"><span class="dot-live"></span>ao vivo</span>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="col">
+      <h3>🟡 Pendentes <span class="cnt" id="cntP">0</span></h3>
+      <div class="cards" id="colP"></div>
+    </div>
+    <div class="col done">
+      <h3>✅ Atendidas <span class="cnt" id="cntA">0</span></h3>
+      <div class="cards" id="colA"></div>
+    </div>
+  </div>
+
+<script>
+  const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
+  const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
+  const nomeInput = document.getElementById('nome');
+  nomeInput.value = localStorage.getItem('sol_atendente') || '';
+  nomeInput.addEventListener('input', () => localStorage.setItem('sol_atendente', nomeInput.value.trim()));
+
+  let DADOS = { pendentes:[], atendidos:[] };
+
+  function esc(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+  async function carregar(){
+    const fil = document.getElementById('fil').value;
+    try{
+      const r = await fetch(API_BASE + '?acao=solicitacoes&fil=' + encodeURIComponent(fil), { headers:{ Authorization: AUTH } });
+      const o = await r.json();
+      if(!o.ok){ return; }
+      DADOS.pendentes = o.pendentes || [];
+      DADOS.atendidos = o.atendidos || [];
+      render();
+    }catch(e){ /* silencioso; proxima rodada tenta de novo */ }
+  }
+
+  function linha(lb, val){ return val ? `<div><span class="lb">${lb}</span><br>${esc(val)}</div>` : ''; }
+  function bloco(lb, val, mono){ return val ? `<div class="block${mono?' mono':''}"><span class="lb">${lb}</span>${esc(val)}</div>` : ''; }
+
+  function cardHtml(p, done){
+    const tipoCls = 'b-' + (p.tipo||'').replace('Ç','C').replace('Ã','A');
+    const repHtml = p.reposicao ? `<span class="rep ${p.reposicao==='SIM'?'sim':'nao'}">Reposição: ${esc(p.reposicao)}</span>` : '';
+    const detGrid = [
+      linha('Paciente', p.paciente),
+      linha('Data', [p.dtProc, p.hrProc].filter(Boolean).join(' ')),
+      linha('Convênio', p.convenio),
+      linha('Médico', p.medico)
+    ].join('');
+    const foot = done
+      ? `<span class="aten">✓ Atendida por ${esc(p.atendente||'—')} ${p.dtAtend?('· '+esc(p.dtAtend)):''}</span>
+         <button class="act re" onclick="atender('${p.id}',false)">Reabrir</button>`
+      : `<button class="act at" onclick="atender('${p.id}',true)">Atender ✓</button>`;
+
+    return `<div class="card p-${esc(p.prioridade)} ${done?'done':''}">
+      <div class="chd">
+        <span class="badge b-${esc(p.prioridade)}">${esc(p.prioridade)}</span>
+        <span class="badge ${tipoCls}">${esc(p.tipo)}</span>
+        <span class="proto">${esc(p.protocolo)}</span>
+      </div>
+      <div class="hosp">${esc(p.hospital)||'(sem hospital)'}</div>
+      ${detGrid ? `<div class="grid">${detGrid}</div>` : ''}
+      ${bloco('Materiais / Qtde', p.materiais)}
+      ${bloco('Seriais utilizados', p.seriais, true)}
+      ${repHtml}
+      ${bloco('Observação', p.obs)}
+      ${p.anexo ? `<div class="block">📎 <span class="lb">Anexo</span>${esc(p.anexo)}</div>` : ''}
+      <div class="cft">
+        <span class="vend">👤 ${esc(p.vendedorNome||p.vendedor)} · ${esc(p.data)} ${esc(p.hora?p.hora.substring(0,5):'')}</span>
+        ${foot}
+      </div>
+    </div>`;
+  }
+
+  function render(){
+    const colP = document.getElementById('colP'), colA = document.getElementById('colA');
+    document.getElementById('cntP').textContent = DADOS.pendentes.length;
+    document.getElementById('cntA').textContent = DADOS.atendidos.length;
+    colP.innerHTML = DADOS.pendentes.length ? DADOS.pendentes.map(p=>cardHtml(p,false)).join('') : '<div class="empty">Nenhuma solicitação pendente 🎉</div>';
+    colA.innerHTML = DADOS.atendidos.length ? DADOS.atendidos.map(p=>cardHtml(p,true)).join('') : '<div class="empty">Nada atendido ainda</div>';
+  }
+
+  async function atender(id, marcar){
+    const nome = nomeInput.value.trim();
+    if(marcar && !nome){ alert('Informe o nome do atendente no topo antes de atender.'); nomeInput.focus(); return; }
+    // move otimista
+    if(marcar){
+      const i = DADOS.pendentes.findIndex(x=>x.id===id);
+      if(i>=0){ const p=DADOS.pendentes.splice(i,1)[0]; p.atendente=nome; p.status='ATENDIDO'; DADOS.atendidos.unshift(p); render(); }
+    } else {
+      const i = DADOS.atendidos.findIndex(x=>x.id===id);
+      if(i>=0){ const p=DADOS.atendidos.splice(i,1)[0]; p.atendente=''; p.status='PENDENTE'; DADOS.pendentes.unshift(p); render(); }
+    }
+    try{
+      const params = new URLSearchParams({ acao:'solatend', pedido:id });
+      if(marcar) params.set('atendente', nome); else params.set('desfazer','1');
+      await fetch(API_BASE + '?' + params.toString(), { headers:{ Authorization: AUTH } });
+    }catch(e){ carregar(); }
+  }
+
+  document.getElementById('colP').innerHTML = '<div class="loading">Carregando…</div>';
+  carregar();
+  setInterval(carregar, 30000);
+</script>
+</body>
+</html>
