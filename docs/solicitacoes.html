@@ -353,8 +353,8 @@
       return '<div class="field" data-k="'+c.k+'"><label>'+c.lb+'</label>'+
              '<label class="filebox" id="fb_'+c.k+'"><input type="file" multiple onchange="selArquivo(this)">'+
              '<span id="fbtxt">📎 Toque para anexar foto/PDF (opcional)</span></label></div>';
-    const it = c.tp==='date' ? 'date' : (c.tp==='time'?'text':'text');
-    const ph = c.tp==='time' ? 'placeholder="Ex: 16:00"' : (c.ph?'placeholder="'+c.ph+'"':'');
+    const it = c.tp==='date' ? 'date' : (c.tp==='time' ? 'time' : 'text');
+    const ph = (c.ph && c.tp!=='time' && c.tp!=='date') ? 'placeholder="'+c.ph+'"' : '';
     return '<div class="field" data-k="'+c.k+'"><label>'+c.lb+rq+'</label>'+
            '<input type="'+it+'" id="f_'+c.k+'" '+ph+' autocomplete="off"></div>';
   }
