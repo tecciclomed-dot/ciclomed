@@ -28,6 +28,11 @@
   .file-body .outro{color:#6b7280;font-size:13px;padding:20px}
   .load{display:inline-block;width:18px;height:18px;border:2px solid #ccd;border-top-color:#1B5E3F;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px}
   @keyframes spin{to{transform:rotate(360deg)}}
+  .upbar{display:flex;align-items:center;gap:12px;margin-bottom:14px;flex-wrap:wrap}
+  .upbtn{background:#1B5E3F;color:#fff;padding:10px 16px;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;display:inline-block}
+  .upbtn:hover{background:#0E3A24}
+  .upbtn input{display:none}
+  .upmsg{font-size:13px;color:#5b6b63}
 </style>
 </head>
 <body>
@@ -36,6 +41,12 @@
     <div class="proto" id="proto">Anexos</div>
   </div>
   <div class="wrap">
+    <div class="upbar">
+      <label class="upbtn">📎 Anexar documento
+        <input type="file" accept="image/*,application/pdf,.doc,.docx,.xls,.xlsx" multiple onchange="anexar(this.files)">
+      </label>
+      <span class="upmsg" id="upmsg"></span>
+    </div>
     <div class="status" id="status"><span class="load"></span> Carregando anexos…</div>
     <div class="files" id="files"></div>
   </div>
@@ -63,6 +74,7 @@
 
     setStatus(o.files.length + ' arquivo(s).');
     const box = document.getElementById('files');
+    box.innerHTML = '';
     for(const f of o.files){
       const card = document.createElement('div');
       card.className = 'file';
@@ -94,6 +106,33 @@
         body.innerHTML = '<div class="outro">Pré-visualização não disponível ('+esc(tipo||'tipo desconhecido')+'). Use o botão <b>Abrir</b> acima.</div>';
       }
     }catch(e){ body.innerHTML = '<div class="outro">Falha ao carregar o arquivo.</div>'; }
+  }
+
+  // ---- Anexar (upload) direto pela pagina ----
+  function upmsg(m){ document.getElementById('upmsg').innerHTML = m || ''; }
+
+  async function anexar(files){
+    if(!proto){ upmsg('Sem protocolo na URL.'); return; }
+    const MAXMB = 20;
+    const arr = [...files].filter(f=>{
+      if(f.size > MAXMB*1024*1024){ upmsg('"'+f.name+'" passa de '+MAXMB+'MB — ignorado.'); return false; }
+      return true;
+    });
+    if(!arr.length) return;
+    upmsg('<span class="load"></span> Enviando ' + arr.length + ' arquivo(s)…');
+    let ok = 0;
+    for(const f of arr){
+      try{
+        const r = await fetch(WORKER_BASE + '/anexo/up?protocolo=' + encodeURIComponent(proto) + '&nome=' + encodeURIComponent(f.name), {
+          method:'POST', headers:{ Authorization: AUTH, 'Content-Type': f.type || 'application/octet-stream' }, body: f
+        });
+        const o = await r.json();
+        if(o && o.ok) ok++;
+      }catch(e){}
+    }
+    upmsg('✓ ' + ok + ' anexo(s) adicionado(s). Atualizando…');
+    await init();
+    upmsg('✓ ' + ok + ' anexo(s) adicionado(s).');
   }
 
   init();
