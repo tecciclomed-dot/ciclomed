@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0E3A24">
+<title>Anexos · Logística CicloMed</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',system-ui,Arial,sans-serif;background:#eef2f0;color:#1f2a24}
+  .top{background:linear-gradient(135deg,#0E3A24,#1B5E3F);color:#fff;padding:14px 22px;box-shadow:0 2px 12px rgba(0,0,0,.15)}
+  .top .logo{font-weight:800;font-size:14px;line-height:1.1}
+  .top .logo small{display:block;font-weight:400;font-size:10px;opacity:.8}
+  .top .proto{margin-top:6px;font-size:16px;font-weight:700}
+  .wrap{max-width:920px;margin:0 auto;padding:18px 16px 40px}
+  .status{color:#5b6b63;font-size:14px;padding:14px;text-align:center}
+  .status.err{color:#C0392B}
+  .files{display:flex;flex-direction:column;gap:16px}
+  .file{background:#fff;border:1px solid #e2e8e4;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .file-h{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid #eef2f0}
+  .file-h .nome{font-weight:700;color:#0E3A24;font-size:14px;word-break:break-all}
+  .file-h .sz{margin-left:auto;font-size:11px;color:#6b7280;white-space:nowrap}
+  .file-h a{font-size:12px;font-weight:700;color:#1B5E3F;text-decoration:none;border:1px solid #cfe0d6;padding:5px 12px;border-radius:8px}
+  .file-h a:hover{background:#E8F5EE}
+  .file-body{padding:12px;text-align:center;background:#fafcfb}
+  .file-body img{max-width:100%;max-height:75vh;border-radius:8px;display:block;margin:0 auto}
+  .file-body embed,.file-body iframe{width:100%;height:80vh;border:0;border-radius:8px}
+  .file-body .outro{color:#6b7280;font-size:13px;padding:20px}
+  .load{display:inline-block;width:18px;height:18px;border:2px solid #ccd;border-top-color:#1B5E3F;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-3px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+  <div class="top">
+    <div class="logo">LOGÍSTICA<small>CICLOMED DO BRASIL</small></div>
+    <div class="proto" id="proto">Anexos</div>
+  </div>
+  <div class="wrap">
+    <div class="status" id="status"><span class="load"></span> Carregando anexos…</div>
+    <div class="files" id="files"></div>
+  </div>
+
+<script>
+  const WORKER_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev';
+  const AUTH = 'Basic ' + btoa('admin:Ciclo@!9751!');
+
+  const proto = (new URLSearchParams(location.search).get('protocolo') || '').trim();
+  function esc(s){ return (s||'').replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function nomeLimpo(n){ return (n||'').replace(/^\d{10,}-/, ''); }
+  function fmtSize(b){ b=b||0; if(b<1024)return b+' B'; if(b<1048576)return (b/1024).toFixed(0)+' KB'; return (b/1048576).toFixed(1)+' MB'; }
+  function setStatus(msg, err){ const s=document.getElementById('status'); s.className='status'+(err?' err':''); s.innerHTML=msg; }
+
+  async function init(){
+    if(!proto){ setStatus('Protocolo não informado na URL (?protocolo=...).', true); return; }
+    document.getElementById('proto').textContent = 'Anexos · ' + proto;
+    let o;
+    try{
+      const r = await fetch(WORKER_BASE + '/anexo/list?protocolo=' + encodeURIComponent(proto), { headers:{ Authorization: AUTH } });
+      o = await r.json();
+    }catch(e){ setStatus('Falha ao consultar os anexos. Tente recarregar.', true); return; }
+    if(!o || !o.ok){ setStatus('Erro: ' + esc((o && o.erro) || 'desconhecido'), true); return; }
+    if(!o.files || !o.files.length){ setStatus('Nenhum anexo encontrado para este pedido.'); return; }
+
+    setStatus(o.files.length + ' arquivo(s).');
+    const box = document.getElementById('files');
+    for(const f of o.files){
+      const card = document.createElement('div');
+      card.className = 'file';
+      card.innerHTML = '<div class="file-h"><span class="nome">📄 '+esc(nomeLimpo(f.nome))+'</span>'+
+                       '<span class="sz">'+fmtSize(f.size)+'</span></div>'+
+                       '<div class="file-body"><span class="load"></span> abrindo…</div>';
+      box.appendChild(card);
+      carregarArquivo(f, card);
+    }
+  }
+
+  async function carregarArquivo(f, card){
+    const body = card.querySelector('.file-body');
+    const head = card.querySelector('.file-h');
+    try{
+      const r = await fetch(WORKER_BASE + '/anexo/file?key=' + encodeURIComponent(f.key), { headers:{ Authorization: AUTH } });
+      if(!r.ok){ body.innerHTML = '<div class="outro">Erro ao abrir este arquivo.</div>'; return; }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const tipo = blob.type || '';
+      // link "Baixar / Abrir em nova aba"
+      const a = document.createElement('a'); a.href = url; a.target = '_blank'; a.textContent = 'Abrir'; a.download = nomeLimpo(f.nome);
+      head.appendChild(a);
+      if(tipo.startsWith('image/')){
+        body.innerHTML = '<img src="'+url+'" alt="'+esc(f.nome)+'">';
+      } else if(tipo === 'application/pdf'){
+        body.innerHTML = '<embed src="'+url+'" type="application/pdf">';
+      } else {
+        body.innerHTML = '<div class="outro">Pré-visualização não disponível ('+esc(tipo||'tipo desconhecido')+'). Use o botão <b>Abrir</b> acima.</div>';
+      }
+    }catch(e){ body.innerHTML = '<div class="outro">Falha ao carregar o arquivo.</div>'; }
+  }
+
+  init();
+</script>
+</body>
+</html>

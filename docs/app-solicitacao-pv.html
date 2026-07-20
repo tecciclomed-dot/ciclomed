@@ -1531,6 +1531,7 @@
   // API PROTHEUS (WSSOLPV)
   // ============================================================
   const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
+  const WORKER_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev';
   const API_FIL  = '01';   // filial padrao para gerar PV (ajustar conforme vendedor)
   let API_VEND = '000119';
   let API_SENHA = '';
@@ -2658,6 +2659,10 @@
           return;
         }
         document.getElementById('pvNum').textContent = resp.pedido;
+        // Reserva/serial: sobe as fotos tambem pro R2 (chave = filial+pedido) p/ o botao "Ver Anexos" do MATA410 + painel
+        if (tipo.modo !== 'material' && fotosDocumentos.length && resp.pedido) {
+          await enviarFotosR2((body.fil || '') + resp.pedido);
+        }
         const msgEl = document.getElementById('successMsg');
         if (resp.revisar) {
           msgEl.innerHTML = 'Pedido registrado com sucesso.<br><strong>A logística vai conferir saldo/serial antes de faturar.</strong>' +
@@ -2685,6 +2690,28 @@
 
   function restart() {
     location.reload();
+  }
+
+  // ============================================================
+  // ANEXOS R2 (nuvem) - sobe as fotos da reserva p/ o Cloudflare R2
+  // ============================================================
+  function b64ToBlob(dataUrl){
+    const c = String(dataUrl||'').split(',');
+    const mime = (c[0].match(/data:(.*?);/) || [])[1] || 'application/octet-stream';
+    const bin = atob(c[1] || '');
+    const arr = new Uint8Array(bin.length);
+    for (let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    return new Blob([arr], { type: mime });
+  }
+  async function enviarFotosR2(protocolo){
+    for (const f of fotosDocumentos){
+      try{
+        const blob = b64ToBlob(f.base64);
+        await fetch(WORKER_BASE + '/anexo/up?protocolo=' + encodeURIComponent(protocolo) + '&nome=' + encodeURIComponent(f.nome || 'foto.jpg'), {
+          method:'POST', headers:{ Authorization: AUTH, 'Content-Type': blob.type || 'application/octet-stream' }, body: blob
+        });
+      }catch(e){ /* um anexo que falha nao impede os demais */ }
+    }
   }
 
   // ============================================================

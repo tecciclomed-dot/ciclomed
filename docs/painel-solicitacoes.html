@@ -223,8 +223,8 @@
       ${blk('Seriais utilizados', p.seriais, true)}
       ${rep}
       ${blk('Observação', p.obs)}
-      ${p.anexo?`<div class="blk"><span class="lb">📎 Anexos</span>
-        <button class="anx-btn" onclick="verAnexos('${esc(p.protocolo)}','${p.id}')">Ver anexos</button>
+      ${(p.anexo || p.origem==='PEDIDOR')?`<div class="blk"><span class="lb">📎 Anexos</span>
+        <button class="anx-btn" onclick="verAnexos('${esc(p.anexoProto||p.protocolo)}','${p.id}')">Ver anexos</button>
         <div class="anx-list" id="anxl_${p.id}"></div></div>`:''}
       <div class="cft">${foot}</div>
     </div>`;
