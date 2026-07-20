@@ -1228,7 +1228,7 @@
     </div>
     <div id="hdrFilial" style="display:flex;align-items:center;gap:8px;padding:7px 14px;background:rgba(255,255,255,0.08);font-size:13px;color:#fff;">
       <span>🏢 Filial:</span>
-      <select id="selFilial" onchange="filialPedido=this.value" style="flex:1;max-width:220px;padding:7px 8px;border-radius:6px;border:none;font-size:13px;font-weight:600;color:#1f2937;">
+      <select id="selFilial" onchange="trocarFilial(this)" style="flex:1;max-width:220px;padding:7px 8px;border-radius:6px;border:none;font-size:13px;font-weight:600;color:#1f2937;">
         <option value="01">01 — Curitiba</option>
         <option value="02">02 — SP</option>
       </select>
@@ -1970,8 +1970,53 @@
     atualizarClienteDetectado();
   }
 
+  function filialNome(c){
+    c = (c || '').toString().trim();
+    if (c === '01') return '01 — Curitiba (PR)';
+    if (c === '02') return '02 — SP';
+    return c || '?';
+  }
+
+  // Troca do seletor de filial: barra se ja existir serial de outra filial no pedido
+  function trocarFilial(sel){
+    const nova = (sel.value || '').trim();
+    const outra = seriaisLidos.find(x => x.filial && x.filial !== nova);
+    if (outra) {
+      alert('Não dá pra trocar para a filial ' + filialNome(nova) + ':\n' +
+            'já tem serial da filial ' + filialNome(outra.filial) + ' neste pedido.\n' +
+            'Remova os seriais primeiro.');
+      sel.value = outra.filial;
+      filialPedido = outra.filial;
+      return;
+    }
+    filialPedido = nova;
+  }
+
   function aplicarSerialAPI(data) {
-    const tipo = TIPOS[tipoPedido];
+    const tipo   = TIPOS[tipoPedido];
+    const filSer = (data.filial || '').trim();          // filial REAL do serial (poder de terceiros)
+    const selEl  = document.getElementById('selFilial');
+    const filSel = (selEl ? selEl.value : filialPedido) || '';
+
+    // TRAVA 1: nao misturar filiais no mesmo pedido
+    const outra = seriaisLidos.find(x => x.filial && filSer && x.filial !== filSer);
+    if (outra) {
+      alert('⚠️ FILIAL DIFERENTE\n\nEste serial é da filial ' + filialNome(filSer) +
+            ',\nmas o pedido já tem serial da filial ' + filialNome(outra.filial) +
+            '.\n\nNão dá pra misturar filiais no mesmo pedido.');
+      return;
+    }
+    // TRAVA 2: serial de filial diferente da selecionada -> avisa e confirma a troca
+    if (filSer && filSel && filSer !== filSel) {
+      const ok = confirm('⚠️ ATENÇÃO — CONFLITO DE FILIAL!\n\n' +
+        'Você selecionou a filial ' + filialNome(filSel) + '.\n' +
+        'Mas o serial ' + data.serial + ' pertence ao PODER DE TERCEIROS da filial ' + filialNome(filSer) + '.\n\n' +
+        'A reserva TEM que ser gerada na filial do serial (' + filialNome(filSer) + ').\n\n' +
+        'Trocar para a filial ' + filialNome(filSer) + ' e reservar este serial?');
+      if (!ok) return;                       // cancelou -> NAO adiciona (nada gerado na filial errada)
+      if (selEl) selEl.value = filSer;       // alinha o seletor com a filial do serial
+    }
+
     const item = {
       serial: data.serial,
       produto: data.produto,
@@ -1979,6 +2024,7 @@
       lote: data.lote,
       val: data.validadeFmt || data.validade,
       local: data.local,
+      filial: filSer,
       origem: data.origem || 'SBF',
       preco: data.preco || 0,
       cliente: data.cliente ? {
@@ -1998,7 +2044,7 @@
       item.warnMsg = 'Armazém ' + data.local + ', esperado ' + data.localEsperado;
     }
     seriaisLidos.push(item);
-    if (data.filial) filialPedido = data.filial;
+    if (filSer) filialPedido = filSer;
     if (tipo.deduzCliente && item.cliente && !clienteDetectado) {
       clienteDetectado = { id: item.cliente.id, loja: item.cliente.loja, nome: item.cliente.nome, cidade: item.cliente.cidade };
     }
@@ -2102,6 +2148,7 @@
           <div><strong>Lote:</strong> ${escHtml(s.lote)}</div>
           <div><strong>Validade:</strong> ${escHtml(s.val)}</div>
           <div><strong>Local:</strong> Arm ${escHtml(s.local)}</div>
+          ${s.filial ? `<div style="grid-column:1/-1;"><strong>🏢 Filial:</strong> ${escHtml(filialNome(s.filial))}</div>` : ''}
         </div>
         ${s.warn && s.warnMsg ? `<div class="sc-cliente-badge" style="background:var(--amarelo-fundo);border-color:var(--amarelo);color:#7a5b00;"><strong>⚠ Atenção</strong>${escHtml(s.warnMsg)}</div>` : ''}
         ${(s.cliente && TIPOS[tipoPedido] && TIPOS[tipoPedido].deduzCliente && !s.warn) ? `
