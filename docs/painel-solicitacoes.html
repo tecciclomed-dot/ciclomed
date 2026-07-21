@@ -29,12 +29,14 @@
   .dot{width:11px;height:11px;border-radius:50%;display:inline-block;vertical-align:-1px;margin-right:4px}
   .d-aberto{background:var(--st-aberto)} .d-parcial{background:var(--st-parcial)} .d-atend{background:var(--st-atend)}
 
-  .board{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;padding:16px;max-width:1500px;margin:0 auto}
-  @media(max-width:900px){.board{grid-template-columns:1fr}}
+  .board{display:grid;grid-template-columns:1fr 1fr 1fr minmax(235px,.85fr);gap:14px;padding:16px;max-width:1720px;margin:0 auto}
+  .board.no-atend{grid-template-columns:1fr 1fr 1fr}
+  @media(max-width:900px){.board,.board.no-atend{grid-template-columns:1fr}}
   .col{background:#e4eae6;border-radius:14px;padding:10px;display:flex;flex-direction:column;min-height:60px}
+  .col-atend{background:#e7edf2;border:1px solid #d3dde6}
   .col-h{padding:7px 10px 11px;font-weight:800;font-size:15px;color:#fff;border-radius:9px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
   .col-h .cnt{margin-left:auto;background:rgba(255,255,255,.25);border-radius:20px;padding:1px 10px;font-size:12px}
-  .h-ELETIVO{background:var(--t-eletivo)} .h-REPOSICAO{background:var(--t-repos)} .h-RESERVA{background:var(--t-reserva)}
+  .h-ELETIVO{background:var(--t-eletivo)} .h-REPOSICAO{background:var(--t-repos)} .h-RESERVA{background:var(--t-reserva)} .h-ATEND{background:#1f3a5f}
   .cards{display:flex;flex-direction:column;gap:9px}
   .empty{color:var(--cinza);font-size:12.5px;text-align:center;padding:16px;border:2px dashed #cdd6d1;border-radius:10px}
 
@@ -111,7 +113,7 @@
     <div class="title">📋 Painel de Solicitações</div>
     <div class="tools">
       <input type="text" id="buscaNF" placeholder="🔎 Nº da NF..." oninput="render()">
-      <label class="chk"><input type="checkbox" id="ocultarFin" onchange="render()"> ocultar finalizados</label>
+      <label class="chk"><input type="checkbox" id="ocultarFin" onchange="render()"> ocultar atendidos</label>
       <select id="fil" onchange="carregar()">
         <option value="">Todas filiais</option>
         <option value="01">01 · Curitiba</option>
@@ -125,7 +127,7 @@
     <span><span class="dot d-aberto"></span>Não atendido</span>
     <span><span class="dot d-parcial"></span>Parcial</span>
     <span><span class="dot d-atend"></span>Finalizado</span>
-    <span style="color:#9aa4a0">· clique no card para atender · finalizado sai da tela (busque pela NF)</span>
+    <span style="color:#9aa4a0">· clique em Atender no card · atendidos vão pra coluna da direita (busque pela NF)</span>
   </div>
 
   <div class="board" id="board"></div>
@@ -162,25 +164,37 @@
   }
 
   function distribui(){
-    const g={ELETIVO:[],REPOSICAO:[],RESERVA:[]};
-    const ocultar=document.getElementById('ocultarFin').checked;
+    const pend={ELETIVO:[],REPOSICAO:[],RESERVA:[]};   // colunas por tipo = so o que esta pendente/parcial
+    const atend=[];                                     // coluna da direita = todos os atendidos
     const nf=(document.getElementById('buscaNF').value||'').trim().toUpperCase();
     ITENS.forEach(p=>{
-      if(nf){ if(!(p.docAtend||'').toUpperCase().includes(nf))return; }       // busca por NF: só os que casam (inclui finalizados)
-      else if(ocultar && p.status==='ATENDIDO'){ return; }                    // sem busca: esconde finalizados se marcado
-      const t=(p.tipo||'').toUpperCase();
-      if(g[t]) g[t].push(p);
+      if(p.status==='ATENDIDO'){
+        if(nf && !(p.docAtend||'').toUpperCase().includes(nf))return;         // busca por NF filtra a coluna de atendidos
+        atend.push(p);
+      }else{
+        const t=(p.tipo||'').toUpperCase();
+        if(pend[t]) pend[t].push(p);
+      }
     });
-    return g;
+    return {pend,atend};
   }
 
   function render(){
-    const g=distribui();
-    document.getElementById('board').innerHTML=COLS.map(c=>{
-      const l=g[c.k]||[];
-      const cards=l.length?l.map(p=>p.status==='ATENDIDO'?cardMini(p):cardFull(p)).join(''):'<div class="empty">—</div>';
+    const {pend,atend}=distribui();
+    const nf=(document.getElementById('buscaNF').value||'').trim();
+    const showAtend=!document.getElementById('ocultarFin').checked || nf!=='';
+    const board=document.getElementById('board');
+    let html=COLS.map(c=>{
+      const l=pend[c.k]||[];
+      const cards=l.length?l.map(cardFull).join(''):'<div class="empty">—</div>';
       return `<div class="col"><div class="col-h h-${c.k}">${c.nome}<span class="cnt">${l.length}</span></div><div class="cards">${cards}</div></div>`;
     }).join('');
+    if(showAtend){
+      const cardsA=atend.length?atend.map(cardMini).join(''):'<div class="empty">nenhum atendido</div>';
+      html+=`<div class="col col-atend"><div class="col-h h-ATEND">✓ PEDIDOS ATENDIDOS<span class="cnt">${atend.length}</span></div><div class="cards">${cardsA}</div></div>`;
+    }
+    board.classList.toggle('no-atend',!showAtend);
+    board.innerHTML=html;
   }
 
   // card COMPLETO — nao atendidos + parciais (o que chega fica com todo detalhe)
