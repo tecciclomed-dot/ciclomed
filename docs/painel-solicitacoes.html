@@ -105,6 +105,29 @@
   .anx-btn{background:var(--verde);color:#fff;border:0;border-radius:7px;padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer}
   .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:#26303a;color:#fff;padding:11px 18px;border-radius:22px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.3);opacity:0;transition:opacity .25s;z-index:99;max-width:90%;text-align:center}
   .toast.show{opacity:1}
+
+  /* Login + acessos */
+  .loginov{position:fixed;inset:0;background:linear-gradient(135deg,#0E3A24,#1B5E3F);display:none;align-items:center;justify-content:center;z-index:60;padding:18px}
+  .loginbox{background:#fff;border-radius:16px;max-width:390px;width:100%;padding:26px 24px;box-shadow:0 20px 60px rgba(0,0,0,.35)}
+  .loginbox h2{margin:0 0 4px;color:var(--verde-escuro);font-size:20px}
+  .loginbox p{margin:0 0 16px;color:var(--cinza);font-size:13px}
+  .ac-wrap{position:relative}
+  .ac-list{position:absolute;left:0;right:0;top:100%;background:#fff;border:1px solid var(--borda);border-radius:9px;box-shadow:0 8px 24px rgba(0,0,0,.14);max-height:220px;overflow-y:auto;z-index:5;margin-top:3px}
+  .ac-item{padding:9px 12px;cursor:pointer;font-size:14px;border-bottom:1px solid #f0f4f2}
+  .ac-item:hover{background:#eef7f1}
+  .ac-item small{color:var(--cinza);display:block;font-size:11px}
+  .loginbtn{width:100%;background:var(--verde);color:#fff;border:0;border-radius:10px;padding:13px;font-size:16px;font-weight:800;cursor:pointer;margin-top:6px}
+  .loginbtn:hover{background:var(--verde-escuro)}
+  .login-sel{background:#eef7f1;border:1px solid #cfe6da;border-radius:9px;padding:9px 12px;font-size:14px;color:var(--verde-escuro);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .login-sel .x{margin-left:auto;cursor:pointer;color:var(--cinza);font-weight:400;text-decoration:underline;font-size:12px}
+  .userchip{font-size:12px;color:#eafff4;display:flex;align-items:center;gap:6px;font-weight:600}
+  .ger-item{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid #eef2f0;font-size:13px}
+  .ger-item .gn{font-weight:600;color:var(--verde-escuro)}
+  .ger-item .gtag{font-size:10px;padding:1px 7px;border-radius:20px;background:#e7f4ec;color:#1e8449;font-weight:700}
+  .ger-item .gtag.off{background:#fdecea;color:#c0392b}
+  .ger-item .gbtns{margin-left:auto;display:flex;gap:6px}
+  .mini-btn{border:1px solid var(--borda);background:#fff;border-radius:7px;padding:5px 9px;font-size:11px;cursor:pointer;font-weight:600}
+  .mini-btn.danger{color:#c0392b;border-color:#f0c8c2}
 </style>
 </head>
 <body>
@@ -112,14 +135,17 @@
     <div class="logo">LOGÍSTICA<small>CICLOMED DO BRASIL</small></div>
     <div class="title">📋 Painel de Solicitações</div>
     <div class="tools">
+      <span class="userchip" id="userchip"></span>
       <input type="text" id="buscaNF" placeholder="🔎 Nº da NF..." oninput="render()">
-      <label class="chk"><input type="checkbox" id="ocultarFin" onchange="render()"> ocultar atendidos</label>
+      <label class="chk" id="lblOcultar"><input type="checkbox" id="ocultarFin" onchange="render()"> ocultar atendidos</label>
       <select id="fil" onchange="carregar()">
         <option value="">Todas filiais</option>
         <option value="01">01 · Curitiba</option>
         <option value="02">02 · SP</option>
       </select>
       <button class="btn" onclick="carregar()">↻</button>
+      <button class="btn" id="btnGer" style="display:none" onclick="abrirGerenciar()">👤 Acessos</button>
+      <button class="btn" onclick="sair()">Sair</button>
     </div>
   </div>
   <div class="legenda">
@@ -133,7 +159,23 @@
   <div class="board" id="board"></div>
 
   <div class="ov" id="ov" onclick="if(event.target===this)fecharModal()"><div class="modal" id="modal"></div></div>
+  <div class="ov" id="ovGer" onclick="if(event.target===this)fecharGer()"><div class="modal" id="modalGer"></div></div>
   <div class="toast" id="toast"></div>
+
+  <div class="loginov" id="login">
+    <div class="loginbox">
+      <h2>📋 Painel de Solicitações</h2>
+      <p>Entre com seu <b>nome</b> e senha. Logística: digite <b>ESTOQUE</b>.</p>
+      <div id="loginSelBox"></div>
+      <div class="ac-wrap">
+        <div class="fld"><label>Seu nome</label><input id="loginNome" autocomplete="off" placeholder="Digite seu nome..." oninput="loginBusca(this.value)"></div>
+        <div class="ac-list" id="loginAc" style="display:none"></div>
+      </div>
+      <div class="fld"><label>Senha</label><input id="loginSenha" type="password" placeholder="Senha" onkeydown="if(event.key==='Enter')fazerLogin()"></div>
+      <button class="loginbtn" onclick="fazerLogin()">Entrar</button>
+      <div id="loginMsg" style="color:#c0392b;font-size:12.5px;margin-top:8px;min-height:16px"></div>
+    </div>
+  </div>
 
 <script>
   const API_BASE = 'https://ciclomed-rest.tec-ciclomed.workers.dev/rest03/WSSOLPV';
@@ -145,6 +187,165 @@
   let ITENS = [];
   let MODAL_ID = null;
   const anexosCache = {};
+
+  let SESS = null;      // {role, vendedor, nome, admsen}
+  let POLL = null;
+  let loginSel = null;  // {codigo, nome, role}
+  let gerSel = null;    // {codigo, nome}
+
+  async function apiPost(obj){
+    const r=await fetch(API_BASE,{method:'POST',headers:{Authorization:AUTH,'Content-Type':'application/json'},body:JSON.stringify(obj)});
+    return r.json();
+  }
+  function podeAtender(){return SESS && SESS.role!=='VENDEDOR';}
+
+  // ---------- Boot / sessao ----------
+  function boot(){
+    try{SESS=JSON.parse(sessionStorage.getItem('sol_sess')||'null');}catch(e){SESS=null;}
+    if(SESS){ aplicarSessao(); carregar(); startPoll(); }
+    else { document.getElementById('login').style.display='flex'; document.getElementById('loginNome').focus(); }
+  }
+  function startPoll(){ if(!POLL) POLL=setInterval(carregar,30000); }
+  function sair(){ sessionStorage.removeItem('sol_sess'); location.reload(); }
+  function aplicarSessao(){
+    document.getElementById('userchip').innerHTML='👤 '+esc(SESS.nome||SESS.vendedor||'')+(SESS.role==='LOGISTICA'?' · Logística':' · Vendedor');
+    const isLog=SESS.role==='LOGISTICA';
+    document.getElementById('btnGer').style.display=isLog?'':'none';
+    document.getElementById('fil').style.display=isLog?'':'none';
+    document.getElementById('lblOcultar').style.display=isLog?'':'none';
+    if(!isLog){ document.querySelector('.legenda').innerHTML='<b>Seus pedidos.</b> <span style="color:#9aa4a0">Você vê apenas as solicitações e reservas ligadas ao seu código de vendedor.</span>'; }
+  }
+
+  // ---------- Login ----------
+  let _acTmr=null;
+  function loginBusca(q){
+    loginSel=null; document.getElementById('loginSelBox').innerHTML='';
+    q=(q||'').trim();
+    const box=document.getElementById('loginAc');
+    if(q.length<2){ box.style.display='none'; box.innerHTML=''; return; }
+    clearTimeout(_acTmr);
+    _acTmr=setTimeout(async()=>{
+      let itens=[];
+      if('ESTOQUE'.startsWith(q.toUpperCase())||q.toUpperCase()==='LOGISTICA'){ itens.push({codigo:'ESTOQUE',nome:'ESTOQUE — Logística',role:'LOGISTICA'}); }
+      try{
+        const o=await api('acao=identificar&q='+enc(q));
+        if(o.ok&&o.pessoas){ o.pessoas.filter(p=>p.tipo==='V').forEach(p=>itens.push({codigo:p.codigo,nome:p.nome,role:'VENDEDOR'})); }
+      }catch(e){}
+      if(!itens.length){ box.style.display='none'; box.innerHTML=''; return; }
+      box.innerHTML=itens.map((p,i)=>`<div class="ac-item" onclick="loginPick(${i})"><b>${esc(p.nome)}</b><small>${p.role==='LOGISTICA'?'Logística':'Vendedor '+esc(p.codigo)}</small></div>`).join('');
+      box._itens=itens; box.style.display='block';
+    },220);
+  }
+  function loginPick(i){
+    const box=document.getElementById('loginAc'); const p=(box._itens||[])[i]; if(!p)return;
+    loginSel=p;
+    document.getElementById('loginNome').value=p.nome;
+    document.getElementById('loginSelBox').innerHTML=`<div class="login-sel">✓ ${esc(p.nome)} <span class="x" onclick="limparLoginSel()">trocar</span></div>`;
+    box.style.display='none';
+    document.getElementById('loginSenha').focus();
+  }
+  function limparLoginSel(){ loginSel=null; document.getElementById('loginSelBox').innerHTML=''; document.getElementById('loginNome').value=''; document.getElementById('loginNome').focus(); }
+  async function fazerLogin(){
+    const msg=document.getElementById('loginMsg'); msg.style.color='#c0392b'; msg.textContent='';
+    const senha=(document.getElementById('loginSenha').value||'');
+    let user=loginSel;
+    if(!user){
+      const t=(document.getElementById('loginNome').value||'').trim();
+      if(t.toUpperCase()==='ESTOQUE') user={codigo:'ESTOQUE',nome:'Logística',role:'LOGISTICA'};
+    }
+    if(!user){ msg.textContent='Escolha seu nome na lista.'; return; }
+    if(!senha){ msg.textContent='Informe a senha.'; return; }
+    msg.style.color='#6b7280'; msg.textContent='Entrando...';
+    try{
+      const o=await api('acao=painellogin&vendedor='+enc(user.codigo)+'&senha='+enc(senha));
+      if(!o.ok){ msg.style.color='#c0392b'; msg.textContent=o.msg||'Usuário ou senha inválidos.'; return; }
+      SESS={role:o.role,vendedor:o.vendedor||'',nome:o.nome||user.nome||'',admsen:(o.role==='LOGISTICA'?senha:'')};
+      sessionStorage.setItem('sol_sess',JSON.stringify(SESS));
+      document.getElementById('login').style.display='none';
+      aplicarSessao(); carregar(); startPoll();
+    }catch(e){ msg.style.color='#c0392b'; msg.textContent='Falha de conexão.'; }
+  }
+
+  // ---------- Gerenciar acessos (logistica) ----------
+  function abrirGerenciar(){
+    if(!SESS||SESS.role!=='LOGISTICA')return;
+    gerSel=null;
+    document.getElementById('modalGer').innerHTML=`
+      <div class="m-h"><span style="font-weight:700">👤 Acessos dos vendedores</span><button class="m-x" onclick="fecharGer()">×</button></div>
+      <div class="m-b">
+        <div class="ac-wrap">
+          <div class="fld"><label>Vendedor</label><input id="gerNome" autocomplete="off" placeholder="Buscar vendedor pelo nome..." oninput="gerBusca(this.value)"></div>
+          <div class="ac-list" id="gerAc" style="display:none"></div>
+        </div>
+        <div id="gerSelBox"></div>
+        <div class="fld"><label>Senha de acesso</label><input id="gerSenha" placeholder="Defina a senha do vendedor"></div>
+        <button class="loginbtn" style="margin-top:0" onclick="gerSalvar()">Salvar acesso</button>
+        <div id="gerMsg" style="font-size:12.5px;margin-top:8px;min-height:16px"></div>
+        <hr style="border:0;border-top:1px solid #eef2f0;margin:14px 0">
+        <div style="font-weight:700;color:var(--verde-escuro);font-size:13px;margin-bottom:6px">Acessos cadastrados</div>
+        <div id="gerLista">carregando…</div>
+      </div>
+      <div class="m-f"><button class="act ca" onclick="fecharGer()">Fechar</button></div>`;
+    document.getElementById('ovGer').classList.add('show');
+    gerListar();
+  }
+  function fecharGer(){ document.getElementById('ovGer').classList.remove('show'); }
+  let _gerTmr=null;
+  function gerBusca(q){
+    gerSel=null; document.getElementById('gerSelBox').innerHTML='';
+    q=(q||'').trim(); const box=document.getElementById('gerAc');
+    if(q.length<2){ box.style.display='none'; return; }
+    clearTimeout(_gerTmr);
+    _gerTmr=setTimeout(async()=>{
+      let itens=[];
+      try{ const o=await api('acao=identificar&q='+enc(q)); if(o.ok&&o.pessoas) itens=o.pessoas.filter(p=>p.tipo==='V'); }catch(e){}
+      if(!itens.length){ box.style.display='none'; box.innerHTML=''; return; }
+      box.innerHTML=itens.map((p,i)=>`<div class="ac-item" onclick="gerPick(${i})"><b>${esc(p.nome)}</b><small>Vendedor ${esc(p.codigo)}</small></div>`).join('');
+      box._itens=itens; box.style.display='block';
+    },220);
+  }
+  function gerPick(i){
+    const box=document.getElementById('gerAc'); const p=(box._itens||[])[i]; if(!p)return;
+    gerSel={codigo:p.codigo,nome:p.nome};
+    document.getElementById('gerNome').value=p.nome;
+    document.getElementById('gerSelBox').innerHTML=`<div class="login-sel">✓ ${esc(p.nome)} · ${esc(p.codigo)} <span class="x" onclick="gerLimpar()">trocar</span></div>`;
+    box.style.display='none';
+  }
+  function gerLimpar(){ gerSel=null; document.getElementById('gerSelBox').innerHTML=''; document.getElementById('gerNome').value=''; }
+  async function gerSalvar(){
+    const msg=document.getElementById('gerMsg'); msg.style.color='#c0392b';
+    if(!gerSel){ msg.textContent='Escolha o vendedor.'; return; }
+    const senha=(document.getElementById('gerSenha').value||'').trim();
+    if(!senha){ msg.textContent='Defina a senha.'; return; }
+    msg.style.color='#6b7280'; msg.textContent='Salvando...';
+    try{
+      const o=await apiPost({op:'SETACESSO',admsen:SESS.admsen,vendedor:gerSel.codigo,nome:gerSel.nome,senha:senha,ativo:'S'});
+      if(!o.ok){ msg.style.color='#c0392b'; msg.textContent=o.msg||'Erro ao salvar.'; return; }
+      msg.style.color='#1e8449'; msg.textContent='Acesso salvo! O vendedor já pode entrar no app e no painel.';
+      document.getElementById('gerSenha').value=''; gerLimpar();
+      gerListar();
+    }catch(e){ msg.style.color='#c0392b'; msg.textContent='Falha de conexão.'; }
+  }
+  async function gerListar(){
+    const box=document.getElementById('gerLista'); if(!box)return;
+    try{
+      const o=await api('acao=acessolist&senha='+enc(SESS.admsen));
+      if(!o.ok){ box.innerHTML='<span style="color:#c0392b">'+(o.msg||'erro')+'</span>'; return; }
+      if(!o.itens||!o.itens.length){ box.innerHTML='<span style="color:#9aa4a0">Nenhum acesso cadastrado.</span>'; return; }
+      box.innerHTML=o.itens.map(u=>`<div class="ger-item">
+        <span class="gn">${esc(u.nome||u.vendedor)}</span>
+        <span class="gtag${u.ativo==='S'?'':' off'}">${u.ativo==='S'?'ativo':'inativo'}</span>
+        <span class="gbtns">
+          <button class="mini-btn" onclick="gerReset('${esc(u.vendedor)}','${esc((u.nome||'').replace(/'/g,''))}')">Trocar senha</button>
+          <button class="mini-btn danger" onclick="gerRemover('${esc(u.vendedor)}')">Remover</button>
+        </span></div>`).join('');
+    }catch(e){ box.innerHTML='<span style="color:#c0392b">falha ao listar</span>'; }
+  }
+  function gerReset(cod,nome){ gerSel={codigo:cod,nome:nome}; document.getElementById('gerNome').value=nome; document.getElementById('gerSelBox').innerHTML=`<div class="login-sel">✓ ${esc(nome)} · ${esc(cod)} <span class="x" onclick="gerLimpar()">trocar</span></div>`; document.getElementById('gerSenha').focus(); }
+  async function gerRemover(cod){
+    if(!confirm('Remover o acesso do vendedor '+cod+'?'))return;
+    try{ const o=await apiPost({op:'DELACESSO',admsen:SESS.admsen,vendedor:cod}); if(o.ok) gerListar(); else toast(o.msg||'erro'); }catch(e){ toast('falha'); }
+  }
 
   const esc = s => (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const enc = s => encodeURIComponent(s||'');
@@ -158,9 +359,12 @@
   async function api(qs){const r=await fetch(API_BASE+'?'+qs,{headers:{Authorization:AUTH}});return r.json();}
 
   async function carregar(){
+    if(!SESS)return;
     if(!podeRecarregar())return;
     const fil=document.getElementById('fil').value;
-    try{const o=await api('acao=solicitacoes&fil='+enc(fil));if(!o.ok)return;ITENS=o.itens||[];render();}catch(e){}
+    let qs='acao=solicitacoes&fil='+enc(fil);
+    if(SESS.role==='VENDEDOR') qs+='&vendedor='+enc(SESS.vendedor);
+    try{const o=await api(qs);if(!o.ok)return;ITENS=o.itens||[];render();}catch(e){}
   }
 
   function distribui(){
@@ -279,13 +483,13 @@
         ${(p.anexo||p.origem==='PEDIDOR')?`<div class="m-blk"><span class="lb">📎 Anexos</span>
            <button class="anx-btn" onclick="verAnexos('${esc(p.anexoProto||p.protocolo)}')">Ver anexos</button>
            <div class="anx-list" id="anxl"></div></div>`:''}
-        <div class="fld"><label>Quem está atendendo? *</label><input id="m_nome" value="${esc(p.atendente||ultimoAtend())}" placeholder="Nome do atendente"></div>
-        <div class="fld"><label>${docLabel(p.tipo)}: * (obrigatório p/ finalizar)</label><input id="m_doc" value="${esc(p.docAtend||'')}" placeholder="${docLabel(p.tipo)}"></div>
+        ${podeAtender()?`<div class="fld"><label>Quem está atendendo? *</label><input id="m_nome" value="${esc(p.atendente||ultimoAtend())}" placeholder="Nome do atendente"></div>
+        <div class="fld"><label>${docLabel(p.tipo)}: * (obrigatório p/ finalizar)</label><input id="m_doc" value="${esc(p.docAtend||'')}" placeholder="${docLabel(p.tipo)}"></div>`:(p.atendente?`<div class="m-blk"><span class="lb">Atendimento</span>✓ ${esc(p.atendente)}${p.docAtend?(' · '+docLabel(p.tipo)+' '+esc(p.docAtend)):''}</div>`:'<div class="m-blk" style="color:#9aa4a0">Ainda não atendido.</div>')}
       </div>
       <div class="m-f">
-        <button class="act fin" onclick="atender('${esc(p.id)}','ATENDIDO')">✓ Finalizar</button>
+        ${podeAtender()?`<button class="act fin" onclick="atender('${esc(p.id)}','ATENDIDO')">✓ Finalizar</button>
         <button class="act parc" onclick="atender('${esc(p.id)}','PARCIAL')">🟡 Parcial</button>
-        ${jaAt?`<button class="act re" onclick="reabrir('${esc(p.id)}')">Reabrir</button>`:''}
+        ${jaAt?`<button class="act re" onclick="reabrir('${esc(p.id)}')">Reabrir</button>`:''}`:''}
         <button class="act ca" onclick="fecharModal()">Fechar</button>
       </div>`;
     document.getElementById('ov').classList.add('show');
@@ -341,8 +545,7 @@
     }catch(e){if(w)w.close();toast('Falha ao abrir anexo');}
   }
 
-  carregar();
-  setInterval(carregar,30000);
+  boot();
 </script>
 </body>
 </html>
