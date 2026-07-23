@@ -55,6 +55,7 @@
   .resumo{font-size:12px;color:#55605a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .cat{font-size:11px;color:#1e8449;font-weight:600;margin-top:5px}
   .card.s-PARCIAL .cat{color:#9a6b06}
+  .obsat{font-size:12px;color:#8a5a00;background:#fffdf3;border:1px solid #f1e0a8;border-radius:7px;padding:5px 9px;margin-top:6px;white-space:pre-wrap}
 
   /* card completo (nao atendidos + parciais) */
   .cardfull{cursor:default}
@@ -94,8 +95,9 @@
   .anx-item{font-size:12.5px;color:var(--verde-escuro);text-decoration:underline;cursor:pointer}
   .fld{margin:10px 0}
   .fld label{display:block;font-size:12.5px;font-weight:700;color:var(--verde-escuro);margin-bottom:4px}
-  .fld input{width:100%;padding:10px 11px;border:1.5px solid var(--borda);border-radius:9px;font-size:15px;font-family:inherit}
-  .fld input:focus{outline:none;border-color:var(--verde)}
+  .fld input,.fld textarea{width:100%;padding:10px 11px;border:1.5px solid var(--borda);border-radius:9px;font-size:15px;font-family:inherit;box-sizing:border-box}
+  .fld textarea{min-height:62px;resize:vertical}
+  .fld input:focus,.fld textarea:focus{outline:none;border-color:var(--verde)}
   .m-f{padding:12px 18px;border-top:1px solid #eef2f0;display:flex;gap:9px;flex-wrap:wrap}
   .act{padding:11px 16px;border-radius:9px;border:0;font-size:14px;font-weight:700;cursor:pointer}
   .act.fin{background:var(--st-atend);color:#fff}
@@ -145,6 +147,7 @@
       </select>
       <button class="btn" onclick="carregar()">↻</button>
       <button class="btn" id="btnGer" style="display:none" onclick="abrirGerenciar()">👤 Acessos</button>
+      <button class="btn" id="btnExcPed" style="display:none;color:#c0392b" onclick="abrirExcPedido()">🗑️ Excluir pedido</button>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
   </div>
@@ -211,6 +214,7 @@
     document.getElementById('userchip').innerHTML='👤 '+esc(SESS.nome||SESS.vendedor||'')+(SESS.role==='LOGISTICA'?' · Logística':' · Vendedor');
     const isLog=SESS.role==='LOGISTICA';
     document.getElementById('btnGer').style.display=isLog?'':'none';
+    document.getElementById('btnExcPed').style.display=isLog?'':'none';
     document.getElementById('fil').style.display=isLog?'':'none';
     document.getElementById('lblOcultar').style.display=isLog?'':'none';
     if(!isLog){ document.querySelector('.legenda').innerHTML='<b>Seus pedidos.</b> <span style="color:#9aa4a0">Você vê apenas as solicitações e reservas ligadas ao seu código de vendedor.</span>'; }
@@ -417,6 +421,7 @@
         <button class="anx-btn" onclick="verAnexos('${esc(p.anexoProto||p.protocolo)}','anx-${esc(p.id)}')">Ver anexos</button>
         <div class="anx-list" id="anx-${esc(p.id)}"></div></div>`:'';
     const parc=p.status==='PARCIAL'&&p.atendente?`<div class="cat">🟡 Parcial por ${esc(p.atendente)}${p.docAtend?(' · '+docLabel(p.tipo)+' '+esc(p.docAtend)):''}</div>`:'';
+    const obsAt=p.obsAtend?`<div class="obsat">🚚 ${esc(p.obsAtend)}${p.pedVenda?(' · Pedido '+esc(p.pedVenda)):''}</div>`:'';
     return `<div class="card cardfull s-${esc(p.status)}">
       <div class="chd">
         <span class="badge b-${esc(p.prioridade)}">${esc(p.prioridade)}</span>
@@ -427,7 +432,7 @@
       </div>
       <div class="hosp">${esc(p.hospital)||'(sem hospital)'}</div>
       ${grid?`<div class="grid2">${grid}</div>`:''}
-      ${mat}${ser}${rep}${obs}${anx}${parc}
+      ${mat}${ser}${rep}${obs}${anx}${parc}${obsAt}
       <div class="cardft">
         <span class="who">👤 ${esc(p.vendedorNome||p.vendedor||'')} · ${esc(p.data)} ${p.hora?esc(p.hora.substring(0,5)):''}</span>
         <button class="atbtn" onclick="abrirModal('${esc(p.id)}')">${p.status==='PARCIAL'?'Continuar':'Atender'}</button>
@@ -484,7 +489,9 @@
            <button class="anx-btn" onclick="verAnexos('${esc(p.anexoProto||p.protocolo)}')">Ver anexos</button>
            <div class="anx-list" id="anxl"></div></div>`:''}
         ${podeAtender()?`<div class="fld"><label>Quem está atendendo? *</label><input id="m_nome" value="${esc(p.atendente||ultimoAtend())}" placeholder="Nome do atendente"></div>
-        <div class="fld"><label>${docLabel(p.tipo)}: * (obrigatório p/ finalizar)</label><input id="m_doc" value="${esc(p.docAtend||'')}" placeholder="${docLabel(p.tipo)}"></div>`:(p.atendente?`<div class="m-blk"><span class="lb">Atendimento</span>✓ ${esc(p.atendente)}${p.docAtend?(' · '+docLabel(p.tipo)+' '+esc(p.docAtend)):''}</div>`:'<div class="m-blk" style="color:#9aa4a0">Ainda não atendido.</div>')}
+        <div class="fld"><label>${docLabel(p.tipo)}: * (obrigatório p/ finalizar)</label><input id="m_doc" value="${esc(p.docAtend||'')}" placeholder="${docLabel(p.tipo)}"></div>
+        <div class="fld"><label>Nº do Pedido de Venda</label><input id="m_pedv" value="${esc(p.pedVenda||'')}" placeholder="Nº do pedido de venda"></div>
+        <div class="fld"><label>Observação</label><textarea id="m_obs" placeholder="Ex.: material a caminho; faltam alguns itens…">${esc(p.obsAtend||'')}</textarea></div>`:(p.atendente?`<div class="m-blk"><span class="lb">Atendimento</span>✓ ${esc(p.atendente)}${p.docAtend?(' · '+docLabel(p.tipo)+' '+esc(p.docAtend)):''}</div>${p.pedVenda?`<div class="m-blk"><span class="lb">Nº do Pedido de Venda</span>${esc(p.pedVenda)}</div>`:''}${p.obsAtend?`<div class="m-blk"><span class="lb">Observação do atendimento</span>${esc(p.obsAtend)}</div>`:''}`:'<div class="m-blk" style="color:#9aa4a0">Ainda não atendido.</div>')}
       </div>
       <div class="m-f">
         ${podeAtender()?`<button class="act fin" onclick="atender('${esc(p.id)}','ATENDIDO')">✓ Finalizar</button>
@@ -496,18 +503,56 @@
   }
   function fecharModal(){MODAL_ID=null;document.getElementById('ov').classList.remove('show');}
 
+  // ---------- Excluir pedido de venda (logistica) ----------
+  function abrirExcPedido(){
+    MODAL_ID=null;
+    const filAtual=(document.getElementById('fil').value||'01');
+    document.getElementById('modal').innerHTML=`
+      <div class="m-h" style="background:#c0392b">
+        <span class="m-st" style="background:#fff;color:#c0392b">EXCLUIR PEDIDO</span>
+        <button class="m-x" onclick="fecharModal()">×</button>
+      </div>
+      <div class="m-b">
+        <div class="m-blk" style="color:#9a3b2f;background:#fdecea;border-color:#f0c8c2">Digite o pedido de venda e a filial. Só é excluído se <b>NÃO tiver nota fiscal</b>. A exclusão estorna as reservas e liberações do pedido e <b>não pode ser desfeita</b>.</div>
+        <div class="fld"><label>Nº do Pedido de Venda *</label><input id="x_ped" placeholder="Ex.: R000123" autocomplete="off" onkeydown="if(event.key==='Enter')confirmarExcPedido()"></div>
+        <div class="fld"><label>Filial *</label><input id="x_fil" value="${esc(filAtual)}" placeholder="Ex.: 01"></div>
+      </div>
+      <div class="m-f">
+        <button class="act" id="x_btn" style="background:#c0392b;color:#fff" onclick="confirmarExcPedido()">🗑️ Excluir pedido</button>
+        <button class="act ca" onclick="fecharModal()">Cancelar</button>
+      </div>`;
+    document.getElementById('ov').classList.add('show');
+    setTimeout(()=>{const e=document.getElementById('x_ped');if(e)e.focus();},60);
+  }
+  async function confirmarExcPedido(){
+    const ped=(document.getElementById('x_ped').value||'').trim();
+    const fil=(document.getElementById('x_fil').value||'').trim();
+    if(!ped){toast('Informe o número do pedido.');return;}
+    if(!fil){toast('Informe a filial.');return;}
+    if(!confirm('Confirma EXCLUIR o pedido '+ped+' da filial '+fil+'?\n\nSó será excluído se não tiver nota fiscal. Esta ação não pode ser desfeita.'))return;
+    const bt=document.getElementById('x_btn');if(bt){bt.disabled=true;bt.textContent='Excluindo…';}
+    try{
+      const r=await api('acao=excpedido&fil='+enc(fil)+'&pedido='+enc(ped)+'&admsen='+enc((SESS&&SESS.admsen)||''));
+      if(r&&r.ok){toast(r.msg||'Pedido excluído.');fecharModal();carregar();return;}
+      toast((r&&r.msg)||'Não foi possível excluir o pedido.');
+    }catch(e){toast('Erro ao excluir o pedido.');}
+    if(bt){bt.disabled=false;bt.textContent='🗑️ Excluir pedido';}
+  }
+
   async function atender(id,novo){
     const p=ITENS.find(x=>x.id===id);if(!p)return;
     const nome=(document.getElementById('m_nome').value||'').trim();
     const doc=(document.getElementById('m_doc').value||'').trim();
+    const pedv=((document.getElementById('m_pedv')||{}).value||'').trim();
+    const obs=((document.getElementById('m_obs')||{}).value||'').trim();
     if(!nome){toast('Informe quem está atendendo.');return;}
     if(novo==='ATENDIDO' && !doc){toast('Informe a '+docLabel(p.tipo)+' para finalizar.');return;}
     localStorage.setItem('sol_atendente',nome);
-    p.status=novo;p.atendente=nome;p.docAtend=doc;
+    p.status=novo;p.atendente=nome;p.docAtend=doc;p.pedVenda=pedv;p.obsAtend=obs;
     fecharModal();render();
     try{
-      if(p.origem==='PEDIDOR') await api('acao=predatend&fil='+enc(p.filial||'')+'&pedido='+enc(id)+'&atendente='+enc(nome)+'&doc='+enc(doc)+'&novo='+novo);
-      else await api('acao=solstatus&pedido='+enc(id)+'&novo='+novo+'&atendente='+enc(nome)+'&doc='+enc(doc));
+      if(p.origem==='PEDIDOR') await api('acao=predatend&fil='+enc(p.filial||'')+'&pedido='+enc(id)+'&atendente='+enc(nome)+'&doc='+enc(doc)+'&novo='+novo+'&pedven='+enc(pedv)+'&obs='+enc(obs));
+      else await api('acao=solstatus&pedido='+enc(id)+'&novo='+novo+'&atendente='+enc(nome)+'&doc='+enc(doc)+'&pedven='+enc(pedv)+'&obs='+enc(obs));
     }catch(e){carregar();}
   }
   async function reabrir(id){
