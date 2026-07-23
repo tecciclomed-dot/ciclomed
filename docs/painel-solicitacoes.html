@@ -139,7 +139,7 @@
     <div class="title">📋 Painel de Solicitações</div>
     <div class="tools">
       <span class="userchip" id="userchip"></span>
-      <input type="text" id="buscaNF" placeholder="🔎 Nº da NF..." oninput="render()">
+      <input type="text" id="buscaNF" placeholder="🔎 Nº da NF..." autocomplete="off" oninput="render()">
       <label class="chk" id="lblOcultar"><input type="checkbox" id="ocultarFin" onchange="render()"> ocultar atendidos</label>
       <select id="fil" onchange="carregar()">
         <option value="">Todas filiais</option>
@@ -205,6 +205,7 @@
   // ---------- Boot / sessao ----------
   function boot(){
     try{SESS=JSON.parse(sessionStorage.getItem('sol_sess')||'null');}catch(e){SESS=null;}
+    const _b=document.getElementById('buscaNF'); if(_b) _b.value='';   // zera busca (evita valor restaurado pelo browser esconder os atendidos)
     if(SESS){ aplicarSessao(); carregar(); startPoll(); }
     else { document.getElementById('login').style.display='flex'; document.getElementById('loginNome').focus(); }
   }
@@ -397,7 +398,7 @@
       return `<div class="col"><div class="col-h h-${c.k}">${c.nome}<span class="cnt">${l.length}</span></div><div class="cards">${cards}</div></div>`;
     }).join('');
     if(showAtend){
-      const cardsA=atend.length?atend.map(cardMini).join(''):'<div class="empty">nenhum atendido</div>';
+      const cardsA=atend.length?atend.map(cardMini).join(''):('<div class="empty">'+(nf?('nenhum atendido para a busca "'+esc(nf)+'" · <a href="#" onclick="document.getElementById(\'buscaNF\').value=\'\';render();return false;">limpar</a>'):'nenhum atendido')+'</div>');
       html+=`<div class="col col-atend"><div class="col-h h-ATEND">✓ PEDIDOS ATENDIDOS<span class="cnt">${atend.length}</span></div><div class="cards">${cardsA}</div></div>`;
     }
     board.classList.toggle('no-atend',!showAtend);
