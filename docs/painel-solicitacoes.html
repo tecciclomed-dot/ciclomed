@@ -102,6 +102,7 @@
   .act{padding:11px 16px;border-radius:9px;border:0;font-size:14px;font-weight:700;cursor:pointer}
   .act.fin{background:var(--st-atend);color:#fff}
   .act.parc{background:var(--st-parcial);color:#5a4700}
+  .act.exc{background:#c0392b;color:#fff}
   .act.re{background:#fff;color:var(--cinza);border:1px solid var(--borda)}
   .act.ca{background:#fff;color:var(--cinza);border:1px solid var(--borda);margin-left:auto}
   .anx-btn{background:var(--verde);color:#fff;border:0;border-radius:7px;padding:5px 11px;font-size:11.5px;font-weight:700;cursor:pointer}
@@ -147,7 +148,6 @@
       </select>
       <button class="btn" onclick="carregar()">↻</button>
       <button class="btn" id="btnGer" style="display:none" onclick="abrirGerenciar()">👤 Acessos</button>
-      <button class="btn" id="btnExcPed" style="display:none;color:#c0392b" onclick="abrirExcPedido()">🗑️ Excluir pedido</button>
       <button class="btn" onclick="sair()">Sair</button>
     </div>
   </div>
@@ -214,7 +214,6 @@
     document.getElementById('userchip').innerHTML='👤 '+esc(SESS.nome||SESS.vendedor||'')+(SESS.role==='LOGISTICA'?' · Logística':' · Vendedor');
     const isLog=SESS.role==='LOGISTICA';
     document.getElementById('btnGer').style.display=isLog?'':'none';
-    document.getElementById('btnExcPed').style.display=isLog?'':'none';
     document.getElementById('fil').style.display=isLog?'':'none';
     document.getElementById('lblOcultar').style.display=isLog?'':'none';
     if(!isLog){ document.querySelector('.legenda').innerHTML='<b>Seus pedidos.</b> <span style="color:#9aa4a0">Você vê apenas as solicitações e reservas ligadas ao seu código de vendedor.</span>'; }
@@ -496,47 +495,29 @@
       <div class="m-f">
         ${podeAtender()?`<button class="act fin" onclick="atender('${esc(p.id)}','ATENDIDO')">✓ Finalizar</button>
         <button class="act parc" onclick="atender('${esc(p.id)}','PARCIAL')">🟡 Parcial</button>
-        ${jaAt?`<button class="act re" onclick="reabrir('${esc(p.id)}')">Reabrir</button>`:''}`:''}
+        ${jaAt?`<button class="act re" onclick="reabrir('${esc(p.id)}')">Reabrir</button>`:''}
+        <button class="act exc" onclick="excluirCard('${esc(p.id)}')">🗑️ Excluir</button>`:''}
         <button class="act ca" onclick="fecharModal()">Fechar</button>
       </div>`;
     document.getElementById('ov').classList.add('show');
   }
   function fecharModal(){MODAL_ID=null;document.getElementById('ov').classList.remove('show');}
 
-  // ---------- Excluir pedido de venda (logistica) ----------
-  function abrirExcPedido(){
-    MODAL_ID=null;
-    const filAtual=(document.getElementById('fil').value||'01');
-    document.getElementById('modal').innerHTML=`
-      <div class="m-h" style="background:#c0392b">
-        <span class="m-st" style="background:#fff;color:#c0392b">EXCLUIR PEDIDO</span>
-        <button class="m-x" onclick="fecharModal()">×</button>
-      </div>
-      <div class="m-b">
-        <div class="m-blk" style="color:#9a3b2f;background:#fdecea;border-color:#f0c8c2">Digite o pedido de venda e a filial. Só é excluído se <b>NÃO tiver nota fiscal</b>. A exclusão estorna as reservas e liberações do pedido e <b>não pode ser desfeita</b>.</div>
-        <div class="fld"><label>Nº do Pedido de Venda *</label><input id="x_ped" placeholder="Ex.: R000123" autocomplete="off" onkeydown="if(event.key==='Enter')confirmarExcPedido()"></div>
-        <div class="fld"><label>Filial *</label><input id="x_fil" value="${esc(filAtual)}" placeholder="Ex.: 01"></div>
-      </div>
-      <div class="m-f">
-        <button class="act" id="x_btn" style="background:#c0392b;color:#fff" onclick="confirmarExcPedido()">🗑️ Excluir pedido</button>
-        <button class="act ca" onclick="fecharModal()">Cancelar</button>
-      </div>`;
-    document.getElementById('ov').classList.add('show');
-    setTimeout(()=>{const e=document.getElementById('x_ped');if(e)e.focus();},60);
-  }
-  async function confirmarExcPedido(){
-    const ped=(document.getElementById('x_ped').value||'').trim();
-    const fil=(document.getElementById('x_fil').value||'').trim();
-    if(!ped){toast('Informe o número do pedido.');return;}
-    if(!fil){toast('Informe a filial.');return;}
-    if(!confirm('Confirma EXCLUIR o pedido '+ped+' da filial '+fil+'?\n\nSó será excluído se não tiver nota fiscal. Esta ação não pode ser desfeita.'))return;
-    const bt=document.getElementById('x_btn');if(bt){bt.disabled=true;bt.textContent='Excluindo…';}
+  // ---------- Excluir o card aberto (logistica) ----------
+  // pedido R -> exclui o pedido de venda (SC5, com checagem de NF); solicitacao -> remove a ZSOLICITACAO
+  async function excluirCard(id){
+    const p=ITENS.find(x=>x.id===id);if(!p)return;
+    const oQ=p.origem==='PEDIDOR'?'o pedido':'a solicitação';
+    if(!confirm('EXCLUIR '+oQ+' '+(p.protocolo||id)+'?\n\nEsta ação não pode ser desfeita.'))return;
+    const admsen=enc((SESS&&SESS.admsen)||'');
+    const qs=p.origem==='PEDIDOR'
+      ? 'acao=excpedido&fil='+enc(p.filial||'')+'&pedido='+enc(id)+'&admsen='+admsen
+      : 'acao=excsolic&pedido='+enc(id)+'&admsen='+admsen;
     try{
-      const r=await api('acao=excpedido&fil='+enc(fil)+'&pedido='+enc(ped)+'&admsen='+enc((SESS&&SESS.admsen)||''));
-      if(r&&r.ok){toast(r.msg||'Pedido excluído.');fecharModal();carregar();return;}
-      toast((r&&r.msg)||'Não foi possível excluir o pedido.');
-    }catch(e){toast('Erro ao excluir o pedido.');}
-    if(bt){bt.disabled=false;bt.textContent='🗑️ Excluir pedido';}
+      const r=await api(qs);
+      if(r&&r.ok){toast(r.msg||'Excluído.');fecharModal();carregar();return;}
+      toast((r&&r.msg)||'Não foi possível excluir.');
+    }catch(e){toast('Erro ao excluir.');}
   }
 
   async function atender(id,novo){
