@@ -420,7 +420,7 @@
         <button class="anx-btn" onclick="verAnexos('${esc(p.anexoProto||p.protocolo)}','anx-${esc(p.id)}')">Ver anexos</button>
         <div class="anx-list" id="anx-${esc(p.id)}"></div></div>`:'';
     const parc=p.status==='PARCIAL'&&p.atendente?`<div class="cat">🟡 Parcial por ${esc(p.atendente)}${p.docAtend?(' · '+docLabel(p.tipo)+' '+esc(p.docAtend)):''}</div>`:'';
-    const obsAt=p.obsAtend?`<div class="obsat">🚚 ${esc(p.obsAtend)}${p.pedVenda?(' · Pedido '+esc(p.pedVenda)):''}</div>`:'';
+    const obsAt=p.obsAtend?`<div class="obsat">🚚 ${esc(p.obsAtend)}</div>`:'';
     return `<div class="card cardfull s-${esc(p.status)}">
       <div class="chd">
         <span class="badge b-${esc(p.prioridade)}">${esc(p.prioridade)}</span>
@@ -489,8 +489,7 @@
            <div class="anx-list" id="anxl"></div></div>`:''}
         ${podeAtender()?`<div class="fld"><label>Quem está atendendo? *</label><input id="m_nome" value="${esc(p.atendente||ultimoAtend())}" placeholder="Nome do atendente"></div>
         <div class="fld"><label>${docLabel(p.tipo)}: * (obrigatório p/ finalizar)</label><input id="m_doc" value="${esc(p.docAtend||'')}" placeholder="${docLabel(p.tipo)}"></div>
-        <div class="fld"><label>Nº do Pedido de Venda</label><input id="m_pedv" value="${esc(p.pedVenda||'')}" placeholder="Nº do pedido de venda"></div>
-        <div class="fld"><label>Observação</label><textarea id="m_obs" placeholder="Ex.: material a caminho; faltam alguns itens…">${esc(p.obsAtend||'')}</textarea></div>`:(p.atendente?`<div class="m-blk"><span class="lb">Atendimento</span>✓ ${esc(p.atendente)}${p.docAtend?(' · '+docLabel(p.tipo)+' '+esc(p.docAtend)):''}</div>${p.pedVenda?`<div class="m-blk"><span class="lb">Nº do Pedido de Venda</span>${esc(p.pedVenda)}</div>`:''}${p.obsAtend?`<div class="m-blk"><span class="lb">Observação do atendimento</span>${esc(p.obsAtend)}</div>`:''}`:'<div class="m-blk" style="color:#9aa4a0">Ainda não atendido.</div>')}
+        <div class="fld"><label>Observação</label><textarea id="m_obs" placeholder="Ex.: material a caminho; faltam alguns itens…">${esc(p.obsAtend||'')}</textarea></div>`:(p.atendente?`<div class="m-blk"><span class="lb">Atendimento</span>✓ ${esc(p.atendente)}${p.docAtend?(' · '+docLabel(p.tipo)+' '+esc(p.docAtend)):''}</div>${p.obsAtend?`<div class="m-blk"><span class="lb">Observação do atendimento</span>${esc(p.obsAtend)}</div>`:''}`:'<div class="m-blk" style="color:#9aa4a0">Ainda não atendido.</div>')}
       </div>
       <div class="m-f">
         ${podeAtender()?`<button class="act fin" onclick="atender('${esc(p.id)}','ATENDIDO')">✓ Finalizar</button>
@@ -507,12 +506,20 @@
   // pedido R -> exclui o pedido de venda (SC5, com checagem de NF); solicitacao -> remove a ZSOLICITACAO
   async function excluirCard(id){
     const p=ITENS.find(x=>x.id===id);if(!p)return;
-    const oQ=p.origem==='PEDIDOR'?'o pedido':'a solicitação';
-    if(!confirm('EXCLUIR '+oQ+' '+(p.protocolo||id)+'?\n\nEsta ação não pode ser desfeita.'))return;
     const admsen=enc((SESS&&SESS.admsen)||'');
-    const qs=p.origem==='PEDIDOR'
-      ? 'acao=excpedido&fil='+enc(p.filial||'')+'&pedido='+enc(id)+'&admsen='+admsen
-      : 'acao=excsolic&pedido='+enc(id)+'&admsen='+admsen;
+    let qs;
+    if(p.origem==='PEDIDOR'){
+      if(!confirm('EXCLUIR o pedido '+(p.protocolo||id)+'?\n\nEsta ação não pode ser desfeita.'))return;
+      qs='acao=excpedido&fil='+enc(p.filial||'')+'&pedido='+enc(id)+'&admsen='+admsen;
+    }else{
+      if(!confirm('EXCLUIR a solicitação '+(p.protocolo||id)+'?\n\nEsta ação não pode ser desfeita.'))return;
+      qs='acao=excsolic&pedido='+enc(id)+'&admsen='+admsen;
+      // Este card tem pedido de venda? Se sim, digita o numero e apaga SC5/SC6 no Protheus.
+      if(confirm('Este card tem pedido de venda no Protheus?\n\nSe SIM, você vai digitar o número e ele será excluído (SC5/SC6) junto com o card.')){
+        const pv=(prompt('Digite o número do pedido de venda a excluir no Protheus:')||'').trim();
+        if(pv) qs+='&pedvdel='+enc(pv)+'&fil='+enc(p.filial||'');
+      }
+    }
     try{
       const r=await api(qs);
       if(r&&r.ok){toast(r.msg||'Excluído.');fecharModal();carregar();return;}
@@ -524,16 +531,15 @@
     const p=ITENS.find(x=>x.id===id);if(!p)return;
     const nome=(document.getElementById('m_nome').value||'').trim();
     const doc=(document.getElementById('m_doc').value||'').trim();
-    const pedv=((document.getElementById('m_pedv')||{}).value||'').trim();
     const obs=((document.getElementById('m_obs')||{}).value||'').trim();
     if(!nome){toast('Informe quem está atendendo.');return;}
     if(novo==='ATENDIDO' && !doc){toast('Informe a '+docLabel(p.tipo)+' para finalizar.');return;}
     localStorage.setItem('sol_atendente',nome);
-    p.status=novo;p.atendente=nome;p.docAtend=doc;p.pedVenda=pedv;p.obsAtend=obs;
+    p.status=novo;p.atendente=nome;p.docAtend=doc;p.obsAtend=obs;
     fecharModal();render();
     try{
-      if(p.origem==='PEDIDOR') await api('acao=predatend&fil='+enc(p.filial||'')+'&pedido='+enc(id)+'&atendente='+enc(nome)+'&doc='+enc(doc)+'&novo='+novo+'&pedven='+enc(pedv)+'&obs='+enc(obs));
-      else await api('acao=solstatus&pedido='+enc(id)+'&novo='+novo+'&atendente='+enc(nome)+'&doc='+enc(doc)+'&pedven='+enc(pedv)+'&obs='+enc(obs));
+      if(p.origem==='PEDIDOR') await api('acao=predatend&fil='+enc(p.filial||'')+'&pedido='+enc(id)+'&atendente='+enc(nome)+'&doc='+enc(doc)+'&novo='+novo+'&obs='+enc(obs));
+      else await api('acao=solstatus&pedido='+enc(id)+'&novo='+novo+'&atendente='+enc(nome)+'&doc='+enc(doc)+'&obs='+enc(obs));
     }catch(e){carregar();}
   }
   async function reabrir(id){
