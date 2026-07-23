@@ -139,7 +139,7 @@
     <div class="title">📋 Painel de Solicitações</div>
     <div class="tools">
       <span class="userchip" id="userchip"></span>
-      <input type="text" id="buscaNF" placeholder="🔎 Nº da NF..." autocomplete="off" oninput="render()">
+      <input type="text" id="buscaNF" placeholder="🔎 Nº da NF..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')" onblur="this.setAttribute('readonly','readonly')" oninput="render()">
       <label class="chk" id="lblOcultar"><input type="checkbox" id="ocultarFin" onchange="render()"> ocultar atendidos</label>
       <select id="fil" onchange="carregar()">
         <option value="">Todas filiais</option>
@@ -164,7 +164,6 @@
   <div class="ov" id="ov" onclick="if(event.target===this)fecharModal()"><div class="modal" id="modal"></div></div>
   <div class="ov" id="ovGer" onclick="if(event.target===this)fecharGer()"><div class="modal" id="modalGer"></div></div>
   <div class="toast" id="toast"></div>
-  <div id="dbg" style="position:fixed;bottom:4px;left:4px;background:#000;color:#0f0;font:11px/1.4 monospace;padding:3px 7px;border-radius:5px;z-index:9999;opacity:.9;max-width:92vw">dbg</div>
 
   <div class="loginov" id="login">
     <div class="loginbox">
@@ -355,7 +354,6 @@
   const esc = s => (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const enc = s => encodeURIComponent(s||'');
   function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2600);}
-  function dbg(m){const d=document.getElementById('dbg');if(d)d.textContent=m;}
   function docLabel(t){return t==='RESERVA'?'Nº da Reserva':'Nº da NF';}
   function ultimoAtend(){return localStorage.getItem('sol_atendente')||'';}
   function nomeAnexo(n){return (n||'').replace(/^\d{10,}-/,'');}
@@ -370,7 +368,7 @@
     const fil=document.getElementById('fil').value;
     let qs='acao=solicitacoes&fil='+enc(fil);
     if(SESS.role==='VENDEDOR') qs+='&vendedor='+enc(SESS.vendedor);
-    try{const o=await api(qs);if(!o.ok){dbg('CARREGAR ok=false');return;}ITENS=o.itens||[];dbg('CARREGAR '+ITENS.length+' itens atendidos='+ITENS.filter(x=>x.status==='ATENDIDO').length);render();}catch(e){dbg('CARREGAR erro '+e);}
+    try{const o=await api(qs);if(!o.ok)return;ITENS=o.itens||[];render();}catch(e){}
   }
 
   function distribui(){
@@ -392,7 +390,6 @@
   function render(){
     const {pend,atend}=distribui();
     const nf=(document.getElementById('buscaNF').value||'').trim();
-    dbg('RENDER itens='+ITENS.length+' atendNoItens='+ITENS.filter(x=>x.status==='ATENDIDO').length+' naColuna='+atend.length+' busca="'+nf+'" ocultar='+document.getElementById('ocultarFin').checked);
     const showAtend=!document.getElementById('ocultarFin').checked || nf!=='';
     const board=document.getElementById('board');
     let html=COLS.map(c=>{
@@ -460,7 +457,7 @@
 
   // ---------- Modal ----------
   function abrirModal(id){
-    const p=ITENS.find(x=>x.id===id);dbg('CLICOU card '+id+' achou='+(!!p)+' (nao re-renderiza)');if(!p)return;
+    const p=ITENS.find(x=>x.id===id);if(!p)return;
     MODAL_ID=id;
     const blk=(lb,v,mono)=>v?`<div class="m-blk${mono?' mono':''}"><span class="lb">${lb}</span>${esc(v)}</div>`:'';
     const linha=(lb,v)=>v?`<div><span class="lb">${lb}</span><br>${esc(v)}</div>`:'';
