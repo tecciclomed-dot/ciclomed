@@ -430,7 +430,7 @@
         ${p.status==='PARCIAL'?'<span class="badge b-parc-inline">PARCIAL</span>':''}
         <span class="proto">${esc(p.protocolo)}</span>
       </div>
-      <div class="hosp">${esc(p.hospital)||'(sem hospital)'}</div>
+      <div class="hosp"><span style="display:block;font-size:10px;color:#6b7280;font-weight:600;letter-spacing:.3px">Hospital</span>${esc(p.hospital)||'(sem hospital)'}</div>
       ${grid?`<div class="grid2">${grid}</div>`:''}
       ${mat}${ser}${rep}${obs}${anx}${parc}${obsAt}
       <div class="cardft">
@@ -449,7 +449,7 @@
         ${p.origem==='PEDIDOR'?'<span class="badge b-serial">🔖</span>':''}
         <span class="proto">${esc(p.protocolo)}</span>
       </div>
-      <div class="hosp">${esc(p.hospital)||'(sem hospital)'}</div>
+      <div class="hosp"><span style="display:block;font-size:10px;color:#6b7280;font-weight:600;letter-spacing:.3px">Hospital</span>${esc(p.hospital)||'(sem hospital)'}</div>
       ${p.paciente?`<div class="sub">${esc(p.paciente)}</div>`:''}
       <div class="cat">✓ ${esc(p.atendente||'')}${p.docAtend?(' · '+docLabel(p.tipo)+' '+esc(p.docAtend)):''}</div>
       ${p.obsAtend?`<div class="obsat">🚚 ${esc(p.obsAtend)}</div>`:''}
