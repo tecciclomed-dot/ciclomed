@@ -409,7 +409,7 @@
   function cardFull(p){
     const grid=[
       p.paciente?['Paciente',p.paciente]:null,
-      (p.dtProc||p.hrProc)?['Data',[p.dtProc,p.hrProc].filter(Boolean).join(' ')]:null,
+      (p.dtProc||p.hrProc)?['Data e Hora',[p.dtProc,p.hrProc].filter(Boolean).join(' ')]:null,
       p.convenio?['Convênio',p.convenio]:null,
       p.medico?['Médico',p.medico]:null
     ].filter(Boolean).map(x=>`<div><span class="lb">${x[0]}</span>${esc(x[1])}</div>`).join('');
@@ -473,10 +473,10 @@
         <button class="m-x" onclick="fecharModal()">×</button>
       </div>
       <div class="m-b">
-        <div class="m-hosp">${esc(p.hospital)||'(sem hospital)'}</div>
+        <div class="m-hosp"><span style="display:block;font-size:11px;color:#6b7280;font-weight:600;letter-spacing:.3px">Hospital</span>${esc(p.hospital)||'(sem hospital)'}</div>
         <div class="m-grid">
           ${linha('Paciente',p.paciente)}
-          ${linha('Data',[p.dtProc,p.hrProc].filter(Boolean).join(' '))}
+          ${linha('Data e Hora',[p.dtProc,p.hrProc].filter(Boolean).join(' '))}
           ${linha('Convênio',p.convenio)}
           ${linha('Médico',p.medico)}
           ${linha('Vendedor',p.vendedorNome||p.vendedor)}
