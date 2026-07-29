@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestão de Projetos — CicloMed</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue: #0d6efd;
+      --blue-dark: #1a3a5c;
+      --orange: #fd7e14;
+      --green: #198754;
+      --gray-50: #f0f2f5;
+      --gray-200: #e5e7eb;
+      --gray-500: #6b7280;
+      --gray-700: #374151;
+      --shadow: 0 2px 8px rgba(0,0,0,0.08);
+      --radius: 12px;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: var(--gray-50);
+      min-height: 100vh;
+      color: #111;
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--blue-dark) 0%, var(--blue) 100%);
+      color: #fff;
+      padding: 14px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-logo {
+      width: 42px; height: 42px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 900;
+    }
+    .header h1 { font-size: 18px; font-weight: 700; }
+    .header h1 span { display: block; font-size: 12px; font-weight: 400; opacity: 0.85; }
+    .header-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+    .user-badge {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.25);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .user-badge strong { font-weight: 700; }
+
+    .btn {
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.3);
+      color: #fff;
+      padding: 7px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .btn:hover { background: rgba(255,255,255,0.25); }
+
+    .alert {
+      margin: 12px 20px 0;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: none;
+    }
+    .alert.error { display: block; background: #f8d7da; color: #842029; border: 1px solid #f5c2c7; }
+    .alert.info { display: block; background: #cff4fc; color: #055160; border: 1px solid #b6effb; }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      padding: 18px 20px 30px;
+      min-height: calc(100vh - 90px);
+      align-items: start;
+    }
+    @media (max-width: 960px) { .board { grid-template-columns: 1fr; } }
+
+    .column {
+      background: #fff;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+      min-height: 420px;
+      max-height: calc(100vh - 120px);
+    }
+
+    .col-header {
+      padding: 14px 16px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .col-header.aberto { background: linear-gradient(135deg, #1a3a5c, var(--blue)); }
+    .col-header.atendimento { background: linear-gradient(135deg, #c45a00, var(--orange)); }
+    .col-header.concluido { background: linear-gradient(135deg, #146c43, var(--green)); }
+
+    .col-title { font-size: 14px; font-weight: 700; }
+    .col-count {
+      background: rgba(255,255,255,0.25);
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .col-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      min-height: 200px;
+    }
+    .col-body.drag-over {
+      background: #eef4ff;
+      outline: 2px dashed var(--blue);
+      outline-offset: -4px;
+    }
+
+    .btn-add {
+      margin: 0 12px 12px;
+      padding: 10px;
+      border: 2px dashed var(--gray-200);
+      border-radius: 8px;
+      background: #fafafa;
+      color: var(--gray-500);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-add:hover { border-color: var(--blue); color: var(--blue); background: #f0f7ff; }
+
+    .card {
+      background: #fff;
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 12px 14px;
+      cursor: grab;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      transition: box-shadow 0.15s, transform 0.15s;
+    }
+    .card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    .card.dragging { opacity: 0.5; cursor: grabbing; transform: rotate(2deg); }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    .card-desc {
+      font-size: 12px;
+      color: var(--gray-500);
+      margin-bottom: 8px;
+      line-height: 1.4;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .card-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .card-assignee {
+      font-size: 11px;
+      color: var(--gray-700);
+      background: var(--gray-50);
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .priority {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 10px;
+    }
+    .priority.alta { background: #fde8e8; color: #c92a2a; }
+    .priority.media { background: #fff3cd; color: #856404; }
+    .priority.baixa { background: #e8f5ec; color: #198754; }
+
+    .card-date { font-size: 10px; color: #aaa; margin-top: 8px; }
+
+    /* Modal */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: var(--radius);
+      width: 100%;
+      max-width: 520px;
+      max-height: 90vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .modal.wide { max-width: 680px; }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--gray-200);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .modal-header h2 { font-size: 16px; }
+    .modal-close {
+      background: none; border: none; font-size: 22px;
+      cursor: pointer; color: var(--gray-500); line-height: 1;
+    }
+
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--gray-700);
+      margin-bottom: 5px;
+    }
+    .field input, .field textarea, .field select {
+      width: 100%;
+      border: 1px solid var(--gray-200);
+      border-radius: 8px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .field textarea { min-height: 90px; resize: vertical; }
+
+    .modal-footer {
+      padding: 14px 20px;
+      border-top: 1px solid var(--gray-200);
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .btn-primary {
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-danger {
+      background: #dc3545;
+      color: #fff;
+      border: none;
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .btn-secondary {
+      background: #fff;
+      color: var(--gray-700);
+      border: 1px solid var(--gray-200);
+      padding: 9px 18px;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .history-list { list-style: none; }
+    .history-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--gray-200);
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .history-list li:last-child { border-bottom: none; }
+    .history-list .hist-at { font-size: 11px; color: #999; }
+    .history-list .hist-user { font-weight: 700; color: var(--blue-dark); }
+
+    .empty-col {
+      text-align: center;
+      color: #bbb;
+      font-size: 13px;
+      padding: 30px 10px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--gray-500);
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-left">
+    <div class="header-logo">CM</div>
+    <h1>Gestão de Projetos<span>Pipeline Kanban — CicloMed</span></h1>
+  </div>
+  <div class="header-right">
+    <div class="user-badge" id="userBadge" title="Clique para alterar seu nome">
+      Você: <strong id="userName">—</strong>
+    </div>
+    <button class="btn" id="btnRefresh">↻ Atualizar</button>
+  </div>
+</header>
+
+<div id="alertBox" class="alert"></div>
+
+<main class="board" id="board">
+  <div class="loading">Carregando projetos...</div>
+</main>
+
+<!-- Modal card -->
+<div class="overlay" id="cardModal">
+  <div class="modal wide">
+    <div class="modal-header">
+      <h2 id="modalTitle">Projeto</h2>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="field">
+        <label>Título</label>
+        <input type="text" id="fTitle" maxlength="120">
+      </div>
+      <div class="field">
+        <label>Descrição</label>
+        <textarea id="fDesc"></textarea>
+      </div>
+      <div class="field">
+        <label>Responsável</label>
+        <input type="text" id="fAssignee" maxlength="60" placeholder="Nome do responsável">
+      </div>
+      <div class="field">
+        <label>Prioridade</label>
+        <select id="fPriority">
+          <option value="baixa">Baixa</option>
+          <option value="media">Média</option>
+          <option value="alta">Alta</option>
+        </select>
+      </div>
+      <div class="field" id="historySection" style="display:none">
+        <label>Histórico de movimentações</label>
+        <ul class="history-list" id="historyList"></ul>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-danger" id="btnDelete" style="margin-right:auto;display:none">Excluir</button>
+      <button class="btn-secondary" id="btnCancel">Cancelar</button>
+      <button class="btn-primary" id="btnSave">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal nome -->
+<div class="overlay open" id="nameModal">
+  <div class="modal">
+    <div class="modal-header"><h2>Identifique-se</h2></div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:#666;margin-bottom:14px">
+        Informe seu nome para registrar quem cria e move os cards. Fica salvo neste navegador.
+      </p>
+      <div class="field">
+        <label>Seu nome</label>
+        <input type="text" id="inputName" maxlength="60" placeholder="Ex: Antonio">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" id="btnSetName">Entrar no painel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://ciclomed-rest.tec-ciclomed.workers.dev/kanban';
+const USER_KEY = 'kanban_user';
+
+const COLUMNS = [
+  { id: 'aberto',       title: 'Projetos em Aberto',  cls: 'aberto' },
+  { id: 'atendimento',  title: 'Em Atendimento',      cls: 'atendimento' },
+  { id: 'concluido',    title: 'Concluídos',          cls: 'concluido' },
+];
+
+const COL_LABEL = { aberto: 'Em Aberto', atendimento: 'Em Atendimento', concluido: 'Concluído' };
+
+let board = { cards: [] };
+let editingId = null;
+let creatingCol = null;
+let dragId = null;
+
+function getUser() {
+  return localStorage.getItem(USER_KEY) || '';
+}
+
+function setUser(name) {
+  localStorage.setItem(USER_KEY, name.trim());
+  document.getElementById('userName').textContent = name.trim();
+}
+
+function showAlert(msg, type = 'error') {
+  const el = document.getElementById('alertBox');
+  el.textContent = msg;
+  el.className = 'alert ' + type;
+}
+
+function hideAlert() {
+  document.getElementById('alertBox').className = 'alert';
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    ...opts,
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data.ok === false) {
+    throw new Error(data.erro || data.msg || 'HTTP ' + res.status);
+  }
+  return data;
+}
+
+function fmtDate(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function fmtHist(entry) {
+  if (entry.action === 'created') {
+    return `<strong>Criado</strong> em <em>${COL_LABEL[entry.to] || entry.to}</em>`;
+  }
+  if (entry.action === 'moved') {
+    return `<strong>Movido</strong> de <em>${COL_LABEL[entry.from]}</em> → <em>${COL_LABEL[entry.to]}</em>`;
+  }
+  if (entry.action === 'updated') {
+    return `<strong>Atualizado</strong> (${(entry.fields || []).join(', ')})`;
+  }
+  return entry.action;
+}
+
+function renderBoard() {
+  const root = document.getElementById('board');
+  root.innerHTML = COLUMNS.map(col => {
+    const cards = board.cards.filter(c => c.columnId === col.id);
+    return `
+      <section class="column" data-col="${col.id}">
+        <div class="col-header ${col.cls}">
+          <span class="col-title">${col.title}</span>
+          <span class="col-count">${cards.length}</span>
+        </div>
+        <div class="col-body" data-drop="${col.id}">
+          ${cards.length ? cards.map(renderCard).join('') : '<div class="empty-col">Nenhum projeto</div>'}
+        </div>
+        <button class="btn-add" data-add="${col.id}">+ Novo projeto</button>
+      </section>`;
+  }).join('');
+
+  root.querySelectorAll('.card').forEach(el => {
+    el.addEventListener('dragstart', onDragStart);
+    el.addEventListener('dragend', onDragEnd);
+    el.addEventListener('click', onCardClick);
+  });
+
+  root.querySelectorAll('.col-body').forEach(el => {
+    el.addEventListener('dragover', onDragOver);
+    el.addEventListener('dragleave', onDragLeave);
+    el.addEventListener('drop', onDrop);
+  });
+
+  root.querySelectorAll('.btn-add').forEach(btn => {
+    btn.addEventListener('click', () => openCreate(btn.dataset.add));
+  });
+}
+
+function renderCard(card) {
+  return `
+    <article class="card" draggable="true" data-id="${card.id}">
+      <div class="card-title">${esc(card.title)}</div>
+      ${card.description ? `<div class="card-desc">${esc(card.description)}</div>` : ''}
+      <div class="card-meta">
+        ${card.assignee ? `<span class="card-assignee">👤 ${esc(card.assignee)}</span>` : '<span></span>'}
+        <span class="priority ${card.priority}">${card.priority}</span>
+      </div>
+      <div class="card-date">${fmtDate(card.updatedAt || card.createdAt)}</div>
+    </article>`;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function onDragStart(e) {
+  dragId = e.currentTarget.dataset.id;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+
+function onDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  dragId = null;
+  document.querySelectorAll('.col-body').forEach(el => el.classList.remove('drag-over'));
+}
+
+function onDragOver(e) {
+  e.preventDefault();
+  e.currentTarget.classList.add('drag-over');
+}
+
+function onDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+
+async function onDrop(e) {
+  e.preventDefault();
+  const col = e.currentTarget.dataset.drop;
+  e.currentTarget.classList.remove('drag-over');
+  if (!dragId || !col) return;
+
+  const card = board.cards.find(c => c.id === dragId);
+  if (!card || card.columnId === col) return;
+
+  const prevCol = card.columnId;
+  card.columnId = col;
+  renderBoard();
+
+  try {
+    const data = await api('/cards/' + dragId + '/move', {
+      method: 'PATCH',
+      body: JSON.stringify({ columnId: col, user: getUser() }),
+    });
+    board = data.board;
+    renderBoard();
+    hideAlert();
+  } catch (err) {
+    card.columnId = prevCol;
+    renderBoard();
+    showAlert('Erro ao mover: ' + err.message);
+  }
+}
+
+function onCardClick(e) {
+  if (e.currentTarget.classList.contains('dragging')) return;
+  openEdit(e.currentTarget.dataset.id);
+}
+
+function openCreate(colId) {
+  editingId = null;
+  creatingCol = colId;
+  document.getElementById('modalTitle').textContent = 'Novo projeto';
+  document.getElementById('fTitle').value = '';
+  document.getElementById('fDesc').value = '';
+  document.getElementById('fAssignee').value = '';
+  document.getElementById('fPriority').value = 'media';
+  document.getElementById('historySection').style.display = 'none';
+  document.getElementById('btnDelete').style.display = 'none';
+  document.getElementById('cardModal').classList.add('open');
+  document.getElementById('fTitle').focus();
+}
+
+function openEdit(id) {
+  const card = board.cards.find(c => c.id === id);
+  if (!card) return;
+  editingId = id;
+  creatingCol = null;
+  document.getElementById('modalTitle').textContent = 'Editar projeto';
+  document.getElementById('fTitle').value = card.title;
+  document.getElementById('fDesc').value = card.description || '';
+  document.getElementById('fAssignee').value = card.assignee || '';
+  document.getElementById('fPriority').value = card.priority || 'media';
+  document.getElementById('btnDelete').style.display = 'block';
+
+  const hist = document.getElementById('historyList');
+  const entries = (card.history || []);
+  if (entries.length) {
+    document.getElementById('historySection').style.display = 'block';
+    hist.innerHTML = entries.map(h => `
+      <li>
+        <span class="hist-user">${esc(h.user)}</span> — ${fmtHist(h)}
+        <div class="hist-at">${fmtDate(h.at)}</div>
+      </li>`).join('');
+  } else {
+    document.getElementById('historySection').style.display = 'none';
+  }
+
+  document.getElementById('cardModal').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('cardModal').classList.remove('open');
+  editingId = null;
+  creatingCol = null;
+}
+
+async function saveCard() {
+  const title = document.getElementById('fTitle').value.trim();
+  if (!title) { alert('Informe o título do projeto.'); return; }
+
+  const payload = {
+    title,
+    description: document.getElementById('fDesc').value.trim(),
+    assignee: document.getElementById('fAssignee').value.trim(),
+    priority: document.getElementById('fPriority').value,
+    user: getUser(),
+  };
+
+  try {
+    let data;
+    if (editingId) {
+      data = await api('/cards/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+    } else {
+      data = await api('/cards', {
+        method: 'POST',
+        body: JSON.stringify({ ...payload, columnId: creatingCol || 'aberto' }),
+      });
+    }
+    board = data.board;
+    renderBoard();
+    closeModal();
+    hideAlert();
+  } catch (err) {
+    showAlert('Erro ao salvar: ' + err.message);
+  }
+}
+
+async function deleteCard() {
+  if (!editingId || !confirm('Excluir este projeto?')) return;
+  try {
+    const data = await api('/cards/' + editingId + '?user=' + encodeURIComponent(getUser()), { method: 'DELETE' });
+    board = data.board;
+    renderBoard();
+    closeModal();
+    hideAlert();
+  } catch (err) {
+    showAlert('Erro ao excluir: ' + err.message);
+  }
+}
+
+async function loadBoard() {
+  try {
+    const data = await api('');
+    board = data.board;
+    renderBoard();
+    hideAlert();
+  } catch (err) {
+    showAlert(
+      'Não foi possível carregar os projetos. ' + err.message +
+      ' — Verifique se o worker foi atualizado com a API Kanban e o binding KV (KANBAN_KV).',
+      'error'
+    );
+    document.getElementById('board').innerHTML = '<div class="loading">Aguardando configuração do backend...</div>';
+  }
+}
+
+// Eventos
+document.getElementById('btnRefresh').addEventListener('click', loadBoard);
+document.getElementById('btnSave').addEventListener('click', saveCard);
+document.getElementById('btnDelete').addEventListener('click', deleteCard);
+document.getElementById('btnCancel').addEventListener('click', closeModal);
+document.getElementById('modalClose').addEventListener('click', closeModal);
+document.getElementById('cardModal').addEventListener('click', e => {
+  if (e.target.id === 'cardModal') closeModal();
+});
+
+document.getElementById('userBadge').addEventListener('click', () => {
+  const n = prompt('Seu nome (para histórico):', getUser());
+  if (n && n.trim()) setUser(n.trim());
+});
+
+document.getElementById('btnSetName').addEventListener('click', () => {
+  const n = document.getElementById('inputName').value.trim();
+  if (!n) { alert('Informe seu nome.'); return; }
+  setUser(n);
+  document.getElementById('nameModal').classList.remove('open');
+  loadBoard();
+});
+document.getElementById('inputName').addEventListener('keydown', e => {
+  if (e.key === 'Enter') document.getElementById('btnSetName').click();
+});
+
+// Init
+const saved = getUser();
+if (saved) {
+  document.getElementById('userName').textContent = saved;
+  document.getElementById('nameModal').classList.remove('open');
+  loadBoard();
+} else {
+  document.getElementById('inputName').focus();
+}
+
+// Auto-refresh a cada 30s (equipe vê mudanças dos outros)
+setInterval(() => {
+  if (document.getElementById('nameModal').classList.contains('open')) return;
+  if (document.getElementById('cardModal').classList.contains('open')) return;
+  loadBoard();
+}, 30000);
+</script>
+</body>
+</html>
